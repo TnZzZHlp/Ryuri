@@ -1,0 +1,1 @@
+//! Bangumi metadata service.

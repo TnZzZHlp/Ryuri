@@ -124,17 +124,18 @@
 
 ### Requirement 8: 元数据刮削
 
-**User Story:** As a user, I want to fetch metadata from Bangumi.tv for my comics, so that I can have rich information like author, description, ratings, and tags.
+**User Story:** As a user, I want to automatically fetch metadata from Bangumi.tv when new content is imported, so that I can have rich information like author, description, ratings, and tags without manual intervention.
 
 #### Acceptance Criteria
 
-1. WHEN a user triggers metadata scraping for a Comic THEN the Reader_System SHALL search Bangumi_API using the Comic title
-2. WHEN Bangumi_API returns search results THEN the Reader_System SHALL display matching entries for the user to select
-3. WHEN a user selects a Bangumi entry THEN the Reader_System SHALL fetch detailed Metadata including title, author, description, rating, and tags
-4. WHEN Metadata is fetched THEN the Reader_System SHALL store the Metadata in the database and associate it with the Comic
-5. WHEN a user views a Comic with Metadata THEN the Reader_System SHALL display the Metadata alongside the Comic information
-6. WHEN a user manually edits Metadata THEN the Reader_System SHALL update the stored Metadata in the database
-7. IF Bangumi_API is unavailable THEN the Reader_System SHALL display an error message and allow the user to retry later
+1. WHEN new Content is imported during a scan THEN the Reader_System SHALL automatically search Bangumi_API using the Content title and fetch Metadata from the first matching result
+2. WHEN automatic scraping succeeds THEN the Reader_System SHALL store the Metadata JSON blob directly in the database and associate it with the Content
+3. WHEN automatic scraping fails or returns no results THEN the Reader_System SHALL continue importing the Content without Metadata and log the failure
+4. WHEN a user manually triggers metadata scraping for Content THEN the Reader_System SHALL search Bangumi_API and display matching entries for the user to select
+5. WHEN a user selects a Bangumi entry THEN the Reader_System SHALL fetch detailed Metadata and update the Content record
+6. WHEN a user views Content with Metadata THEN the Reader_System SHALL display the Metadata alongside the Content information
+7. WHEN a user manually edits Metadata THEN the Reader_System SHALL update the stored Metadata in the database
+8. IF Bangumi_API is unavailable THEN the Reader_System SHALL continue the import process without Metadata and allow the user to retry scraping later
 
 ### Requirement 9: 用户管理
 
