@@ -30,14 +30,44 @@
     - **Property 17: Error Response Structure**
     - **Validates: Requirements 7.5**
 
-- [ ] 2. Implement database layer and models
-  - [ ] 2.1 Create SQLite database initialization and migration logic
+- [x] 2. Implement database layer and models
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  - [x] 2.1 Create SQLite database initialization and migration logic
+
+
+
+
+
     - _Requirements: 10.1_
-  - [ ] 2.2 Implement data models (Library, ScanPath, Content, Chapter, User, ReadingProgress)
+  - [x] 2.2 Implement data models (Library, ScanPath, Content, Chapter, User, ReadingProgress)
+
+
     - _Requirements: 1.1, 2.1, 9.1, 5.1_
-  - [ ] 2.3 Implement ContentType enum with serialization
+  - [x] 2.3 Implement ContentType enum with serialization
+
+
     - _Requirements: 2.1_
-  - [ ] 2.4 Write property test for JSON serialization round-trip
+  - [x] 2.4 Write property test for JSON serialization round-trip
+
+
     - **Property 18: JSON Serialization Round-Trip**
     - **Validates: Requirements 8.2, 8.3, 8.4**
 
