@@ -8,8 +8,9 @@ use std::net::SocketAddr;
 
 use backend::db::{DbConfig, init_db};
 use backend::error::AppError;
-use backend::router::{AppConfig, AppState, create_router_with_layers};
+use backend::router::create_router_with_layers;
 use backend::services::auth::AuthConfig;
+use backend::state::{AppConfig, AppState};
 use tracing::{debug, info};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 

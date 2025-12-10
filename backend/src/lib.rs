@@ -6,6 +6,7 @@ pub mod models;
 pub mod repository;
 pub mod router;
 pub mod services;
+pub mod state;
 
 /// OpenAPI documentation module (only available with `dev` feature).
 ///

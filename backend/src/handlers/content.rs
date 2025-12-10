@@ -19,51 +19,18 @@ use axum::{
     response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Sqlite};
 
 use crate::error::Result;
 use crate::models::{Chapter, ContentResponse};
 use crate::services::content::ContentService;
-use crate::services::scan::{ScanResult, ScanService};
-
-/// Application state for content handlers.
-#[derive(Clone)]
-pub struct ContentState {
-    pub pool: Pool<Sqlite>,
-}
-
-impl ContentState {
-    pub fn new(pool: Pool<Sqlite>) -> Self {
-        Self { pool }
-    }
-}
+use crate::services::scan::ScanResult;
+use crate::state::AppState;
 
 /// GET /api/libraries/{id}/contents
 ///
 /// Returns all contents in a library.
-///
-/// # Path Parameters
-/// - `id`: The library ID
-///
-/// # Response
-/// ```json
-/// [
-///     {
-///         "id": 1,
-///         "library_id": 1,
-///         "content_type": "Comic",
-///         "title": "My Manga",
-///         "chapter_count": 10,
-///         "has_thumbnail": true,
-///         "metadata": null,
-///         "created_at": "2024-01-01T00:00:00Z"
-///     }
-/// ]
-/// ```
-///
-/// Requirements: 1.5, 2.8
-pub async fn list_contents(
-    State(state): State<ContentState>,
+pub async fn list(
+    State(state): State<AppState>,
     Path(library_id): Path<i64>,
 ) -> Result<Json<Vec<ContentResponse>>> {
     let contents = ContentService::list_contents(&state.pool, library_id).await?;
@@ -106,28 +73,11 @@ impl From<ScanResult> for ScanResponse {
 /// POST /api/libraries/{id}/scan
 ///
 /// Triggers a scan of the library to discover new content.
-///
-/// # Path Parameters
-/// - `id`: The library ID
-///
-/// # Response
-/// ```json
-/// {
-///     "added_count": 5,
-///     "removed_count": 1,
-///     "failed_scrape_count": 0,
-///     "added": [...],
-///     "removed": [123]
-/// }
-/// ```
-///
-/// Requirements: 2.1
-pub async fn scan_library(
-    State(state): State<ContentState>,
+pub async fn scan(
+    State(state): State<AppState>,
     Path(library_id): Path<i64>,
 ) -> Result<Json<ScanResponse>> {
-    let scan_service = ScanService::new(state.pool.clone());
-    let result = scan_service.scan_library(library_id).await?;
+    let result = state.scan_service.scan_library(library_id).await?;
     Ok(Json(ScanResponse::from(result)))
 }
 
@@ -142,19 +92,8 @@ pub struct SearchQuery {
 /// GET /api/libraries/{id}/search
 ///
 /// Searches contents by title within a library.
-///
-/// # Path Parameters
-/// - `id`: The library ID
-///
-/// # Query Parameters
-/// - `q`: The search query string
-///
-/// # Response
-/// Returns contents whose titles contain the search keyword (case-insensitive).
-///
-/// Requirements: 2.10
-pub async fn search_contents(
-    State(state): State<ContentState>,
+pub async fn search(
+    State(state): State<AppState>,
     Path(library_id): Path<i64>,
     Query(query): Query<SearchQuery>,
 ) -> Result<Json<Vec<ContentResponse>>> {
@@ -166,16 +105,8 @@ pub async fn search_contents(
 /// GET /api/contents/{id}
 ///
 /// Returns a content by its ID.
-///
-/// # Path Parameters
-/// - `id`: The content ID
-///
-/// # Response
-/// Returns the content, or 404 if not found.
-///
-/// Requirements: 2.8
-pub async fn get_content(
-    State(state): State<ContentState>,
+pub async fn get(
+    State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<ContentResponse>> {
     let content = ContentService::get_content(&state.pool, id).await?;
@@ -185,18 +116,7 @@ pub async fn get_content(
 /// DELETE /api/contents/{id}
 ///
 /// Deletes a content and all associated chapters.
-///
-/// # Path Parameters
-/// - `id`: The content ID
-///
-/// # Response
-/// Returns 200 OK with empty body on success.
-///
-/// Requirements: 2.9
-pub async fn delete_content(
-    State(state): State<ContentState>,
-    Path(id): Path<i64>,
-) -> Result<Json<()>> {
+pub async fn delete(State(state): State<AppState>, Path(id): Path<i64>) -> Result<Json<()>> {
     ContentService::delete_content(&state.pool, id).await?;
     Ok(Json(()))
 }
@@ -204,26 +124,8 @@ pub async fn delete_content(
 /// GET /api/contents/{id}/chapters
 ///
 /// Returns all chapters for a content.
-///
-/// # Path Parameters
-/// - `id`: The content ID
-///
-/// # Response
-/// ```json
-/// [
-///     {
-///         "id": 1,
-///         "content_id": 1,
-///         "title": "Chapter 1",
-///         "file_path": "/path/to/chapter1.cbz",
-///         "sort_order": 0
-///     }
-/// ]
-/// ```
-///
-/// Requirements: 3.1, 4.1
 pub async fn list_chapters(
-    State(state): State<ContentState>,
+    State(state): State<AppState>,
     Path(content_id): Path<i64>,
 ) -> Result<Json<Vec<Chapter>>> {
     let chapters = ContentService::list_chapters(&state.pool, content_id).await?;
@@ -245,18 +147,8 @@ pub struct PageParams {
 /// GET /api/contents/{id}/chapters/{chapter}/pages/{page}
 ///
 /// Returns a page image from a comic chapter.
-///
-/// # Path Parameters
-/// - `id`: The content ID
-/// - `chapter`: The chapter index (0-based)
-/// - `page`: The page index (0-based)
-///
-/// # Response
-/// Returns the image data with appropriate content-type header.
-///
-/// Requirements: 3.2, 7.2
 pub async fn get_page(
-    State(state): State<ContentState>,
+    State(state): State<AppState>,
     Path(params): Path<PageParams>,
 ) -> Result<impl IntoResponse> {
     let image_data =
@@ -309,25 +201,11 @@ pub struct ChapterTextResponse {
 /// GET /api/contents/{id}/chapters/{chapter}/text
 ///
 /// Returns the text content of a novel chapter.
-///
-/// # Path Parameters
-/// - `id`: The content ID
-/// - `chapter`: The chapter index (0-based)
-///
-/// # Response
-/// ```json
-/// {
-///     "text": "Chapter content here..."
-/// }
-/// ```
-///
-/// Requirements: 4.2, 7.3
 pub async fn get_chapter_text(
-    State(state): State<ContentState>,
+    State(state): State<AppState>,
     Path(params): Path<ChapterTextParams>,
 ) -> Result<Json<ChapterTextResponse>> {
     let text = ContentService::get_chapter_text(&state.pool, params.id, params.chapter).await?;
-
     Ok(Json(ChapterTextResponse { text }))
 }
 
@@ -343,28 +221,8 @@ pub struct UpdateMetadataRequest {
 /// PUT /api/contents/{id}/metadata
 ///
 /// Updates the metadata for a content item.
-///
-/// # Path Parameters
-/// - `id`: The content ID
-///
-/// # Request Body
-/// ```json
-/// {
-///     "metadata": {
-///         "name": "Title",
-///         "name_cn": "中文标题",
-///         "summary": "Description...",
-///         "rating": { "score": 8.5 }
-///     }
-/// }
-/// ```
-///
-/// # Response
-/// Returns the updated content.
-///
-/// Requirements: 8.5, 8.7
 pub async fn update_metadata(
-    State(state): State<ContentState>,
+    State(state): State<AppState>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateMetadataRequest>,
 ) -> Result<Json<ContentResponse>> {

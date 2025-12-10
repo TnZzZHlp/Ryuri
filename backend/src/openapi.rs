@@ -7,8 +7,10 @@
 
 use utoipa::OpenApi;
 
+use crate::handlers::bangumi::BangumiSearchQuery;
 use crate::handlers::content::{
-    ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
+    ChapterTextParams, ChapterTextResponse, PageParams, ScanResponse, SearchQuery,
+    UpdateMetadataRequest,
 };
 use crate::handlers::library::{AddScanPathRequest, ScanPathParams};
 use crate::handlers::progress::UpdateProgressWithPercentageRequest;
@@ -18,7 +20,6 @@ use crate::models::{
     UpdateLibraryRequest, UpdatePasswordRequest, UpdateProgressRequest, UpdateUserRequest,
     UserResponse,
 };
-use crate::router::{BangumiSearchQuery, ScanResponse};
 use crate::services::bangumi::BangumiSearchResult;
 
 /// OpenAPI documentation for the Comic Reader API.
@@ -118,8 +119,10 @@ pub struct ApiDoc;
 pub mod paths {
     #![allow(unused_imports)]
 
+    use crate::handlers::bangumi::BangumiSearchQuery;
     use crate::handlers::content::{
-        ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
+        ChapterTextParams, ChapterTextResponse, PageParams, ScanResponse, SearchQuery,
+        UpdateMetadataRequest,
     };
     use crate::handlers::library::AddScanPathRequest;
     use crate::handlers::progress::UpdateProgressWithPercentageRequest;
@@ -128,7 +131,6 @@ pub mod paths {
         LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath,
         UpdateLibraryRequest, UpdatePasswordRequest, UpdateUserRequest, UserResponse,
     };
-    use crate::router::{BangumiSearchQuery, ScanResponse};
     use crate::services::bangumi::BangumiSearchResult;
 
     // ========================================================================
