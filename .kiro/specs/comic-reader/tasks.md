@@ -521,22 +521,37 @@
   - [x] 23.3 Add CORS and middleware configuration
     - _Requirements: 7.1_
   - [x] 23.4 Implement main.rs with server startup
+    - _Requirements: 10.1_
+
+- [x] 24. Integrate tracing for structured logging
+
+
+
+
+
+  - [x] 24.1 Add tracing and tracing-subscriber dependencies to Cargo.toml
+
+
+    - _Requirements: 7.1_
+  - [x] 24.2 Initialize tracing subscriber in main.rs with env-filter support
 
 
     - _Requirements: 10.1_
+  - [x] 24.3 Replace println! statements with tracing macros (info!, debug!, warn!, error!)
 
-- [ ] 24. Checkpoint - Ensure all tests pass
+
+    - _Requirements: 7.1_
+  - [x] 24.4 Add #[instrument] attributes to key service functions for request tracing
 
 
+    - _Requirements: 7.1_
+
+- [ ] 25. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 9: Frontend Foundation
 
-
-
-
-
-- [ ] 25. Set up frontend project structure and dependencies
+- [ ] 26. Set up frontend project structure and dependencies
   - [ ] 25.1 Install required dependencies (vue-router, pinia, axios, fast-check)
     - _Requirements: 7.1_
   - [ ] 25.2 Create directory structure (views, components, stores, api)
@@ -546,7 +561,7 @@
   - [ ] 25.4 Configure Pinia store
     - _Requirements: 7.1_
 
-- [ ] 26. Implement API client layer
+- [ ] 27. Implement API client layer
   - [ ] 26.1 Create base API client with axios and error handling
     - _Requirements: 7.1, 7.5_
   - [ ] 26.2 Implement auth API module
@@ -558,13 +573,13 @@
   - [ ] 26.5 Implement reader API module (progress, pages, text)
     - _Requirements: 5.1, 7.2, 7.3_
 
-- [ ] 27. Implement TypeScript interfaces
+- [ ] 28. Implement TypeScript interfaces
   - [ ] 27.1 Define all TypeScript interfaces matching backend models
     - _Requirements: 7.1_
 
 ## Phase 10: Frontend Authentication
 
-- [ ] 28. Implement auth store and views
+- [ ] 29. Implement auth store and views
   - [ ] 28.1 Implement auth Pinia store (login, logout, token management)
     - _Requirements: 9.2, 9.4_
   - [ ] 28.2 Implement LoginView.vue
@@ -576,7 +591,7 @@
 
 ## Phase 11: Frontend Library Management
 
-- [ ] 29. Implement library components and views
+- [ ] 30. Implement library components and views
   - [ ] 29.1 Implement library Pinia store
     - _Requirements: 1.1, 1.4_
   - [ ] 29.2 Implement LibraryList.vue component
@@ -590,7 +605,7 @@
 
 ## Phase 12: Frontend Content Management
 
-- [ ] 30. Implement content components and views
+- [ ] 31. Implement content components and views
   - [ ] 30.1 Implement content Pinia store
     - _Requirements: 2.8_
   - [ ] 30.2 Implement ContentGrid.vue component
@@ -606,7 +621,7 @@
 
 ## Phase 13: Frontend Comic Reader
 
-- [ ] 31. Implement comic reader components and views
+- [ ] 32. Implement comic reader components and views
   - [ ] 31.1 Implement reader Pinia store
     - _Requirements: 3.2, 5.2_
   - [ ] 31.2 Implement ChapterList.vue component
@@ -622,7 +637,7 @@
 
 ## Phase 14: Frontend Novel Reader
 
-- [ ] 32. Implement novel reader components and views
+- [ ] 33. Implement novel reader components and views
   - [ ] 32.1 Implement NovelReader.vue component
     - _Requirements: 4.2, 4.3_
   - [ ] 32.2 Implement novel-specific ReaderSettings (font size, theme)
@@ -634,7 +649,7 @@
 
 ## Phase 15: Frontend Settings and Progress
 
-- [ ] 33. Implement settings and progress management
+- [ ] 34. Implement settings and progress management
   - [ ] 33.1 Implement settings Pinia store (reader preferences)
     - _Requirements: 6.1, 6.5_
   - [ ] 33.2 Implement ProgressBar.vue component
@@ -646,7 +661,7 @@
 
 ## Phase 16: Frontend Metadata Display
 
-- [ ] 34. Implement metadata display
+- [ ] 35. Implement metadata display
   - [ ] 34.1 Implement metadata display in ContentCard
     - _Requirements: 8.6_
   - [ ] 34.2 Implement manual metadata scraping UI
@@ -656,7 +671,7 @@
 
 ## Phase 17: Final Integration
 
-- [ ] 35. Final integration and polish
+- [ ] 36. Final integration and polish
   - [ ] 35.1 Wire up all frontend components with backend API
     - _Requirements: 7.1_
   - [ ] 35.2 Implement global error handling and notifications
@@ -664,5 +679,5 @@
   - [ ] 35.3 Add loading states and UI feedback
     - _Requirements: 3.3, 4.3_
 
-- [ ] 36. Final Checkpoint - Ensure all tests pass
+- [ ] 37. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.

@@ -33,7 +33,7 @@ pub async fn init_db(config: &DbConfig) -> Result<Pool<Sqlite>> {
         .max_connections(config.max_connections)
         .connect(&config.database_url)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
     // Run migrations to create tables
     run_migrations(&pool).await?;
@@ -47,7 +47,7 @@ async fn run_migrations(pool: &Pool<Sqlite>) -> Result<()> {
     sqlx::query(SCHEMA_SQL)
         .execute(pool)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
     Ok(())
 }

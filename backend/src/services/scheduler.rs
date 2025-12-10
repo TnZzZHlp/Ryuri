@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+use tracing::{debug, error, instrument};
 
 use crate::error::Result;
 use crate::services::scan::ScanService;
@@ -59,6 +60,7 @@ impl SchedulerService {
     /// If interval_minutes is 0 or negative, any existing schedule is cancelled.
     ///
     /// Requirements: 1.8
+    #[instrument(skip(self), fields(library_id = library_id, interval_minutes = interval_minutes))]
     pub async fn schedule_scan(&self, library_id: i64, interval_minutes: i32) -> Result<()> {
         // Cancel any existing schedule first
         self.cancel_scan(library_id).await?;
@@ -98,7 +100,9 @@ impl SchedulerService {
 
                         // Perform the scan
                         if let Err(e) = scan_service.scan_library(lib_id).await {
-                            eprintln!("Scheduled scan failed for library {}: {}", lib_id, e);
+                            error!(library_id = lib_id, error = %e, "Scheduled scan failed");
+                        } else {
+                            debug!(library_id = lib_id, "Scheduled scan completed");
                         }
                     }
                     _ = &mut cancel_rx => {
@@ -133,6 +137,7 @@ impl SchedulerService {
     /// Cancel scheduled scanning for a library.
     ///
     /// Requirements: 1.8
+    #[instrument(skip(self), fields(library_id = library_id))]
     pub async fn cancel_scan(&self, library_id: i64) -> Result<()> {
         let mut tasks = self.tasks.write().await;
         if let Some(handle) = tasks.remove(&library_id) {

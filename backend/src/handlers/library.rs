@@ -16,6 +16,7 @@ use axum::{
 };
 use serde::Deserialize;
 use std::sync::Arc;
+use tracing::warn;
 
 use crate::error::Result;
 use crate::models::{
@@ -115,7 +116,7 @@ pub async fn create_library(
     if scan_interval > 0 {
         if let Some(ref scheduler) = state.scheduler_service {
             if let Err(e) = scheduler.schedule_scan(library.id, scan_interval).await {
-                eprintln!("Failed to schedule scan for library {}: {}", library.id, e);
+                warn!(library_id = library.id, error = %e, "Failed to schedule scan for library");
             }
         }
     }
@@ -124,7 +125,7 @@ pub async fn create_library(
     if watch_mode {
         if let Some(ref watch) = state.watch_service {
             if let Err(e) = watch.start_watching(library.id).await {
-                eprintln!("Failed to start watching library {}: {}", library.id, e);
+                warn!(library_id = library.id, error = %e, "Failed to start watching library");
             }
         }
     }
@@ -192,12 +193,10 @@ pub async fn update_library(
         if let Some(ref scheduler) = state.scheduler_service {
             if interval > 0 {
                 if let Err(e) = scheduler.schedule_scan(id, interval).await {
-                    eprintln!("Failed to update scan schedule for library {}: {}", id, e);
+                    warn!(library_id = id, error = %e, "Failed to update scan schedule for library");
                 }
-            } else {
-                if let Err(e) = scheduler.cancel_scan(id).await {
-                    eprintln!("Failed to cancel scan schedule for library {}: {}", id, e);
-                }
+            } else if let Err(e) = scheduler.cancel_scan(id).await {
+                warn!(library_id = id, error = %e, "Failed to cancel scan schedule for library");
             }
         }
     }
@@ -207,12 +206,10 @@ pub async fn update_library(
         if let Some(ref watch) = state.watch_service {
             if watch_mode {
                 if let Err(e) = watch.start_watching(id).await {
-                    eprintln!("Failed to start watching library {}: {}", id, e);
+                    warn!(library_id = id, error = %e, "Failed to start watching library");
                 }
-            } else {
-                if let Err(e) = watch.stop_watching(id).await {
-                    eprintln!("Failed to stop watching library {}: {}", id, e);
-                }
+            } else if let Err(e) = watch.stop_watching(id).await {
+                warn!(library_id = id, error = %e, "Failed to stop watching library");
             }
         }
     }
@@ -238,14 +235,14 @@ pub async fn delete_library(
     // Stop scheduler before deleting (Requirement 1.8)
     if let Some(ref scheduler) = state.scheduler_service {
         if let Err(e) = scheduler.cancel_scan(id).await {
-            eprintln!("Failed to cancel scan schedule for library {}: {}", id, e);
+            warn!(library_id = id, error = %e, "Failed to cancel scan schedule for library");
         }
     }
 
     // Stop watch service before deleting (Requirement 1.9)
     if let Some(ref watch) = state.watch_service {
         if let Err(e) = watch.stop_watching(id).await {
-            eprintln!("Failed to stop watching library {}: {}", id, e);
+            warn!(library_id = id, error = %e, "Failed to stop watching library");
         }
     }
 
@@ -319,10 +316,7 @@ pub async fn add_scan_path(
     // Refresh watch service to include new path (Requirement 1.9)
     if let Some(ref watch) = state.watch_service {
         if let Err(e) = watch.refresh_watching(library_id).await {
-            eprintln!(
-                "Failed to refresh watching for library {}: {}",
-                library_id, e
-            );
+            warn!(library_id = library_id, error = %e, "Failed to refresh watching for library");
         }
     }
 
@@ -363,10 +357,7 @@ pub async fn remove_scan_path(
     // Refresh watch service to remove the path (Requirement 1.9)
     if let Some(ref watch) = state.watch_service {
         if let Err(e) = watch.refresh_watching(params.id).await {
-            eprintln!(
-                "Failed to refresh watching for library {}: {}",
-                params.id, e
-            );
+            warn!(library_id = params.id, error = %e, "Failed to refresh watching for library");
         }
     }
 

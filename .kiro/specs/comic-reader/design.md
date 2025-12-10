@@ -707,6 +707,45 @@ Based on the prework analysis, the following properties have been identified. Re
 
 **Validates: Requirements 9.7**
 
+## Logging
+
+### Backend Logging (tracing)
+
+后端使用 `tracing` 生态系统进行结构化日志记录：
+
+```rust
+// 依赖配置
+// tracing = "0.1"
+// tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+// 日志初始化
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+fn init_tracing() {
+    tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+}
+
+// 使用示例
+use tracing::{info, warn, error, debug, instrument};
+
+#[instrument(skip(pool))]
+async fn scan_library(pool: &SqlitePool, library_id: i64) -> Result<ScanResult> {
+    info!(library_id, "Starting library scan");
+    // ...
+    debug!(content_count = contents.len(), "Scan completed");
+    Ok(result)
+}
+```
+
+日志级别通过 `RUST_LOG` 环境变量控制：
+- `RUST_LOG=debug` - 详细调试信息
+- `RUST_LOG=info` - 常规运行信息（默认）
+- `RUST_LOG=warn` - 警告和错误
+- `RUST_LOG=backend=debug,sqlx=warn` - 模块级别控制
+
 ## Error Handling
 
 ### Backend Error Handling

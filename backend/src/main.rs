@@ -10,6 +10,8 @@ use backend::db::{DbConfig, init_db};
 use backend::error::AppError;
 use backend::router::{AppConfig, AppState, create_router_with_cors};
 use backend::services::auth::AuthConfig;
+use tracing::{debug, info};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Server configuration loaded from environment variables.
 struct ServerConfig {
@@ -58,22 +60,37 @@ impl ServerConfig {
     }
 }
 
+/// Initialize the tracing subscriber with env-filter support.
+///
+/// Log levels can be controlled via the RUST_LOG environment variable:
+/// - RUST_LOG=debug - Detailed debug information
+/// - RUST_LOG=info - Normal operation information (default)
+/// - RUST_LOG=warn - Warnings and errors only
+/// - RUST_LOG=backend=debug,sqlx=warn - Module-level control
+fn init_tracing() {
+    tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+}
+
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
+    // Initialize tracing first
+    init_tracing();
+
     let config = ServerConfig::from_env();
 
-    println!("Comic Reader Backend starting...");
-    println!("  Host: {}", config.host);
-    println!("  Port: {}", config.port);
-    println!("  Database: {}", config.db.database_url);
+    info!("Comic Reader Backend starting...");
+    debug!(host = %config.host, port = %config.port, database = %config.db.database_url, "Server configuration loaded");
 
-    println!("Initializing database...");
+    info!("Initializing database...");
     let pool = init_db(&config.db).await?;
-    println!("Database initialized successfully.");
+    info!("Database initialized successfully");
 
-    println!("Creating application services...");
+    info!("Creating application services...");
     let state = AppState::new(pool, config.app);
-    println!("Services created successfully.");
+    info!("Services created successfully");
 
     let app = create_router_with_cors(state);
 
@@ -81,12 +98,12 @@ async fn main() -> Result<(), AppError> {
         .parse()
         .map_err(|e| AppError::Internal(format!("Invalid address: {}", e)))?;
 
-    println!("Starting server on http://{}...", addr);
+    info!(%addr, "Starting server");
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| AppError::Internal(format!("Failed to bind: {}", e)))?;
 
-    println!("Server is running. Press Ctrl+C to stop.");
+    info!("Server is running. Press Ctrl+C to stop.");
     axum::serve(listener, app)
         .await
         .map_err(|e| AppError::Internal(format!("Server error: {}", e)))?;

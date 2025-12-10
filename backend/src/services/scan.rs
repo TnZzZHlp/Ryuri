@@ -7,6 +7,7 @@ use sqlx::{Pool, Sqlite};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tracing::{debug, error, instrument, warn};
 
 use crate::error::{AppError, Result};
 use crate::extractors::{ComicArchiveExtractor, NovelArchiveExtractor, natural_sort_key};
@@ -57,6 +58,7 @@ impl ScanService {
     /// Scan all paths in a library and import/update content.
     ///
     /// Requirements: 2.1
+    #[instrument(skip(self), fields(library_id = library_id))]
     pub async fn scan_library(&self, library_id: i64) -> Result<ScanResult> {
         let scan_paths = ScanPathRepository::list_by_library(&self.pool, library_id).await?;
 
@@ -73,6 +75,7 @@ impl ScanService {
     }
 
     /// Scan a single scan path and import/update content.
+    #[instrument(skip(self), fields(scan_path_id = scan_path.id, path = %scan_path.path))]
     pub async fn scan_path(&self, scan_path: &ScanPath) -> Result<ScanResult> {
         let mut result = ScanResult::default();
         let base_path = Path::new(&scan_path.path);
@@ -132,7 +135,7 @@ impl ScanService {
                     }
                     Err(e) => {
                         // Log error but continue scanning
-                        eprintln!("Failed to import content from {:?}: {}", folder_path, e);
+                        error!(folder_path = ?folder_path, error = %e, "Failed to import content");
                     }
                 }
             }
@@ -274,13 +277,13 @@ impl ScanService {
             Ok(None) => {
                 // No results found (Requirement 8.3)
                 let error_msg = format!("No Bangumi results found for '{}'", title);
-                eprintln!("{}", error_msg);
+                debug!(title = %title, "No Bangumi results found");
                 (None, Some(error_msg))
             }
             Err(e) => {
                 // Scraping failed (Requirement 8.3)
                 let error_msg = format!("Failed to scrape metadata for '{}': {}", title, e);
-                eprintln!("{}", error_msg);
+                warn!(title = %title, error = %e, "Failed to scrape metadata");
                 (None, Some(error_msg))
             }
         }

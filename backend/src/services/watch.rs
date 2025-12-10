@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
+use tracing::{debug, error, instrument, warn};
 
 use crate::error::Result;
 use crate::repository::library::ScanPathRepository;
@@ -49,6 +50,7 @@ impl WatchService {
     /// Start watching a library's scan paths for file system changes.
     ///
     /// Requirements: 1.9
+    #[instrument(skip(self), fields(library_id = library_id))]
     pub async fn start_watching(&self, library_id: i64) -> Result<()> {
         // Check if already watching
         {
@@ -93,8 +95,9 @@ impl WatchService {
             let path = PathBuf::from(&scan_path.path);
             if path.exists() {
                 if let Err(e) = watcher.watch(&path, RecursiveMode::NonRecursive) {
-                    eprintln!("Failed to watch path {:?}: {}", path, e);
+                    warn!(path = ?path, error = %e, "Failed to watch path");
                 } else {
+                    debug!(path = ?path, "Started watching path");
                     watched_paths.push(path);
                 }
             }
@@ -126,7 +129,9 @@ impl WatchService {
                 // Trigger a rescan of the library
                 // Requirements: 1.10, 1.11
                 if let Err(e) = scan_service.scan_library(lib_id).await {
-                    eprintln!("Watch service: failed to rescan library {}: {}", lib_id, e);
+                    error!(library_id = lib_id, error = %e, "Watch service: failed to rescan library");
+                } else {
+                    debug!(library_id = lib_id, "Watch service: rescan completed");
                 }
             }
         });
@@ -137,6 +142,7 @@ impl WatchService {
     /// Stop watching a library's scan paths.
     ///
     /// Requirements: 1.9
+    #[instrument(skip(self), fields(library_id = library_id))]
     pub async fn stop_watching(&self, library_id: i64) -> Result<()> {
         let mut watchers = self.watchers.write().await;
         watchers.remove(&library_id);

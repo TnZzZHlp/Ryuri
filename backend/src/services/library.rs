@@ -3,6 +3,7 @@
 //! This module provides business logic for library and scan path management.
 
 use sqlx::{Pool, Sqlite};
+use tracing::instrument;
 
 use crate::error::{AppError, Result};
 use crate::models::{
@@ -25,6 +26,7 @@ impl LibraryService {
     /// Create a new library.
     ///
     /// Requirements: 1.1
+    #[instrument(skip(self), fields(name = %req.name))]
     pub async fn create(&self, req: CreateLibraryRequest) -> Result<Library> {
         // Validate input
         if req.name.trim().is_empty() {
@@ -88,6 +90,7 @@ impl LibraryService {
     ///
     /// This will cascade delete all associated scan paths and contents.
     /// Requirements: 1.6
+    #[instrument(skip(self), fields(library_id = id))]
     pub async fn delete(&self, id: i64) -> Result<()> {
         LibraryRepository::delete(&self.pool, id).await
     }
@@ -95,6 +98,7 @@ impl LibraryService {
     /// Add a scan path to a library.
     ///
     /// Requirements: 1.2
+    #[instrument(skip(self), fields(library_id = library_id, path = %path))]
     pub async fn add_scan_path(&self, library_id: i64, path: String) -> Result<ScanPath> {
         // Verify library exists
         self.get_or_error(library_id).await?;
@@ -118,6 +122,7 @@ impl LibraryService {
     ///
     /// This will cascade delete all contents imported from this path.
     /// Requirements: 1.3
+    #[instrument(skip(self), fields(library_id = library_id, path_id = path_id))]
     pub async fn remove_scan_path(&self, library_id: i64, path_id: i64) -> Result<()> {
         ScanPathRepository::delete_by_library_and_id(&self.pool, library_id, path_id).await
     }

@@ -10,6 +10,7 @@ use argon2::{
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use sqlx::{Pool, Sqlite};
+use tracing::instrument;
 
 use crate::error::{AppError, Result};
 use crate::models::{JwtClaims, NewUser, UpdateUserRequest, User};
@@ -126,6 +127,7 @@ impl AuthService {
     /// Register a new user.
     ///
     /// Returns the created user on success.
+    #[instrument(skip(self, password), fields(username = %username))]
     pub async fn register(&self, username: String, password: String) -> Result<User> {
         // Validate input
         if username.trim().is_empty() {
@@ -153,6 +155,7 @@ impl AuthService {
     /// Login a user with username and password.
     ///
     /// Returns the user and a JWT token on success.
+    #[instrument(skip(self, password), fields(username = %username))]
     pub async fn login(&self, username: String, password: String) -> Result<(User, String)> {
         // Find the user
         let user = UserRepository::find_by_username(&self.pool, &username)
