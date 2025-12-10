@@ -7,8 +7,10 @@
 //! deserializing should produce an equivalent data structure.
 
 use backend::models::{
-    Chapter, Content, ContentResponse, ContentType, JwtClaims, Library, LibraryWithStats,
-    ProgressResponse, ReadingProgress, ScanPath, User, UserResponse,
+    Chapter, Content, ContentProgressResponse, ContentResponse, ContentType, CreateLibraryRequest,
+    JwtClaims, Library, LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse,
+    ReadingProgress, ScanPath, UpdateLibraryRequest, UpdatePasswordRequest, UpdateProgressRequest,
+    UpdateUserRequest, User, UserResponse,
 };
 use chrono::{DateTime, TimeZone, Utc};
 use proptest::prelude::*;
@@ -374,5 +376,207 @@ proptest! {
         let json = serde_json::to_string(&stats).expect("Should serialize LibraryWithStats to JSON");
         let deserialized: LibraryWithStats = serde_json::from_str(&json).expect("Should deserialize LibraryWithStats from JSON");
         prop_assert_eq!(stats, deserialized, "LibraryWithStats round-trip should preserve data");
+    }
+}
+
+// ============================================================================
+// Property Tests for OpenAPI DTO Serialization Round-Trip
+// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+// **Validates: Requirements 5.4**
+// ============================================================================
+
+/// Strategy to generate arbitrary LoginRequest instances.
+fn arb_login_request() -> impl Strategy<Value = LoginRequest> {
+    (arb_name(), arb_name()).prop_map(|(username, password)| LoginRequest { username, password })
+}
+
+/// Strategy to generate arbitrary UpdateUserRequest instances.
+fn arb_update_user_request() -> impl Strategy<Value = UpdateUserRequest> {
+    prop::option::of(arb_name()).prop_map(|bangumi_api_key| UpdateUserRequest { bangumi_api_key })
+}
+
+/// Strategy to generate arbitrary UpdatePasswordRequest instances.
+fn arb_update_password_request() -> impl Strategy<Value = UpdatePasswordRequest> {
+    (arb_name(), arb_name()).prop_map(|(old_password, new_password)| UpdatePasswordRequest {
+        old_password,
+        new_password,
+    })
+}
+
+/// Strategy to generate arbitrary CreateLibraryRequest instances.
+fn arb_create_library_request() -> impl Strategy<Value = CreateLibraryRequest> {
+    (
+        arb_name(),
+        prop::option::of(0i32..1440),
+        prop::option::of(any::<bool>()),
+    )
+        .prop_map(|(name, scan_interval, watch_mode)| CreateLibraryRequest {
+            name,
+            scan_interval,
+            watch_mode,
+        })
+}
+
+/// Strategy to generate arbitrary UpdateLibraryRequest instances.
+fn arb_update_library_request() -> impl Strategy<Value = UpdateLibraryRequest> {
+    (
+        prop::option::of(arb_name()),
+        prop::option::of(0i32..1440),
+        prop::option::of(any::<bool>()),
+    )
+        .prop_map(|(name, scan_interval, watch_mode)| UpdateLibraryRequest {
+            name,
+            scan_interval,
+            watch_mode,
+        })
+}
+
+/// Strategy to generate arbitrary UpdateProgressRequest instances.
+fn arb_update_progress_request() -> impl Strategy<Value = UpdateProgressRequest> {
+    (0i32..10000).prop_map(|position| UpdateProgressRequest { position })
+}
+
+/// Strategy to generate arbitrary ContentProgressResponse instances.
+fn arb_content_progress_response() -> impl Strategy<Value = ContentProgressResponse> {
+    (
+        1i64..10000,
+        0i32..1000,
+        0i32..1000,
+        prop::option::of(1i64..10000),
+        0.0f32..100.0,
+    )
+        .prop_map(
+            |(
+                content_id,
+                total_chapters,
+                completed_chapters,
+                current_chapter_id,
+                overall_percentage,
+            )| {
+                ContentProgressResponse {
+                    content_id,
+                    total_chapters,
+                    completed_chapters,
+                    current_chapter_id,
+                    overall_percentage,
+                }
+            },
+        )
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Validates: Requirements 5.4**
+    ///
+    /// For any valid LoginRequest, serializing to JSON and deserializing should
+    /// produce an equivalent LoginRequest.
+    #[test]
+    fn login_request_json_round_trip(request in arb_login_request()) {
+        let json = serde_json::to_string(&request).expect("Should serialize LoginRequest to JSON");
+        let deserialized: LoginRequest = serde_json::from_str(&json).expect("Should deserialize LoginRequest from JSON");
+        prop_assert_eq!(request.username, deserialized.username);
+        prop_assert_eq!(request.password, deserialized.password);
+    }
+
+    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Validates: Requirements 5.4**
+    ///
+    /// For any valid UpdateUserRequest, serializing to JSON and deserializing should
+    /// produce an equivalent UpdateUserRequest.
+    #[test]
+    fn update_user_request_json_round_trip(request in arb_update_user_request()) {
+        let json = serde_json::to_string(&request).expect("Should serialize UpdateUserRequest to JSON");
+        let deserialized: UpdateUserRequest = serde_json::from_str(&json).expect("Should deserialize UpdateUserRequest from JSON");
+        prop_assert_eq!(request.bangumi_api_key, deserialized.bangumi_api_key);
+    }
+
+    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Validates: Requirements 5.4**
+    ///
+    /// For any valid UpdatePasswordRequest, serializing to JSON and deserializing should
+    /// produce an equivalent UpdatePasswordRequest.
+    #[test]
+    fn update_password_request_json_round_trip(request in arb_update_password_request()) {
+        let json = serde_json::to_string(&request).expect("Should serialize UpdatePasswordRequest to JSON");
+        let deserialized: UpdatePasswordRequest = serde_json::from_str(&json).expect("Should deserialize UpdatePasswordRequest from JSON");
+        prop_assert_eq!(request.old_password, deserialized.old_password);
+        prop_assert_eq!(request.new_password, deserialized.new_password);
+    }
+
+    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Validates: Requirements 5.4**
+    ///
+    /// For any valid CreateLibraryRequest, serializing to JSON and deserializing should
+    /// produce an equivalent CreateLibraryRequest.
+    #[test]
+    fn create_library_request_json_round_trip(request in arb_create_library_request()) {
+        let json = serde_json::to_string(&request).expect("Should serialize CreateLibraryRequest to JSON");
+        let deserialized: CreateLibraryRequest = serde_json::from_str(&json).expect("Should deserialize CreateLibraryRequest from JSON");
+        prop_assert_eq!(request.name, deserialized.name);
+        prop_assert_eq!(request.scan_interval, deserialized.scan_interval);
+        prop_assert_eq!(request.watch_mode, deserialized.watch_mode);
+    }
+
+    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Validates: Requirements 5.4**
+    ///
+    /// For any valid UpdateLibraryRequest, serializing to JSON and deserializing should
+    /// produce an equivalent UpdateLibraryRequest.
+    #[test]
+    fn update_library_request_json_round_trip(request in arb_update_library_request()) {
+        let json = serde_json::to_string(&request).expect("Should serialize UpdateLibraryRequest to JSON");
+        let deserialized: UpdateLibraryRequest = serde_json::from_str(&json).expect("Should deserialize UpdateLibraryRequest from JSON");
+        prop_assert_eq!(request.name, deserialized.name);
+        prop_assert_eq!(request.scan_interval, deserialized.scan_interval);
+        prop_assert_eq!(request.watch_mode, deserialized.watch_mode);
+    }
+
+    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Validates: Requirements 5.4**
+    ///
+    /// For any valid UpdateProgressRequest, serializing to JSON and deserializing should
+    /// produce an equivalent UpdateProgressRequest.
+    #[test]
+    fn update_progress_request_json_round_trip(request in arb_update_progress_request()) {
+        let json = serde_json::to_string(&request).expect("Should serialize UpdateProgressRequest to JSON");
+        let deserialized: UpdateProgressRequest = serde_json::from_str(&json).expect("Should deserialize UpdateProgressRequest from JSON");
+        prop_assert_eq!(request.position, deserialized.position);
+    }
+
+    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Validates: Requirements 5.4**
+    ///
+    /// For any valid ContentProgressResponse, serializing to JSON and deserializing should
+    /// produce an equivalent ContentProgressResponse.
+    #[test]
+    fn content_progress_response_json_round_trip(response in arb_content_progress_response()) {
+        let json = serde_json::to_string(&response).expect("Should serialize ContentProgressResponse to JSON");
+        let deserialized: ContentProgressResponse = serde_json::from_str(&json).expect("Should deserialize ContentProgressResponse from JSON");
+        prop_assert_eq!(response.content_id, deserialized.content_id);
+        prop_assert_eq!(response.total_chapters, deserialized.total_chapters);
+        prop_assert_eq!(response.completed_chapters, deserialized.completed_chapters);
+        prop_assert_eq!(response.current_chapter_id, deserialized.current_chapter_id);
+        // Float comparison with tolerance
+        prop_assert!((response.overall_percentage - deserialized.overall_percentage).abs() < 0.001);
+    }
+
+    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Validates: Requirements 5.4**
+    ///
+    /// For any valid LoginResponse, serializing to JSON and deserializing should
+    /// produce an equivalent LoginResponse.
+    #[test]
+    fn login_response_json_round_trip(user in arb_user(), token in arb_name()) {
+        let response = LoginResponse {
+            user: user.into(),
+            token,
+        };
+        let json = serde_json::to_string(&response).expect("Should serialize LoginResponse to JSON");
+        let deserialized: LoginResponse = serde_json::from_str(&json).expect("Should deserialize LoginResponse from JSON");
+        prop_assert_eq!(response.user.id, deserialized.user.id);
+        prop_assert_eq!(response.user.username, deserialized.user.username);
+        prop_assert_eq!(response.token, deserialized.token);
     }
 }

@@ -252,6 +252,7 @@ pub async fn delete_library(
 
 /// Request to add a scan path.
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct AddScanPathRequest {
     /// The file system path to add.
     pub path: String,
@@ -325,6 +326,7 @@ pub async fn add_scan_path(
 
 /// Path parameters for scan path operations.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ScanPathParams {
     /// The library ID.
     pub id: i64,

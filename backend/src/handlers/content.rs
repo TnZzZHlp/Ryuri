@@ -73,6 +73,7 @@ pub async fn list_contents(
 
 /// Response for scan operation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ScanResponse {
     /// Number of contents added.
     pub added_count: usize,
@@ -132,6 +133,7 @@ pub async fn scan_library(
 
 /// Query parameters for search.
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct SearchQuery {
     /// Search query string.
     pub q: String,
@@ -230,6 +232,7 @@ pub async fn list_chapters(
 
 /// Path parameters for page requests.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct PageParams {
     /// The content ID.
     pub id: i64,
@@ -287,6 +290,7 @@ fn detect_image_type(data: &[u8]) -> &'static str {
 
 /// Path parameters for chapter text requests.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ChapterTextParams {
     /// The content ID.
     pub id: i64,
@@ -296,6 +300,7 @@ pub struct ChapterTextParams {
 
 /// Response for chapter text.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ChapterTextResponse {
     /// The text content of the chapter.
     pub text: String,
@@ -328,6 +333,7 @@ pub async fn get_chapter_text(
 
 /// Request body for metadata update.
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct UpdateMetadataRequest {
     /// The metadata JSON blob to store.
     /// Pass null to clear metadata.

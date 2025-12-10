@@ -25,7 +25,16 @@ unrar = "0.5.8"
 urlencoding = "2.1"
 uuid = { version = "1.19.0", features = ["v4", "serde"] }
 zip = "6.0.0"
+utoipa = { version = "5.4.0", features = [
+    "axum_extras",
+    "chrono",
+], optional = true }
+utoipa-axum = { version = "0.2.0", optional = true }
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"], optional = true }
 
 [dev-dependencies]
 proptest = "1.4"
 tempfile = "3.19"
+
+[features]
+dev = ["dep:utoipa", "dep:utoipa-axum", "dep:utoipa-swagger-ui"]

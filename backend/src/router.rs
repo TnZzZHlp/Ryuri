@@ -111,7 +111,7 @@ impl AppState {
 /// # Returns
 /// A configured Axum router with all API endpoints
 pub fn create_router(state: AppState) -> Router {
-    Router::new()
+    let router = Router::new()
         // Auth routes
         .route("/api/auth/login", post(auth_login))
         .route("/api/auth/me", get(auth_get_me).put(auth_update_me))
@@ -156,7 +156,35 @@ pub fn create_router(state: AppState) -> Router {
         )
         // Bangumi routes
         .route("/api/bangumi/search", get(search_bangumi))
-        .with_state(state)
+        .with_state(state);
+
+    // Add OpenAPI routes when dev feature is enabled
+    add_openapi_routes(router)
+}
+
+/// Add OpenAPI documentation routes (Swagger UI and OpenAPI JSON endpoint).
+///
+/// When the `dev` feature is enabled, this adds:
+/// - `/swagger-ui` - Swagger UI for interactive API exploration
+/// - `/api-docs/openapi.json` - OpenAPI JSON schema
+///
+/// Requirements: 2.1, 3.1
+#[cfg(feature = "dev")]
+fn add_openapi_routes(router: Router) -> Router {
+    use utoipa::OpenApi;
+    use utoipa_swagger_ui::SwaggerUi;
+
+    use crate::openapi::ApiDoc;
+
+    router.merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+}
+
+/// No-op when dev feature is disabled.
+///
+/// Requirements: 2.3, 3.2
+#[cfg(not(feature = "dev"))]
+fn add_openapi_routes(router: Router) -> Router {
+    router
 }
 
 /// Create the router with CORS middleware configured.
@@ -416,6 +444,7 @@ async fn remove_scan_path(
 
 /// Response for scan operation.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ScanResponse {
     pub added_count: usize,
     pub removed_count: usize,
@@ -609,6 +638,7 @@ async fn update_chapter_progress(
 
 /// Query parameters for Bangumi search.
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct BangumiSearchQuery {
     pub q: String,
 }

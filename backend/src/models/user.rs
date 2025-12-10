@@ -60,14 +60,16 @@ pub struct JwtClaims {
 }
 
 /// Request to update user information.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct UpdateUserRequest {
     /// New Bangumi API key (None to clear).
     pub bangumi_api_key: Option<String>,
 }
 
 /// Request for user login.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct LoginRequest {
     pub username: String,
     pub password: String,
@@ -81,7 +83,8 @@ pub struct RegisterRequest {
 }
 
 /// Response for successful login.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct LoginResponse {
     pub user: UserResponse,
     pub token: String,
@@ -89,6 +92,7 @@ pub struct LoginResponse {
 
 /// User data for API responses (without sensitive fields).
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct UserResponse {
     pub id: i64,
     pub username: String,
@@ -108,7 +112,8 @@ impl From<User> for UserResponse {
 }
 
 /// Request to update password.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct UpdatePasswordRequest {
     pub old_password: String,
     pub new_password: String,

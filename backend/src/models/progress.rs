@@ -60,7 +60,8 @@ pub struct NewReadingProgress {
 }
 
 /// Request to update reading progress for a chapter.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct UpdateProgressRequest {
     /// Current position within the chapter.
     pub position: i32,
@@ -68,6 +69,7 @@ pub struct UpdateProgressRequest {
 
 /// Response for chapter reading progress API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ProgressResponse {
     pub chapter_id: i64,
     pub position: i32,
@@ -88,6 +90,7 @@ impl From<ReadingProgress> for ProgressResponse {
 
 /// Response for overall content progress (aggregated from chapter progress).
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ContentProgressResponse {
     pub content_id: i64,
     pub total_chapters: i32,

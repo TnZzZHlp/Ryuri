@@ -16,6 +16,7 @@ const USER_AGENT: &str = "comic-reader/1.0 (https://github.com/comic-reader)";
 
 /// Search result from Bangumi API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct BangumiSearchResult {
     /// Bangumi subject ID.
     pub id: i64,
