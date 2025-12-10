@@ -109,16 +109,15 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Reading progress table - tracks user reading positions
+-- Reading progress table - tracks user reading positions per chapter
 CREATE TABLE IF NOT EXISTS reading_progress (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    content_id INTEGER NOT NULL REFERENCES contents(id) ON DELETE CASCADE,
-    chapter_id INTEGER NOT NULL REFERENCES chapters(id),
+    chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
     position INTEGER NOT NULL DEFAULT 0,
     percentage REAL NOT NULL DEFAULT 0.0,
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(user_id, content_id)
+    UNIQUE(user_id, chapter_id)
 );
 
 -- Indexes for performance
@@ -129,7 +128,7 @@ CREATE INDEX IF NOT EXISTS idx_contents_title ON contents(title);
 CREATE INDEX IF NOT EXISTS idx_chapters_content ON chapters(content_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_reading_progress_user ON reading_progress(user_id);
-CREATE INDEX IF NOT EXISTS idx_reading_progress_content ON reading_progress(content_id);
+CREATE INDEX IF NOT EXISTS idx_reading_progress_chapter ON reading_progress(chapter_id);
 "#;
 
 #[cfg(test)]

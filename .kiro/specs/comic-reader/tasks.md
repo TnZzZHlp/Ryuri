@@ -71,152 +71,308 @@
     - **Property 18: JSON Serialization Round-Trip**
     - **Validates: Requirements 8.2, 8.3, 8.4**
 
-- [ ] 3. Checkpoint - Ensure all tests pass
+- [x] 3. Checkpoint - Ensure all tests pass
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 2: User Authentication
 
-- [ ] 4. Implement authentication service
-  - [ ] 4.1 Implement password hashing with argon2/bcrypt
+- [x] 4. Implement authentication service
+
+
+
+
+
+
+
+
+  - [x] 4.1 Implement password hashing with argon2
+
+
     - _Requirements: 9.1, 9.5_
-  - [ ] 4.2 Implement JWT token generation and verification
+
+  - [x] 4.2 Implement JWT token generation and verification
+
     - _Requirements: 9.2, 9.4_
-  - [ ] 4.3 Implement AuthService (register, login, verify_token, update_password, update_user)
+  - [x] 4.3 Implement AuthService (register, login, verify_token, update_password, update_user)
+
+
     - _Requirements: 9.1, 9.2, 9.3, 9.5_
-  - [ ] 4.4 Implement auth middleware for protected routes
+
+
+  - [x] 4.4 Implement auth middleware for protected routes
     - _Requirements: 9.4_
-  - [ ] 4.5 Write property test for password hashing security
+  - [x] 4.5 Write property test for password hashing security
+
     - **Property 23: Password Hashing Security**
     - **Validates: Requirements 9.1, 9.2**
-  - [ ] 4.6 Write property test for JWT token validity
+  - [x] 4.6 Write property test for JWT token validity
+
     - **Property 24: JWT Token Validity**
     - **Validates: Requirements 9.2, 9.4**
-  - [ ] 4.7 Write property test for user registration uniqueness
+  - [x] 4.7 Write property test for user registration uniqueness
+
     - **Property 22: User Registration Uniqueness**
     - **Validates: Requirements 9.1**
 
-- [ ] 5. Implement auth API handlers
-  - [ ] 5.1 Implement POST /api/auth/login handler
+- [x] 5. Implement auth API handlers
+
+
+
+
+
+  - [x] 5.1 Implement POST /api/auth/login handler
+
+
     - _Requirements: 9.2, 9.3_
-  - [ ] 5.2 Implement GET /api/auth/me and PUT /api/auth/me handlers
+
+  - [x] 5.2 Implement GET /api/auth/me and PUT /api/auth/me handlers
+
     - _Requirements: 9.4_
-  - [ ] 5.3 Implement PUT /api/auth/password handler
+
+  - [x] 5.3 Implement PUT /api/auth/password handler
+
     - _Requirements: 9.5_
 
-- [ ] 6. Checkpoint - Ensure all tests pass
+- [x] 6. Checkpoint - Ensure all tests pass
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 3: Library Management
 
-- [ ] 7. Implement library service and repository
-  - [ ] 7.1 Implement LibraryService (create, get, list, update, delete)
+- [x] 7. Implement library service and repository
+
+
+
+
+
+  - [x] 7.1 Implement LibraryService (create, get, list, update, delete)
+
+
     - _Requirements: 1.1, 1.4, 1.6, 1.7_
-  - [ ] 7.2 Implement ScanPath management (add, remove, list)
+
+  - [x] 7.2 Implement ScanPath management (add, remove, list)
+
     - _Requirements: 1.2, 1.3_
-  - [ ] 7.3 Write property test for library CRUD round-trip
+
+  - [x] 7.3 Write property test for library CRUD round-trip
+
     - **Property 1: Library CRUD Round-Trip**
     - **Validates: Requirements 1.1, 1.7**
-  - [ ] 7.4 Write property test for scan path association integrity
+  - [x] 7.4 Write property test for scan path association integrity
+
+
     - **Property 2: Scan Path Association Integrity**
     - **Validates: Requirements 1.2**
-  - [ ] 7.5 Write property test for cascade deletion - scan path removal
+
+  - [x] 7.5 Write property test for cascade deletion - scan path removal
+
     - **Property 3: Cascade Deletion - Scan Path Removal**
     - **Validates: Requirements 1.3**
-  - [ ] 7.6 Write property test for library statistics accuracy
+
+  - [x] 7.6 Write property test for library statistics accuracy
+
     - **Property 4: Library Statistics Accuracy**
     - **Validates: Requirements 1.4**
-  - [ ] 7.7 Write property test for cascade deletion - library removal
+
+  - [x] 7.7 Write property test for cascade deletion - library removal
+
     - **Property 6: Cascade Deletion - Library Removal**
     - **Validates: Requirements 1.6**
 
-- [ ] 8. Implement library API handlers
-  - [ ] 8.1 Implement GET/POST /api/libraries handlers
+- [x] 8. Implement library API handlers
+
+
+
+
+
+
+  - [x] 8.1 Implement GET/POST /api/libraries handlers
+
     - _Requirements: 1.1, 1.4_
-  - [ ] 8.2 Implement GET/PUT/DELETE /api/libraries/{id} handlers
+
+  - [x] 8.2 Implement GET/PUT/DELETE /api/libraries/{id} handlers
     - _Requirements: 1.6, 1.7_
-  - [ ] 8.3 Implement scan path management endpoints
+
+  - [x] 8.3 Implement scan path management endpoints
     - _Requirements: 1.2, 1.3_
 
-- [ ] 9. Checkpoint - Ensure all tests pass
+- [x] 9. Checkpoint - Ensure all tests pass
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 4: Content Scanning and Import
 
-- [ ] 10. Implement archive extractors
-  - [ ] 10.1 Implement ComicArchiveExtractor (ZIP, CBZ, CBR, RAR support)
+- [x] 10. Implement archive extractors
+
+
+
+
+
+  - [x] 10.1 Implement ComicArchiveExtractor (ZIP, CBZ, CBR, RAR support)
+
+
     - _Requirements: 2.2, 3.2_
-  - [ ] 10.2 Implement NovelArchiveExtractor (ZIP, EPUB, TXT support)
+
+  - [x] 10.2 Implement NovelArchiveExtractor (ZIP, EPUB, TXT support)
+
     - _Requirements: 2.3, 4.2_
-  - [ ] 10.3 Write property test for chapter sorting consistency
+  - [x] 10.3 Write property test for chapter sorting consistency
+
+
     - **Property 7: Chapter Sorting Consistency**
     - **Validates: Requirements 2.2, 2.3**
 
-- [ ] 11. Implement scan service
-  - [ ] 11.1 Implement ScanService for scanning library paths
+- [x] 11. Implement scan service
+
+
+
+
+
+  - [x] 11.1 Implement ScanService for scanning library paths
+
+
     - _Requirements: 2.1_
-  - [ ] 11.2 Implement content folder detection and chapter identification
+
+  - [x] 11.2 Implement content folder detection and chapter identification
     - _Requirements: 2.2, 2.3, 2.4_
-  - [ ] 11.3 Implement thumbnail generation for comics (first page of first chapter)
+  - [x] 11.3 Implement thumbnail generation for comics (first page of first chapter)
+
     - _Requirements: 2.5_
-  - [ ] 11.4 Implement default thumbnail handling for novels
+
+  - [x] 11.4 Implement default thumbnail handling for novels
     - _Requirements: 2.6_
-  - [ ] 11.5 Write property test for content title derivation
+  - [x] 11.5 Write property test for content title derivation
+
+
     - **Property 8: Content Title Derivation**
     - **Validates: Requirements 2.4**
-  - [ ] 11.6 Write property test for content-scanpath association
+  - [x] 11.6 Write property test for content-scanpath association
+
     - **Property 9: Content-ScanPath Association**
     - **Validates: Requirements 2.7**
 
-- [ ] 12. Implement content service
-  - [ ] 12.1 Implement ContentService (get, list, search, delete, list_chapters)
+- [x] 12. Implement content service
+
+
+
+
+
+  - [x] 12.1 Implement ContentService (get, list, search, delete, list_chapters)
+
+
     - _Requirements: 2.8, 2.9, 2.10_
-  - [ ] 12.2 Implement get_page for comic image extraction
+
+  - [x] 12.2 Implement get_page for comic image extraction
+
     - _Requirements: 3.2, 7.2_
-  - [ ] 12.3 Implement get_chapter_text for novel text extraction
+  - [x] 12.3 Implement get_chapter_text for novel text extraction
+
+
     - _Requirements: 4.2, 7.3_
-  - [ ] 12.4 Write property test for content retrieval completeness
+
+  - [x] 12.4 Write property test for content retrieval completeness
+
     - **Property 5: Content Retrieval Completeness**
     - **Validates: Requirements 1.5**
-  - [ ] 12.5 Write property test for content deletion cascade
+  - [x] 12.5 Write property test for content deletion cascade
+
+
+
     - **Property 10: Content Deletion Cascade**
+
     - **Validates: Requirements 2.9**
-  - [ ] 12.6 Write property test for search result relevance
+  - [x] 12.6 Write property test for search result relevance
+
     - **Property 11: Search Result Relevance**
     - **Validates: Requirements 2.10**
-  - [ ] 12.7 Write property test for image ordering consistency
+
+  - [x] 12.7 Write property test for image ordering consistency
+
     - **Property 12: Image Ordering Consistency**
     - **Validates: Requirements 3.2**
 
-- [ ] 13. Implement content API handlers
-  - [ ] 13.1 Implement GET /api/libraries/{id}/contents handler
+- [x] 13. Implement content API handlers
+
+
+
+  - [x] 13.1 Implement GET /api/libraries/{id}/contents handler
+
+
     - _Requirements: 1.5, 2.8_
-  - [ ] 13.2 Implement POST /api/libraries/{id}/scan handler
+
+
+  - [x] 13.2 Implement POST /api/libraries/{id}/scan handler
+
     - _Requirements: 2.1_
-  - [ ] 13.3 Implement GET /api/libraries/{id}/search handler
+  - [x] 13.3 Implement GET /api/libraries/{id}/search handler
+
     - _Requirements: 2.10_
-  - [ ] 13.4 Implement GET/DELETE /api/contents/{id} handlers
+
+
+  - [x] 13.4 Implement GET/DELETE /api/contents/{id} handlers
+
     - _Requirements: 2.9_
-  - [ ] 13.5 Implement GET /api/contents/{id}/chapters handler
+
+  - [x] 13.5 Implement GET /api/contents/{id}/chapters handler
     - _Requirements: 3.1, 4.1_
-  - [ ] 13.6 Implement GET /api/contents/{id}/chapters/{chapter}/pages/{page} handler
+  - [x] 13.6 Implement GET /api/contents/{id}/chapters/{chapter}/pages/{page} handler
+
+
     - _Requirements: 3.2, 7.2_
-  - [ ] 13.7 Implement GET /api/contents/{id}/chapters/{chapter}/text handler
+
+
+  - [x] 13.7 Implement GET /api/contents/{id}/chapters/{chapter}/text handler
     - _Requirements: 4.2, 7.3_
-  - [ ] 13.8 Write property test for API response completeness
+  - [x] 13.8 Write property test for API response completeness
+
+
+
     - **Property 15: API Response Completeness**
     - **Validates: Requirements 7.1**
 
-- [ ] 14. Checkpoint - Ensure all tests pass
+- [x] 14. Checkpoint - Ensure all tests pass
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 5: Reading Progress
 
-- [ ] 15. Implement progress service
-  - [ ] 15.1 Implement ProgressService (get_progress, update_progress)
+- [x] 15. Implement progress service (chapter-based tracking)
+
+
+
+
+
+
+
+
+
+
+
+  - [x] 15.1 Implement ProgressService (get_chapter_progress, get_content_progress, update_progress)
+
     - _Requirements: 5.1, 5.2, 5.3_
-  - [ ] 15.2 Implement progress percentage calculation
+  - [x] 15.2 Implement progress percentage calculation (per-chapter and overall content)
+
     - _Requirements: 5.4_
-  - [ ] 15.3 Write property test for progress persistence round-trip
+  - [x] 15.3 Write property test for progress persistence round-trip
+
     - **Property 13: Progress Persistence Round-Trip**
     - **Validates: Requirements 3.5, 4.5, 5.1**
   - [ ] 15.4 Write property test for progress percentage accuracy
@@ -230,9 +386,9 @@
     - **Validates: Requirements 7.4**
 
 - [ ] 16. Implement progress API handlers
-  - [ ] 16.1 Implement GET /api/contents/{id}/progress handler
+  - [ ] 16.1 Implement GET /api/contents/{id}/progress handler (overall content progress)
     - _Requirements: 5.1_
-  - [ ] 16.2 Implement PUT /api/contents/{id}/progress handler
+  - [ ] 16.2 Implement GET/PUT /api/chapters/{id}/progress handlers (chapter-level progress)
     - _Requirements: 5.2, 5.3, 7.4_
 
 - [ ] 17. Checkpoint - Ensure all tests pass

@@ -171,22 +171,18 @@ fn arb_reading_progress() -> impl Strategy<Value = ReadingProgress> {
         1i64..10000,
         1i64..10000,
         1i64..10000,
-        1i64..10000,
         0i32..10000,
         0.0f32..100.0,
         arb_datetime(),
     )
         .prop_map(
-            |(id, user_id, content_id, chapter_id, position, percentage, updated_at)| {
-                ReadingProgress {
-                    id,
-                    user_id,
-                    content_id,
-                    chapter_id,
-                    position,
-                    percentage,
-                    updated_at,
-                }
+            |(id, user_id, chapter_id, position, percentage, updated_at)| ReadingProgress {
+                id,
+                user_id,
+                chapter_id,
+                position,
+                percentage,
+                updated_at,
             },
         )
 }
@@ -353,7 +349,6 @@ proptest! {
         let json = serde_json::to_string(&response).expect("Should serialize ProgressResponse to JSON");
         let deserialized: ProgressResponse = serde_json::from_str(&json).expect("Should deserialize ProgressResponse from JSON");
 
-        prop_assert_eq!(response.content_id, deserialized.content_id);
         prop_assert_eq!(response.chapter_id, deserialized.chapter_id);
         prop_assert_eq!(response.position, deserialized.position);
         // Float comparison with tolerance

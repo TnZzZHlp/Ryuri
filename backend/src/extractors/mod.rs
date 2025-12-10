@@ -5,3 +5,6 @@
 
 pub mod comic;
 pub mod novel;
+
+pub use comic::{ComicArchiveExtractor, NaturalSortPart, natural_sort_key};
+pub use novel::NovelArchiveExtractor;

@@ -95,7 +95,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/contents/{id}", get(get_content).delete(delete_content))
         .route("/api/contents/{id}/metadata", put(update_content_metadata))
         .route("/api/contents/{id}/chapters", get(list_chapters))
-        .route("/api/contents/{id}/progress", get(get_progress).put(update_progress))
+        .route("/api/contents/{id}/progress", get(get_content_progress))  // 获取内容整体进度
+        .route("/api/chapters/{id}/progress", get(get_chapter_progress).put(update_chapter_progress))  // 章节进度
         // 漫画特有：获取页面图片
         .route("/api/contents/{id}/chapters/{chapter}/pages/{page}", get(get_page))
         // 小说特有：获取章节文本
@@ -187,15 +188,14 @@ pub struct Chapter {
     pub sort_order: i32,
 }
 
-// ReadingProgress 模型
+// ReadingProgress 模型 - 按章节追踪进度
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ReadingProgress {
     pub id: i64,
     pub user_id: i64,
-    pub content_id: i64,
-    pub chapter_id: i64,
-    pub position: i32,  // 页码(漫画) 或 字符位置(小说)
-    pub percentage: f32,
+    pub chapter_id: i64,  // 直接关联章节，每个章节独立追踪进度
+    pub position: i32,    // 页码(漫画) 或 字符位置(小说)
+    pub percentage: f32,  // 章节内的阅读百分比
     pub updated_at: DateTime<Utc>,
 }
 
@@ -277,10 +277,14 @@ pub trait BangumiService {
 
 
 
-// ProgressService - 进度服务
+// ProgressService - 进度服务（按章节追踪）
 pub trait ProgressService {
-    async fn get_progress(&self, user_id: i64, content_id: i64) -> Result<Option<ReadingProgress>>;
-    async fn update_progress(&self, user_id: i64, content_id: i64, chapter_id: i64, position: i32) -> Result<ReadingProgress>;
+    // 获取指定章节的阅读进度
+    async fn get_chapter_progress(&self, user_id: i64, chapter_id: i64) -> Result<Option<ReadingProgress>>;
+    // 获取内容的所有章节进度（用于计算整体进度）
+    async fn get_content_progress(&self, user_id: i64, content_id: i64) -> Result<Vec<ReadingProgress>>;
+    // 更新章节进度
+    async fn update_progress(&self, user_id: i64, chapter_id: i64, position: i32) -> Result<ReadingProgress>;
 }
 
 // AuthService - 认证服务 (使用 JWT)
@@ -430,13 +434,21 @@ interface Chapter {
   sortOrder: number;
 }
 
-// 阅读进度
+// 阅读进度 - 按章节追踪
 interface ReadingProgress {
-  contentId: number;
   chapterId: number;
   position: number;
-  percentage: number;
+  percentage: number;  // 章节内的阅读百分比
   updatedAt: string;
+}
+
+// 内容整体进度（聚合所有章节进度）
+interface ContentProgress {
+  contentId: number;
+  totalChapters: number;
+  completedChapters: number;
+  currentChapterId: number | null;  // 最近阅读的章节
+  overallPercentage: number;        // 整体阅读百分比
 }
 
 // 阅读设置
@@ -514,16 +526,15 @@ CREATE TABLE users (
 
 
 
--- 阅读进度表 - 统一存储漫画和小说的阅读进度
+-- 阅读进度表 - 按章节追踪阅读进度
 CREATE TABLE reading_progress (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    content_id INTEGER NOT NULL REFERENCES contents(id) ON DELETE CASCADE,
-    chapter_id INTEGER NOT NULL REFERENCES chapters(id),
+    chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
     position INTEGER NOT NULL DEFAULT 0,  -- 页码(漫画) 或 字符位置(小说)
-    percentage REAL NOT NULL DEFAULT 0.0,
+    percentage REAL NOT NULL DEFAULT 0.0, -- 章节内的阅读百分比
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(user_id, content_id)
+    UNIQUE(user_id, chapter_id)  -- 每个用户每个章节一条进度记录
 );
 
 -- 索引
@@ -534,7 +545,7 @@ CREATE INDEX idx_contents_title ON contents(title);
 CREATE INDEX idx_chapters_content ON chapters(content_id);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_reading_progress_user ON reading_progress(user_id);
-CREATE INDEX idx_reading_progress_content ON reading_progress(content_id);
+CREATE INDEX idx_reading_progress_chapter ON reading_progress(chapter_id);
 
 ```
 
