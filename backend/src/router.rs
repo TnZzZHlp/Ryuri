@@ -219,6 +219,7 @@ fn add_tracing_layer(router: Router) -> Router {
     let tracing = TraceLayer::new_for_http()
         .make_span_with(DefaultMakeSpan::new())
         .on_request(DefaultOnRequest::new().level(Level::INFO))
+        .on_failure(DefaultOnFailure::new().level(Level::WARN))
         .on_response(
             DefaultOnResponse::new()
                 .level(Level::INFO)
@@ -231,12 +232,16 @@ fn add_tracing_layer(router: Router) -> Router {
 /// Add tracing layer with request logging only (no response logging in production).
 #[cfg(not(feature = "dev"))]
 fn add_tracing_layer(router: Router) -> Router {
-    use tower_http::trace::DefaultOnFailure;
+    use tower_http::{LatencyUnit, trace::DefaultOnFailure};
 
     let tracing = TraceLayer::new_for_http()
         .make_span_with(DefaultMakeSpan::new())
         .on_request(DefaultOnRequest::new().level(Level::INFO))
-        .on_failure(DefaultOnFailure::new().level(Level::WARN));
+        .on_failure(
+            DefaultOnFailure::new()
+                .level(Level::WARN)
+                .latency_unit(LatencyUnit::Micros),
+        );
 
     router.layer(tracing)
 }
