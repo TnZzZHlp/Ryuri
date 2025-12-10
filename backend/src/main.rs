@@ -29,8 +29,8 @@ impl ServerConfig {
             .and_then(|p| p.parse().ok())
             .unwrap_or(3000);
 
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "sqlite:comic_reader.db?mode=rwc".to_string());
+        let database_url =
+            env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:wyuri.db?mode=rwc".to_string());
 
         let jwt_secret = env::var("JWT_SECRET")
             .unwrap_or_else(|_| "default-secret-change-in-production".to_string());
@@ -81,7 +81,7 @@ async fn main() -> Result<(), AppError> {
 
     let config = ServerConfig::from_env();
 
-    info!("Comic Reader Backend starting...");
+    info!("Wyuri starting...");
     debug!(host = %config.host, port = %config.port, database = %config.db.database_url, "Server configuration loaded");
 
     info!("Initializing database...");

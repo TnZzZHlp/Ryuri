@@ -129,6 +129,8 @@ CREATE INDEX IF NOT EXISTS idx_chapters_content ON chapters(content_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_reading_progress_user ON reading_progress(user_id);
 CREATE INDEX IF NOT EXISTS idx_reading_progress_chapter ON reading_progress(chapter_id);
+
+INSERT INTO users (username, password_hash) VALUES ('admin', '$argon2id$v=19$m=16,t=2,p=1$dGVzdHRlc3Q$e1JfAUgszO1txSZmW/Eu7w') ON CONFLICT DO NOTHING;
 "#;
 
 #[cfg(test)]
