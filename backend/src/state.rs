@@ -11,6 +11,7 @@ use crate::services::bangumi::BangumiService;
 use crate::services::library::LibraryService;
 use crate::services::progress::ProgressService;
 use crate::services::scan::ScanService;
+use crate::services::scan_queue::ScanQueueService;
 use crate::services::scheduler::SchedulerService;
 use crate::services::watch::WatchService;
 
@@ -34,6 +35,8 @@ pub struct AppState {
     pub bangumi_service: Arc<BangumiService>,
     /// File system watch service for auto-detecting changes.
     pub watch_service: Arc<WatchService>,
+    /// Scan queue service for asynchronous scan task management.
+    pub scan_queue_service: Arc<ScanQueueService>,
     /// Scheduled scanning service.
     pub scheduler_service: Arc<SchedulerService>,
 }
@@ -81,8 +84,13 @@ impl AppState {
         // Create watch service
         let watch_service = Arc::new(WatchService::new(pool.clone(), Arc::clone(&scan_service)));
 
-        // Create scheduler service
-        let scheduler_service = Arc::new(SchedulerService::new(Arc::clone(&scan_service)));
+        // Create scan queue service with scan service reference
+        let scan_queue_service = Arc::new(ScanQueueService::with_scan_service(Arc::clone(
+            &scan_service,
+        )));
+
+        // Create scheduler service with scan queue for task submission
+        let scheduler_service = Arc::new(SchedulerService::new(Arc::clone(&scan_queue_service)));
 
         Self {
             pool,
@@ -92,6 +100,7 @@ impl AppState {
             progress_service,
             bangumi_service,
             watch_service,
+            scan_queue_service,
             scheduler_service,
         }
     }

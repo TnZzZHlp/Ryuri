@@ -3,17 +3,18 @@
 //! This module provides functionality to schedule periodic library scans
 //! based on configured scan intervals.
 //!
-//! Requirements: 1.8
+//! Requirements: 1.8, 5.2
 
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
-use tracing::{debug, error, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::error::Result;
-use crate::services::scan::ScanService;
+use crate::models::TaskPriority;
+use crate::services::scan_queue::ScanQueueService;
 
 /// Information about a scheduled scan task.
 #[derive(Debug, Clone)]
@@ -39,18 +40,24 @@ struct TaskHandle {
 /// Service for scheduling periodic library scans.
 ///
 /// The SchedulerService manages scheduled scan tasks for libraries
-/// with non-zero scan intervals.
+/// with non-zero scan intervals. It submits tasks to the ScanQueueService
+/// with Normal priority for background processing.
+///
+/// Requirements: 5.2
 pub struct SchedulerService {
-    scan_service: Arc<ScanService>,
+    scan_queue_service: Arc<ScanQueueService>,
     /// Map of library_id to task handle.
     tasks: Arc<RwLock<HashMap<i64, TaskHandle>>>,
 }
 
 impl SchedulerService {
     /// Create a new scheduler service.
-    pub fn new(scan_service: Arc<ScanService>) -> Self {
+    ///
+    /// # Arguments
+    /// * `scan_queue_service` - The scan queue service for submitting tasks
+    pub fn new(scan_queue_service: Arc<ScanQueueService>) -> Self {
         Self {
-            scan_service,
+            scan_queue_service,
             tasks: Arc::new(RwLock::new(HashMap::new())),
         }
     }
@@ -76,7 +83,7 @@ impl SchedulerService {
         // Create a cancellation channel
         let (cancel_tx, mut cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
-        let scan_service = Arc::clone(&self.scan_service);
+        let scan_queue_service = Arc::clone(&self.scan_queue_service);
         let lib_id = library_id;
         let tasks = Arc::clone(&self.tasks);
         let interval_mins = interval_minutes;
@@ -98,12 +105,10 @@ impl SchedulerService {
                             }
                         }
 
-                        // Perform the scan
-                        if let Err(e) = scan_service.scan_library(lib_id).await {
-                            error!(library_id = lib_id, error = %e, "Scheduled scan failed");
-                        } else {
-                            debug!(library_id = lib_id, "Scheduled scan completed");
-                        }
+                        // Submit scan task to queue with Normal priority (Requirements: 5.2)
+                        let task_id = scan_queue_service.submit_task(lib_id, TaskPriority::Normal).await;
+                        info!(library_id = lib_id, task_id = %task_id, "Scheduled scan task submitted to queue");
+                        debug!(library_id = lib_id, "Scheduled scan task queued");
                     }
                     _ = &mut cancel_rx => {
                         // Cancellation requested

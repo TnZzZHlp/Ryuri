@@ -4,6 +4,7 @@
 
 use backend::db::{DbConfig, init_db};
 use backend::services::scan::ScanService;
+use backend::services::scan_queue::ScanQueueService;
 use backend::services::scheduler::SchedulerService;
 use backend::services::watch::WatchService;
 use chrono::{Duration, Utc};
@@ -60,7 +61,8 @@ proptest! {
         rt.block_on(async {
             let pool = create_test_db().await;
             let scan_service = Arc::new(ScanService::new(pool.clone()));
-            let scheduler = SchedulerService::new(scan_service);
+            let scan_queue_service = Arc::new(ScanQueueService::with_scan_service(scan_service));
+            let scheduler = SchedulerService::new(scan_queue_service);
 
             let before_schedule = Utc::now();
 
@@ -98,7 +100,8 @@ proptest! {
         rt.block_on(async {
             let pool = create_test_db().await;
             let scan_service = Arc::new(ScanService::new(pool.clone()));
-            let scheduler = SchedulerService::new(scan_service);
+            let scan_queue_service = Arc::new(ScanQueueService::with_scan_service(scan_service));
+            let scheduler = SchedulerService::new(scan_queue_service);
 
             scheduler.schedule_scan(library_id, 0).await.expect("Should handle zero interval");
 
@@ -120,7 +123,8 @@ proptest! {
         rt.block_on(async {
             let pool = create_test_db().await;
             let scan_service = Arc::new(ScanService::new(pool.clone()));
-            let scheduler = SchedulerService::new(scan_service);
+            let scan_queue_service = Arc::new(ScanQueueService::with_scan_service(scan_service));
+            let scheduler = SchedulerService::new(scan_queue_service);
 
             scheduler.schedule_scan(library_id, initial_interval).await.expect("Should schedule initial scan");
             let initial_task = scheduler.get_scheduled_task(library_id).await.expect("Should have initial task");
@@ -146,7 +150,8 @@ proptest! {
         rt.block_on(async {
             let pool = create_test_db().await;
             let scan_service = Arc::new(ScanService::new(pool.clone()));
-            let scheduler = SchedulerService::new(scan_service);
+            let scan_queue_service = Arc::new(ScanQueueService::with_scan_service(scan_service));
+            let scheduler = SchedulerService::new(scan_queue_service);
 
             scheduler.schedule_scan(library_id, interval_minutes).await.expect("Should schedule scan");
             prop_assert!(scheduler.is_scheduled(library_id).await, "Should be scheduled before cancel");

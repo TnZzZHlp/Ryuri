@@ -6,9 +6,11 @@
 mod content;
 mod library;
 mod progress;
+mod scan_queue;
 mod user;
 
 pub use content::*;
 pub use library::*;
 pub use progress::*;
+pub use scan_queue::*;
 pub use user::*;

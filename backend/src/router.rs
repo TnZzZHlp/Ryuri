@@ -15,7 +15,7 @@ use tracing::Level;
 #[cfg(feature = "dev")]
 use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
-use crate::handlers::{auth, bangumi, content, library, progress};
+use crate::handlers::{auth, bangumi, content, library, progress, scan_queue};
 use crate::state::AppState;
 
 /// Create the application router with all routes configured.
@@ -48,8 +48,14 @@ pub fn create_router(state: AppState) -> Router {
             delete(library::remove_path),
         )
         .route("/api/libraries/{id}/contents", get(content::list))
-        .route("/api/libraries/{id}/scan", post(content::scan))
+        .route("/api/libraries/{id}/scan", post(scan_queue::submit_scan))
         .route("/api/libraries/{id}/search", get(content::search))
+        // Scan queue routes
+        .route("/api/scan-tasks", get(scan_queue::list_tasks))
+        .route(
+            "/api/scan-tasks/{id}",
+            get(scan_queue::get_task).delete(scan_queue::cancel_task),
+        )
         // Content routes
         .route(
             "/api/contents/{id}",
