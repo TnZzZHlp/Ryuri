@@ -534,6 +534,8 @@
 
 
 
+
+
 - [ ] 25. Set up frontend project structure and dependencies
   - [ ] 25.1 Install required dependencies (vue-router, pinia, axios, fast-check)
     - _Requirements: 7.1_
