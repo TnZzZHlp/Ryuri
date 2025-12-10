@@ -125,7 +125,11 @@ fn add_tracing_layer(router: Router) -> Router {
     use tower_http::trace::DefaultOnFailure;
 
     let tracing = TraceLayer::new_for_http()
-        .make_span_with(DefaultMakeSpan::new())
+        .make_span_with(
+            DefaultMakeSpan::new()
+                .level(Level::INFO)
+                .include_headers(false),
+        )
         .on_request(DefaultOnRequest::new().level(Level::INFO))
         .on_failure(DefaultOnFailure::new().level(Level::WARN))
         .on_response(
@@ -143,12 +147,16 @@ fn add_tracing_layer(router: Router) -> Router {
     use tower_http::{LatencyUnit, trace::DefaultOnFailure};
 
     let tracing = TraceLayer::new_for_http()
-        .make_span_with(DefaultMakeSpan::new())
         .on_request(DefaultOnRequest::new().level(Level::INFO))
         .on_failure(
             DefaultOnFailure::new()
                 .level(Level::WARN)
                 .latency_unit(LatencyUnit::Micros),
+        )
+        .make_span_with(
+            DefaultMakeSpan::new()
+                .level(Level::ERROR)
+                .include_headers(false),
         );
 
     router.layer(tracing)

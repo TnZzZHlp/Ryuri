@@ -12,6 +12,7 @@ use backend::router::create_router_with_layers;
 use backend::services::auth::AuthConfig;
 use backend::state::{AppConfig, AppState};
 use tracing::{debug, info};
+use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Server configuration loaded from environment variables.
@@ -71,7 +72,12 @@ impl ServerConfig {
 fn init_tracing() {
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
-        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(false)
+                .with_timer(ChronoLocal::new(String::from("%x %X")))
+                .compact(),
+        )
         .init();
 }
 
