@@ -9,8 +9,14 @@ use axum::{
 };
 use sqlx::{Pool, Sqlite};
 use std::sync::Arc;
-use tower_http::cors::{Any, CorsLayer};
-use tracing::warn;
+use tower_http::{
+    cors::{Any, CorsLayer},
+    trace::{DefaultMakeSpan, DefaultOnRequest, TraceLayer},
+};
+use tracing::{Level, warn};
+
+#[cfg(feature = "dev")]
+use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
 use crate::services::auth::{AuthConfig, AuthService, middleware::HasAuthService};
 use crate::services::bangumi::BangumiService;
@@ -187,20 +193,52 @@ fn add_openapi_routes(router: Router) -> Router {
     router
 }
 
-/// Create the router with CORS middleware configured.
+/// Create the router with Layers middleware configured.
 ///
 /// # Arguments
 /// * `state` - The application state containing all services
 ///
 /// # Returns
-/// A configured Axum router with CORS enabled
-pub fn create_router_with_cors(state: AppState) -> Router {
+/// A configured Axum router with Layers enabled
+pub fn create_router_with_layers(state: AppState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
 
-    create_router(state).layer(cors)
+    let router = create_router(state).layer(cors);
+
+    // Add tracing layer with request logging always enabled
+    // Response logging only when dev feature is enabled
+    add_tracing_layer(router)
+}
+
+/// Add tracing layer with request logging always enabled, response logging only in dev mode.
+#[cfg(feature = "dev")]
+fn add_tracing_layer(router: Router) -> Router {
+    let tracing = TraceLayer::new_for_http()
+        .make_span_with(DefaultMakeSpan::new())
+        .on_request(DefaultOnRequest::new().level(Level::INFO))
+        .on_response(
+            DefaultOnResponse::new()
+                .level(Level::INFO)
+                .latency_unit(LatencyUnit::Micros),
+        );
+
+    router.layer(tracing)
+}
+
+/// Add tracing layer with request logging only (no response logging in production).
+#[cfg(not(feature = "dev"))]
+fn add_tracing_layer(router: Router) -> Router {
+    use tower_http::trace::DefaultOnFailure;
+
+    let tracing = TraceLayer::new_for_http()
+        .make_span_with(DefaultMakeSpan::new())
+        .on_request(DefaultOnRequest::new().level(Level::INFO))
+        .on_failure(DefaultOnFailure::new().level(Level::WARN));
+
+    router.layer(tracing)
 }
 
 // ============================================================================

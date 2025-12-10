@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 
 use backend::db::{DbConfig, init_db};
 use backend::error::AppError;
-use backend::router::{AppConfig, AppState, create_router_with_cors};
+use backend::router::{AppConfig, AppState, create_router_with_layers};
 use backend::services::auth::AuthConfig;
 use tracing::{debug, info};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
@@ -92,7 +92,7 @@ async fn main() -> Result<(), AppError> {
     let state = AppState::new(pool, config.app);
     info!("Services created successfully");
 
-    let app = create_router_with_cors(state);
+    let app = create_router_with_layers(state);
 
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
         .parse()
