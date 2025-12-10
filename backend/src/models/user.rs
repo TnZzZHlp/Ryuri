@@ -25,8 +25,8 @@ pub struct User {
 }
 
 impl User {
-    /// Creates a new User instance for insertion.
-    pub fn new(username: String, password_hash: String) -> NewUser {
+    /// Creates a NewUser instance for database insertion.
+    pub fn create(username: String, password_hash: String) -> NewUser {
         NewUser {
             username,
             password_hash,

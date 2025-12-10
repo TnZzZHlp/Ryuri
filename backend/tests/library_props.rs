@@ -310,7 +310,7 @@ proptest! {
     fn cascade_deletion_scan_path_removal(
         library_name in arb_library_name(),
         path1 in arb_path(),
-        path2 in arb_path().prop_filter("Paths must be different", |p| p != &"path1")
+        path2 in arb_path().prop_filter("Paths must be different", |p| p != "path1")
     ) {
         // Ensure paths are different
         prop_assume!(path1 != path2);

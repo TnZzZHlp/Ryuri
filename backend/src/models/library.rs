@@ -27,7 +27,7 @@ pub struct Library {
 
 impl Library {
     /// Creates a new Library instance for insertion (without id and timestamps).
-    pub fn new(name: String, scan_interval: i32, watch_mode: bool) -> NewLibrary {
+    pub fn create(name: String, scan_interval: i32, watch_mode: bool) -> NewLibrary {
         NewLibrary {
             name,
             scan_interval,
@@ -63,7 +63,7 @@ pub struct ScanPath {
 
 impl ScanPath {
     /// Creates a new ScanPath instance for insertion.
-    pub fn new(library_id: i64, path: String) -> NewScanPath {
+    pub fn create(library_id: i64, path: String) -> NewScanPath {
         NewScanPath { library_id, path }
     }
 }

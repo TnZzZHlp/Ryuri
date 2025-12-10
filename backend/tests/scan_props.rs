@@ -10,7 +10,7 @@ use backend::services::scan::ScanService;
 use proptest::prelude::*;
 use sqlx::{Pool, Sqlite};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 
@@ -45,7 +45,7 @@ fn arb_library_name() -> impl Strategy<Value = String> {
 }
 
 /// Create a test directory structure with a content folder containing a dummy archive.
-fn create_test_content_folder(base_dir: &PathBuf, folder_name: &str) -> PathBuf {
+fn create_test_content_folder(base_dir: &Path, folder_name: &str) -> PathBuf {
     let content_folder = base_dir.join(folder_name);
     fs::create_dir_all(&content_folder).expect("Should create content folder");
 
@@ -57,7 +57,7 @@ fn create_test_content_folder(base_dir: &PathBuf, folder_name: &str) -> PathBuf 
 }
 
 /// Create a minimal valid ZIP file with a dummy image.
-fn create_minimal_zip(path: &PathBuf) {
+fn create_minimal_zip(path: &Path) {
     use std::io::Write;
 
     let file = fs::File::create(path).expect("Should create ZIP file");

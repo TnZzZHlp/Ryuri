@@ -70,7 +70,7 @@ pub struct Content {
 
 impl Content {
     /// Creates a new Content instance for insertion.
-    pub fn new(
+    pub fn create(
         library_id: i64,
         scan_path_id: i64,
         content_type: ContentType,
@@ -124,7 +124,12 @@ pub struct Chapter {
 
 impl Chapter {
     /// Creates a new Chapter instance for insertion.
-    pub fn new(content_id: i64, title: String, file_path: String, sort_order: i32) -> NewChapter {
+    pub fn create(
+        content_id: i64,
+        title: String,
+        file_path: String,
+        sort_order: i32,
+    ) -> NewChapter {
         NewChapter {
             content_id,
             title,

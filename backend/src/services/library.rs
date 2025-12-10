@@ -68,12 +68,12 @@ impl LibraryService {
     /// Requirements: 1.7
     pub async fn update(&self, id: i64, req: UpdateLibraryRequest) -> Result<Library> {
         // Validate name if provided
-        if let Some(ref name) = req.name {
-            if name.trim().is_empty() {
-                return Err(AppError::BadRequest(
-                    "Library name cannot be empty".to_string(),
-                ));
-            }
+        if let Some(ref name) = req.name
+            && name.trim().is_empty()
+        {
+            return Err(AppError::BadRequest(
+                "Library name cannot be empty".to_string(),
+            ));
         }
 
         LibraryRepository::update(
