@@ -6,6 +6,7 @@
 //! - GET /api/libraries/{id}/search - Search contents by title
 //! - GET /api/contents/{id} - Get a content by ID
 //! - DELETE /api/contents/{id} - Delete a content
+//! - PUT /api/contents/{id}/metadata - Update content metadata
 //! - GET /api/contents/{id}/chapters - List chapters for a content
 //! - GET /api/contents/{id}/chapters/{chapter}/pages/{page} - Get a comic page
 //! - GET /api/contents/{id}/chapters/{chapter}/text - Get novel chapter text
@@ -323,4 +324,44 @@ pub async fn get_chapter_text(
     let text = ContentService::get_chapter_text(&state.pool, params.id, params.chapter).await?;
 
     Ok(Json(ChapterTextResponse { text }))
+}
+
+/// Request body for metadata update.
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateMetadataRequest {
+    /// The metadata JSON blob to store.
+    /// Pass null to clear metadata.
+    pub metadata: Option<serde_json::Value>,
+}
+
+/// PUT /api/contents/{id}/metadata
+///
+/// Updates the metadata for a content item.
+///
+/// # Path Parameters
+/// - `id`: The content ID
+///
+/// # Request Body
+/// ```json
+/// {
+///     "metadata": {
+///         "name": "Title",
+///         "name_cn": "中文标题",
+///         "summary": "Description...",
+///         "rating": { "score": 8.5 }
+///     }
+/// }
+/// ```
+///
+/// # Response
+/// Returns the updated content.
+///
+/// Requirements: 8.5, 8.7
+pub async fn update_metadata(
+    State(state): State<ContentState>,
+    Path(id): Path<i64>,
+    Json(request): Json<UpdateMetadataRequest>,
+) -> Result<Json<ContentResponse>> {
+    let content = ContentService::update_metadata(&state.pool, id, request.metadata).await?;
+    Ok(Json(ContentResponse::from(content)))
 }

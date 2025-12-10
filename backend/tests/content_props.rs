@@ -734,3 +734,290 @@ proptest! {
         })?;
     }
 }
+
+// ============================================================================
+// Property 21: Metadata JSON Blob Storage
+// ============================================================================
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    /// **Feature: comic-reader, Property 21: Metadata JSON Blob Storage**
+    /// **Validates: Requirements 8.4, 8.6**
+    ///
+    /// For any valid JSON blob from Bangumi API, storing it directly in the content
+    /// record and then retrieving it should return an equivalent JSON structure.
+    #[test]
+    fn metadata_json_blob_storage_round_trip(
+        library_name in arb_library_name(),
+        content_title in arb_content_title(),
+        metadata_variant in 0usize..6
+    ) {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let pool = create_test_db().await;
+
+            // Create library and scan path
+            let library_id = create_test_library(&pool, &library_name).await;
+            let scan_path_id = create_test_scan_path(&pool, library_id, "/test/path").await;
+
+            // Create content without metadata
+            let content_id = insert_test_content(
+                &pool,
+                library_id,
+                scan_path_id,
+                &content_title,
+                ContentType::Comic,
+            ).await;
+
+            // Generate various metadata JSON blobs that simulate Bangumi API responses
+            let metadata: Option<serde_json::Value> = match metadata_variant {
+                0 => None, // No metadata
+                1 => Some(serde_json::json!({})), // Empty object
+                2 => Some(serde_json::json!({
+                    "id": 12345,
+                    "name": "Test Manga",
+                    "name_cn": "测试漫画"
+                })), // Basic metadata
+                3 => Some(serde_json::json!({
+                    "id": 67890,
+                    "name": "Complex Series",
+                    "name_cn": "复杂系列",
+                    "summary": "A long description of the series...",
+                    "rating": {
+                        "score": 8.5,
+                        "total": 1234
+                    },
+                    "tags": [
+                        {"name": "action", "count": 100},
+                        {"name": "comedy", "count": 50}
+                    ]
+                })), // Complex nested metadata
+                4 => Some(serde_json::json!({
+                    "id": 11111,
+                    "name": "Unicode Test 日本語",
+                    "name_cn": "中文测试",
+                    "summary": "Contains special chars: <>&\"'",
+                    "eps": 24,
+                    "air_date": "2024-01-15"
+                })), // Unicode and special characters
+                _ => Some(serde_json::json!({
+                    "id": 99999,
+                    "name": "Deeply Nested",
+                    "info": {
+                        "level1": {
+                            "level2": {
+                                "level3": {
+                                    "value": "deep"
+                                }
+                            }
+                        }
+                    },
+                    "array_of_objects": [
+                        {"a": 1, "b": 2},
+                        {"a": 3, "b": 4}
+                    ],
+                    "mixed_array": [1, "two", true, null, {"nested": "object"}]
+                })), // Deeply nested structure
+            };
+
+            // Update content with metadata
+            let updated = ContentService::update_metadata(&pool, content_id, metadata.clone()).await
+                .expect("Should update metadata");
+
+            // Verify the updated content has the correct metadata
+            prop_assert_eq!(
+                updated.metadata,
+                metadata.clone(),
+                "Updated content should have the metadata we set"
+            );
+
+            // Retrieve the content again to verify persistence
+            let retrieved = ContentService::get_content(&pool, content_id).await
+                .expect("Should retrieve content");
+
+            // Verify the retrieved metadata matches what we stored
+            prop_assert_eq!(
+                retrieved.metadata,
+                metadata,
+                "Retrieved metadata should match stored metadata"
+            );
+
+            Ok(())
+        })?;
+    }
+
+    /// **Feature: comic-reader, Property 21: Metadata JSON Blob Storage**
+    /// **Validates: Requirements 8.4, 8.6**
+    ///
+    /// Metadata can be updated multiple times and each update should be persisted correctly.
+    #[test]
+    fn metadata_multiple_updates(
+        library_name in arb_library_name(),
+        content_title in arb_content_title()
+    ) {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let pool = create_test_db().await;
+
+            // Create library and scan path
+            let library_id = create_test_library(&pool, &library_name).await;
+            let scan_path_id = create_test_scan_path(&pool, library_id, "/test/path").await;
+
+            // Create content
+            let content_id = insert_test_content(
+                &pool,
+                library_id,
+                scan_path_id,
+                &content_title,
+                ContentType::Comic,
+            ).await;
+
+            // First update: set initial metadata
+            let metadata1 = Some(serde_json::json!({
+                "id": 1,
+                "name": "First Version"
+            }));
+            let updated1 = ContentService::update_metadata(&pool, content_id, metadata1.clone()).await
+                .expect("Should update metadata first time");
+            prop_assert_eq!(updated1.metadata, metadata1, "First update should persist");
+
+            // Second update: change metadata
+            let metadata2 = Some(serde_json::json!({
+                "id": 2,
+                "name": "Second Version",
+                "extra_field": "added"
+            }));
+            let updated2 = ContentService::update_metadata(&pool, content_id, metadata2.clone()).await
+                .expect("Should update metadata second time");
+            prop_assert_eq!(updated2.metadata, metadata2, "Second update should persist");
+
+            // Third update: clear metadata
+            let metadata3: Option<serde_json::Value> = None;
+            let updated3 = ContentService::update_metadata(&pool, content_id, metadata3.clone()).await
+                .expect("Should clear metadata");
+            prop_assert_eq!(updated3.metadata, metadata3, "Clearing metadata should persist");
+
+            // Fourth update: set new metadata after clearing
+            let metadata4 = Some(serde_json::json!({
+                "id": 4,
+                "name": "Fourth Version"
+            }));
+            let updated4 = ContentService::update_metadata(&pool, content_id, metadata4.clone()).await
+                .expect("Should update metadata after clearing");
+            prop_assert_eq!(updated4.metadata, metadata4.clone(), "Update after clear should persist");
+
+            // Final verification: retrieve and check
+            let final_content = ContentService::get_content(&pool, content_id).await
+                .expect("Should retrieve content");
+            prop_assert_eq!(final_content.metadata, metadata4, "Final retrieval should match last update");
+
+            Ok(())
+        })?;
+    }
+
+    /// **Feature: comic-reader, Property 21: Metadata JSON Blob Storage**
+    /// **Validates: Requirements 8.4, 8.6**
+    ///
+    /// Metadata JSON serialization should preserve all JSON types correctly.
+    #[test]
+    fn metadata_preserves_json_types(
+        library_name in arb_library_name(),
+        content_title in arb_content_title(),
+        int_val in -1000000i64..1000000,
+        // Use a reasonable float range to avoid precision issues with JSON serialization
+        float_val in -1e10f64..1e10f64,
+        bool_val in any::<bool>(),
+        string_val in "[a-zA-Z0-9 ]{1,50}"
+    ) {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let pool = create_test_db().await;
+
+            // Create library and scan path
+            let library_id = create_test_library(&pool, &library_name).await;
+            let scan_path_id = create_test_scan_path(&pool, library_id, "/test/path").await;
+
+            // Create content
+            let content_id = insert_test_content(
+                &pool,
+                library_id,
+                scan_path_id,
+                &content_title,
+                ContentType::Comic,
+            ).await;
+
+            // Create metadata with various JSON types
+            let metadata = Some(serde_json::json!({
+                "integer": int_val,
+                "float": float_val,
+                "boolean": bool_val,
+                "string": string_val,
+                "null_value": null,
+                "array": [1, 2, 3],
+                "object": {"nested": "value"}
+            }));
+
+            // Update and retrieve
+            ContentService::update_metadata(&pool, content_id, metadata.clone()).await
+                .expect("Should update metadata");
+
+            let retrieved = ContentService::get_content(&pool, content_id).await
+                .expect("Should retrieve content");
+
+            // Verify each type is preserved
+            let retrieved_meta = retrieved.metadata.expect("Should have metadata");
+
+            prop_assert_eq!(
+                retrieved_meta["integer"].as_i64(),
+                Some(int_val),
+                "Integer should be preserved"
+            );
+
+            // Float comparison with relative tolerance for floating point precision
+            // JSON serialization can introduce small precision errors
+            let retrieved_float = retrieved_meta["float"].as_f64().expect("Should have float");
+            let tolerance = if float_val.abs() > 1.0 {
+                float_val.abs() * 1e-9  // Relative tolerance for larger numbers
+            } else {
+                1e-9  // Absolute tolerance for small numbers
+            };
+            prop_assert!(
+                (retrieved_float - float_val).abs() < tolerance ||
+                (retrieved_float == float_val),
+                "Float should be preserved (got {} expected {})",
+                retrieved_float,
+                float_val
+            );
+
+            prop_assert_eq!(
+                retrieved_meta["boolean"].as_bool(),
+                Some(bool_val),
+                "Boolean should be preserved"
+            );
+
+            prop_assert_eq!(
+                retrieved_meta["string"].as_str(),
+                Some(string_val.as_str()),
+                "String should be preserved"
+            );
+
+            prop_assert!(
+                retrieved_meta["null_value"].is_null(),
+                "Null should be preserved"
+            );
+
+            prop_assert!(
+                retrieved_meta["array"].is_array(),
+                "Array should be preserved"
+            );
+
+            prop_assert!(
+                retrieved_meta["object"].is_object(),
+                "Object should be preserved"
+            );
+
+            Ok(())
+        })?;
+    }
+}

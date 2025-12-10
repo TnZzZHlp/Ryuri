@@ -22,11 +22,39 @@ use crate::models::{
     CreateLibraryRequest, Library, LibraryWithStats, ScanPath, UpdateLibraryRequest,
 };
 use crate::services::library::LibraryService;
+use crate::services::scheduler::SchedulerService;
+use crate::services::watch::WatchService;
 
-/// Application state containing the library service.
+/// Application state containing the library service and optional watch/scheduler services.
 #[derive(Clone)]
 pub struct LibraryState {
     pub library_service: Arc<LibraryService>,
+    pub watch_service: Option<Arc<WatchService>>,
+    pub scheduler_service: Option<Arc<SchedulerService>>,
+}
+
+impl LibraryState {
+    /// Create a new library state with just the library service.
+    pub fn new(library_service: Arc<LibraryService>) -> Self {
+        Self {
+            library_service,
+            watch_service: None,
+            scheduler_service: None,
+        }
+    }
+
+    /// Create a new library state with all services.
+    pub fn with_services(
+        library_service: Arc<LibraryService>,
+        watch_service: Arc<WatchService>,
+        scheduler_service: Arc<SchedulerService>,
+    ) -> Self {
+        Self {
+            library_service,
+            watch_service: Some(watch_service),
+            scheduler_service: Some(scheduler_service),
+        }
+    }
 }
 
 /// GET /api/libraries
@@ -73,12 +101,34 @@ pub async fn list_libraries(
 /// # Response
 /// Returns the created library.
 ///
-/// Requirements: 1.1
+/// Requirements: 1.1, 1.8, 1.9
 pub async fn create_library(
     State(state): State<LibraryState>,
     Json(req): Json<CreateLibraryRequest>,
 ) -> Result<Json<Library>> {
+    let scan_interval = req.scan_interval.unwrap_or(0);
+    let watch_mode = req.watch_mode.unwrap_or(false);
+
     let library = state.library_service.create(req).await?;
+
+    // Start scheduler if scan_interval is set (Requirement 1.8)
+    if scan_interval > 0 {
+        if let Some(ref scheduler) = state.scheduler_service {
+            if let Err(e) = scheduler.schedule_scan(library.id, scan_interval).await {
+                eprintln!("Failed to schedule scan for library {}: {}", library.id, e);
+            }
+        }
+    }
+
+    // Start watch service if watch_mode is enabled (Requirement 1.9)
+    if watch_mode {
+        if let Some(ref watch) = state.watch_service {
+            if let Err(e) = watch.start_watching(library.id).await {
+                eprintln!("Failed to start watching library {}: {}", library.id, e);
+            }
+        }
+    }
+
     Ok(Json(library))
 }
 
@@ -126,13 +176,47 @@ pub async fn get_library(
 /// # Response
 /// Returns the updated library.
 ///
-/// Requirements: 1.7
+/// Requirements: 1.7, 1.8, 1.9
 pub async fn update_library(
     State(state): State<LibraryState>,
     Path(id): Path<i64>,
     Json(req): Json<UpdateLibraryRequest>,
 ) -> Result<Json<Library>> {
+    let new_scan_interval = req.scan_interval;
+    let new_watch_mode = req.watch_mode;
+
     let library = state.library_service.update(id, req).await?;
+
+    // Update scheduler if scan_interval changed (Requirement 1.8)
+    if let Some(interval) = new_scan_interval {
+        if let Some(ref scheduler) = state.scheduler_service {
+            if interval > 0 {
+                if let Err(e) = scheduler.schedule_scan(id, interval).await {
+                    eprintln!("Failed to update scan schedule for library {}: {}", id, e);
+                }
+            } else {
+                if let Err(e) = scheduler.cancel_scan(id).await {
+                    eprintln!("Failed to cancel scan schedule for library {}: {}", id, e);
+                }
+            }
+        }
+    }
+
+    // Update watch service if watch_mode changed (Requirement 1.9)
+    if let Some(watch_mode) = new_watch_mode {
+        if let Some(ref watch) = state.watch_service {
+            if watch_mode {
+                if let Err(e) = watch.start_watching(id).await {
+                    eprintln!("Failed to start watching library {}: {}", id, e);
+                }
+            } else {
+                if let Err(e) = watch.stop_watching(id).await {
+                    eprintln!("Failed to stop watching library {}: {}", id, e);
+                }
+            }
+        }
+    }
+
     Ok(Json(library))
 }
 
@@ -146,11 +230,25 @@ pub async fn update_library(
 /// # Response
 /// Returns 200 OK with empty body on success.
 ///
-/// Requirements: 1.6
+/// Requirements: 1.6, 1.8, 1.9
 pub async fn delete_library(
     State(state): State<LibraryState>,
     Path(id): Path<i64>,
 ) -> Result<Json<()>> {
+    // Stop scheduler before deleting (Requirement 1.8)
+    if let Some(ref scheduler) = state.scheduler_service {
+        if let Err(e) = scheduler.cancel_scan(id).await {
+            eprintln!("Failed to cancel scan schedule for library {}: {}", id, e);
+        }
+    }
+
+    // Stop watch service before deleting (Requirement 1.9)
+    if let Some(ref watch) = state.watch_service {
+        if let Err(e) = watch.stop_watching(id).await {
+            eprintln!("Failed to stop watching library {}: {}", id, e);
+        }
+    }
+
     state.library_service.delete(id).await?;
     Ok(Json(()))
 }
@@ -207,7 +305,7 @@ pub async fn list_scan_paths(
 /// # Response
 /// Returns the created scan path.
 ///
-/// Requirements: 1.2
+/// Requirements: 1.2, 1.9
 pub async fn add_scan_path(
     State(state): State<LibraryState>,
     Path(library_id): Path<i64>,
@@ -217,6 +315,17 @@ pub async fn add_scan_path(
         .library_service
         .add_scan_path(library_id, req.path)
         .await?;
+
+    // Refresh watch service to include new path (Requirement 1.9)
+    if let Some(ref watch) = state.watch_service {
+        if let Err(e) = watch.refresh_watching(library_id).await {
+            eprintln!(
+                "Failed to refresh watching for library {}: {}",
+                library_id, e
+            );
+        }
+    }
+
     Ok(Json(scan_path))
 }
 
@@ -241,7 +350,7 @@ pub struct ScanPathParams {
 /// # Response
 /// Returns 200 OK with empty body on success.
 ///
-/// Requirements: 1.3
+/// Requirements: 1.3, 1.9
 pub async fn remove_scan_path(
     State(state): State<LibraryState>,
     Path(params): Path<ScanPathParams>,
@@ -250,5 +359,16 @@ pub async fn remove_scan_path(
         .library_service
         .remove_scan_path(params.id, params.path_id)
         .await?;
+
+    // Refresh watch service to remove the path (Requirement 1.9)
+    if let Some(ref watch) = state.watch_service {
+        if let Err(e) = watch.refresh_watching(params.id).await {
+            eprintln!(
+                "Failed to refresh watching for library {}: {}",
+                params.id, e
+            );
+        }
+    }
+
     Ok(Json(()))
 }

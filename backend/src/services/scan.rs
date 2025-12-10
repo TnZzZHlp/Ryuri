@@ -6,12 +6,14 @@
 use sqlx::{Pool, Sqlite};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::error::{AppError, Result};
 use crate::extractors::{ComicArchiveExtractor, NovelArchiveExtractor, natural_sort_key};
 use crate::models::{Content, ContentType, NewChapter, NewContent, ScanPath};
 use crate::repository::content::{ChapterRepository, ContentRepository};
 use crate::repository::library::ScanPathRepository;
+use crate::services::bangumi::BangumiService;
 
 /// Result of a library scan operation.
 #[derive(Debug, Default)]
@@ -27,12 +29,29 @@ pub struct ScanResult {
 /// Service for scanning library paths and importing content.
 pub struct ScanService {
     pool: Pool<Sqlite>,
+    bangumi_service: Option<Arc<BangumiService>>,
 }
 
 impl ScanService {
     /// Create a new scan service.
     pub fn new(pool: Pool<Sqlite>) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            bangumi_service: None,
+        }
+    }
+
+    /// Create a new scan service with Bangumi integration for auto-scraping.
+    pub fn with_bangumi(pool: Pool<Sqlite>, bangumi_service: Arc<BangumiService>) -> Self {
+        Self {
+            pool,
+            bangumi_service: Some(bangumi_service),
+        }
+    }
+
+    /// Set the Bangumi service for auto-scraping.
+    pub fn set_bangumi_service(&mut self, bangumi_service: Arc<BangumiService>) {
+        self.bangumi_service = Some(bangumi_service);
     }
 
     /// Scan all paths in a library and import/update content.
@@ -104,7 +123,11 @@ impl ScanService {
             if !existing_paths.contains(&folder_path_str) {
                 // New content folder found
                 match self.import_content_folder(scan_path, &folder_path).await {
-                    Ok(content) => {
+                    Ok((content, scrape_error)) => {
+                        if let Some(error_msg) = scrape_error {
+                            // Content was imported but metadata scraping failed
+                            result.failed_scrape.push((content.clone(), error_msg));
+                        }
                         result.added.push(content);
                     }
                     Err(e) => {
@@ -166,12 +189,14 @@ impl ScanService {
 
     /// Import a content folder into the database.
     ///
-    /// Requirements: 2.2, 2.3, 2.4
+    /// Returns the imported content and an optional error message if metadata scraping failed.
+    ///
+    /// Requirements: 2.2, 2.3, 2.4, 8.1, 8.2, 8.3
     async fn import_content_folder(
         &self,
         scan_path: &ScanPath,
         folder_path: &Path,
-    ) -> Result<Content> {
+    ) -> Result<(Content, Option<String>)> {
         // Derive title from folder name (Requirement 2.4)
         let title = folder_path
             .file_name()
@@ -182,6 +207,9 @@ impl ScanService {
         // Detect content type and find chapters
         let (content_type, chapters) = self.detect_content_type_and_chapters(folder_path)?;
 
+        // Auto-scrape metadata from Bangumi if service is available (Requirements: 8.1, 8.2, 8.3)
+        let (metadata, scrape_error) = self.auto_scrape_metadata(&title).await;
+
         // Create the content record
         let new_content = NewContent {
             library_id: scan_path.library_id,
@@ -191,7 +219,7 @@ impl ScanService {
             folder_path: folder_path.to_string_lossy().to_string(),
             chapter_count: chapters.len() as i32,
             thumbnail: None,
-            metadata: None,
+            metadata,
         };
 
         let content = ContentRepository::create(&self.pool, new_content).await?;
@@ -217,9 +245,45 @@ impl ScanService {
         }
 
         // Fetch the updated content with thumbnail
-        ContentRepository::find_by_id(&self.pool, content.id)
+        let final_content = ContentRepository::find_by_id(&self.pool, content.id)
             .await?
-            .ok_or_else(|| AppError::Internal("Failed to retrieve created content".to_string()))
+            .ok_or_else(|| AppError::Internal("Failed to retrieve created content".to_string()))?;
+
+        Ok((final_content, scrape_error))
+    }
+
+    /// Auto-scrape metadata from Bangumi for a content title.
+    ///
+    /// Returns the metadata JSON blob if successful, or None with an error message if failed.
+    ///
+    /// Requirements: 8.1, 8.2, 8.3
+    async fn auto_scrape_metadata(
+        &self,
+        title: &str,
+    ) -> (Option<serde_json::Value>, Option<String>) {
+        let Some(ref bangumi_service) = self.bangumi_service else {
+            // No Bangumi service configured, skip scraping
+            return (None, None);
+        };
+
+        match bangumi_service.auto_scrape(title).await {
+            Ok(Some(metadata)) => {
+                // Successfully scraped metadata (Requirement 8.2)
+                (Some(metadata), None)
+            }
+            Ok(None) => {
+                // No results found (Requirement 8.3)
+                let error_msg = format!("No Bangumi results found for '{}'", title);
+                eprintln!("{}", error_msg);
+                (None, Some(error_msg))
+            }
+            Err(e) => {
+                // Scraping failed (Requirement 8.3)
+                let error_msg = format!("Failed to scrape metadata for '{}': {}", title, e);
+                eprintln!("{}", error_msg);
+                (None, Some(error_msg))
+            }
+        }
     }
 
     /// Detect content type based on archive files and return sorted chapters.

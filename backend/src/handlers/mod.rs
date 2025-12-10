@@ -4,6 +4,7 @@
 //! and return appropriate responses.
 
 pub mod auth;
+pub mod bangumi;
 pub mod content;
 pub mod library;
 pub mod progress;

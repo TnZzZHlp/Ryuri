@@ -375,82 +375,164 @@
 
     - **Property 13: Progress Persistence Round-Trip**
     - **Validates: Requirements 3.5, 4.5, 5.1**
-  - [ ] 15.4 Write property test for progress percentage accuracy
+  - [x] 15.4 Write property test for progress percentage accuracy
+
+
+
+
+
     - **Property 14: Progress Percentage Accuracy**
     - **Validates: Requirements 5.4**
-  - [ ] 15.5 Write property test for progress user isolation
+  - [x] 15.5 Write property test for progress user isolation
+
+
+
+
+
     - **Property 25: Progress User Isolation**
     - **Validates: Requirements 9.7**
-  - [ ] 15.6 Write property test for progress validation
+  - [x] 15.6 Write property test for progress validation
+
+
+
+
+
     - **Property 16: Progress Validation**
     - **Validates: Requirements 7.4**
 
-- [ ] 16. Implement progress API handlers
-  - [ ] 16.1 Implement GET /api/contents/{id}/progress handler (overall content progress)
+
+- [x] 16. Implement progress API handlers
+
+
+
+
+
+  - [x] 16.1 Implement GET /api/contents/{id}/progress handler (overall content progress)
+
     - _Requirements: 5.1_
-  - [ ] 16.2 Implement GET/PUT /api/chapters/{id}/progress handlers (chapter-level progress)
+
+  - [x] 16.2 Implement GET/PUT /api/chapters/{id}/progress handlers (chapter-level progress)
+
     - _Requirements: 5.2, 5.3, 7.4_
 
-- [ ] 17. Checkpoint - Ensure all tests pass
+- [x] 17. Checkpoint - Ensure all tests pass
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 6: Bangumi Metadata Integration
 
-- [ ] 18. Implement Bangumi service
-  - [ ] 18.1 Implement BangumiService (search, get_subject, auto_scrape)
+
+- [x] 18. Implement Bangumi service
+
+
+
+
+  - [x] 18.1 Implement BangumiService (search, get_subject, auto_scrape)
+
+
     - _Requirements: 8.1, 8.4_
-  - [ ] 18.2 Integrate auto-scraping into scan service
+
+  - [x] 18.2 Integrate auto-scraping into scan service
+
     - _Requirements: 8.1, 8.2, 8.3_
-  - [ ] 18.3 Implement metadata update for content
+
+  - [x] 18.3 Implement metadata update for content
+
     - _Requirements: 8.5, 8.7_
-  - [ ] 18.4 Write property test for metadata JSON blob storage
+
+  - [x] 18.4 Write property test for metadata JSON blob storage
+
     - **Property 21: Metadata JSON Blob Storage**
     - **Validates: Requirements 8.4, 8.6**
 
-- [ ] 19. Implement Bangumi API handlers
-  - [ ] 19.1 Implement GET /api/bangumi/search handler
+- [x] 19. Implement Bangumi API handlers
+
+
+
+
+
+  - [x] 19.1 Implement GET /api/bangumi/search handler
+
+
     - _Requirements: 8.4_
-  - [ ] 19.2 Implement PUT /api/contents/{id}/metadata handler
+  - [x] 19.2 Implement PUT /api/contents/{id}/metadata handler
+
+
     - _Requirements: 8.5, 8.7_
 
-- [ ] 20. Checkpoint - Ensure all tests pass
+
+- [x] 20. Checkpoint - Ensure all tests pass
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 7: Watch Mode and Scheduled Scanning
 
-- [ ] 21. Implement watch and scheduler services
-  - [ ] 21.1 Implement WatchService for file system monitoring
+
+- [x] 21. Implement watch and scheduler services
+
+
+
+
+  - [x] 21.1 Implement WatchService for file system monitoring
+
+
     - _Requirements: 1.9, 1.10, 1.11_
-  - [ ] 21.2 Implement SchedulerService for periodic scanning
+
+  - [x] 21.2 Implement SchedulerService for periodic scanning
+
     - _Requirements: 1.8_
-  - [ ] 21.3 Integrate watch/scheduler with library lifecycle
+
+  - [x] 21.3 Integrate watch/scheduler with library lifecycle
+
     - _Requirements: 1.8, 1.9_
-  - [ ] 21.4 Write property test for scan interval configuration
+  - [x] 21.4 Write property test for scan interval configuration
+
+
     - **Property 19: Scan Interval Configuration**
     - **Validates: Requirements 1.8**
-  - [ ] 21.5 Write property test for watch mode state consistency
+  - [x] 21.5 Write property test for watch mode state consistency
+
     - **Property 20: Watch Mode State Consistency**
     - **Validates: Requirements 1.9, 1.10, 1.11**
 
-- [ ] 22. Checkpoint - Ensure all tests pass
+- [x] 22. Checkpoint - Ensure all tests pass
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 8: Backend Integration and Router Setup
 
-- [ ] 23. Wire up Axum router and application state
-  - [ ] 23.1 Create AppState with all services
+- [x] 23. Wire up Axum router and application state
+
+  - [x] 23.1 Create AppState with all services
     - _Requirements: 7.1_
-  - [ ] 23.2 Configure complete router with all routes
+  - [x] 23.2 Configure complete router with all routes
     - _Requirements: 7.1_
-  - [ ] 23.3 Add CORS and middleware configuration
+  - [x] 23.3 Add CORS and middleware configuration
     - _Requirements: 7.1_
-  - [ ] 23.4 Implement main.rs with server startup
+  - [x] 23.4 Implement main.rs with server startup
+
+
     - _Requirements: 10.1_
 
 - [ ] 24. Checkpoint - Ensure all tests pass
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Phase 9: Frontend Foundation
+
+
 
 - [ ] 25. Set up frontend project structure and dependencies
   - [ ] 25.1 Install required dependencies (vue-router, pinia, axios, fast-check)

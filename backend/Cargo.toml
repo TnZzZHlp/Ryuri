@@ -20,6 +20,7 @@ thiserror = "2.0.17"
 tokio = { version = "1.48.0", features = ["full"] }
 tower-http = { version = "0.6.8", features = ["cors", "fs"] }
 unrar = "0.5.8"
+urlencoding = "2.1"
 uuid = { version = "1.19.0", features = ["v4", "serde"] }
 zip = "6.0.0"
 
