@@ -2,9 +2,8 @@
 
 ## Overview
 
-本设计文档描述了一个 Web 端漫画/小说阅读软件的技术架构和实现方案。系统采用前后端分离架构：
+本设计文档描述了漫画/小说阅读软件后端的技术架构和实现方案。
 
-- **前端**: Vue.js 3 + TypeScript + Vite
 - **后端**: Rust + Axum + SQLx
 - **数据库**: SQLite
 
@@ -14,12 +13,6 @@
 
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend (Vue.js)"]
-        UI[UI Components]
-        Store[Pinia Store]
-        API[API Client]
-    end
-    
     subgraph Backend["Backend (Rust/Axum)"]
         Router[Axum Router]
         Handlers[Request Handlers]
@@ -35,9 +28,6 @@ graph TB
         Cache[Thumbnail Cache]
     end
     
-    UI --> Store
-    Store --> API
-    API -->|HTTP/REST| Router
     Router --> Handlers
     Handlers --> Services
     Services --> Repository
@@ -53,25 +43,20 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Vue as Vue Frontend
+    participant Client as Client
     participant Axum as Axum Backend
     participant SQLx as SQLx/SQLite
     participant FS as File System
     
-    User->>Vue: 打开库
-    Vue->>Axum: GET /api/libraries/{id}/contents
+    Client->>Axum: GET /api/libraries/{id}/contents
     Axum->>SQLx: 查询内容列表
     SQLx-->>Axum: 返回数据
-    Axum-->>Vue: JSON 响应
-    Vue-->>User: 显示内容网格
+    Axum-->>Client: JSON 响应
     
-    User->>Vue: 阅读漫画
-    Vue->>Axum: GET /api/comics/{id}/chapters/{ch}/pages/{page}
+    Client->>Axum: GET /api/contents/{id}/chapters/{ch}/pages/{page}
     Axum->>FS: 解压图片
     FS-->>Axum: 图片数据
-    Axum-->>Vue: 图片响应
-    Vue-->>User: 显示图片
+    Axum-->>Client: 图片响应
 ```
 
 ## Components and Interfaces
@@ -317,151 +302,6 @@ pub struct ComicArchiveExtractor;
 
 // 小说压缩包解压器 (ZIP, EPUB, TXT)
 pub struct NovelArchiveExtractor;
-```
-
-### Frontend Components
-
-#### 1. Vue Components Structure
-
-```
-src/
-├── components/
-│   ├── library/
-│   │   ├── LibraryList.vue      # 库列表
-│   │   ├── LibraryCard.vue      # 库卡片
-│   │   └── LibraryForm.vue      # 库创建/编辑表单
-│   ├── content/
-│   │   ├── ContentGrid.vue      # 内容网格
-│   │   ├── ContentCard.vue      # 内容卡片
-│   │   └── ContentSearch.vue    # 搜索组件
-│   ├── reader/
-│   │   ├── ComicReader.vue      # 漫画阅读器
-│   │   ├── NovelReader.vue      # 小说阅读器
-│   │   ├── ChapterList.vue      # 章节列表
-│   │   └── ReaderSettings.vue   # 阅读设置
-│   └── common/
-│       ├── Thumbnail.vue        # 缩略图组件
-│       └── ProgressBar.vue      # 进度条
-├── stores/
-│   ├── auth.ts                  # 认证状态管理
-│   ├── library.ts               # 库状态管理
-│   ├── content.ts               # 内容状态管理
-│   ├── reader.ts                # 阅读器状态管理
-│   └── settings.ts              # 设置状态管理
-├── api/
-│   ├── client.ts                # API 客户端
-│   ├── auth.ts                  # 认证 API
-│   ├── library.ts               # 库 API
-│   ├── content.ts               # 内容 API
-│   └── reader.ts                # 阅读 API
-└── views/
-    ├── LoginView.vue            # 登录页
-    ├── RegisterView.vue         # 注册页
-    ├── HomeView.vue             # 首页(库列表)
-    ├── LibraryView.vue          # 库详情(内容列表)
-    ├── ComicReaderView.vue      # 漫画阅读页
-    └── NovelReaderView.vue      # 小说阅读页
-```
-
-#### 2. TypeScript Interfaces
-
-```typescript
-// 用户类型
-interface User {
-  id: number;
-  username: string;
-  bangumiApiKey: string | null;  // Bangumi API Key，用于元数据刮削
-  createdAt: string;
-}
-
-// 登录响应
-interface LoginResponse {
-  user: User;
-  token: string;  // JWT token
-}
-
-// 库类型 - 不区分类型，内容类型在 Content 上区分
-interface Library {
-  id: number;
-  name: string;
-  scanInterval: number;      // 扫描间隔（分钟），0 表示禁用
-  watchMode: boolean;        // 是否启用文件监听
-  pathCount: number;
-  contentCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// 扫描路径
-interface ScanPath {
-  id: number;
-  libraryId: number;
-  path: string;
-  createdAt: string;
-}
-
-// Content 类型 - 统一的内容类型，同时用于漫画和小说
-interface Content {
-  id: number;
-  libraryId: number;
-  contentType: 'comic' | 'novel';  // 内容类型
-  title: string;
-  chapterCount: number;
-  hasThumbnail: boolean;  // 是否有缩略图，通过 /api/contents/{id}/thumbnail 获取
-  metadata: ContentMetadata | null;  // 直接存储 Bangumi API 返回的原始 JSON blob
-  progress?: ReadingProgress;
-  createdAt: string;
-}
-
-// 内容元数据 - 直接存储 Bangumi API 返回的原始 JSON blob
-// 前端根据需要从 JSON 中提取字段进行展示
-type ContentMetadata = Record<string, unknown>;
-
-// Bangumi 搜索结果
-interface BangumiSearchResult {
-  id: number;
-  name: string;
-  nameCn: string | null;
-  summary: string | null;
-  image: string | null;
-}
-
-// 章节
-interface Chapter {
-  id: number;
-  contentId: number;
-  title: string;
-  sortOrder: number;
-}
-
-// 阅读进度 - 按章节追踪
-interface ReadingProgress {
-  chapterId: number;
-  position: number;
-  percentage: number;  // 章节内的阅读百分比
-  updatedAt: string;
-}
-
-// 内容整体进度（聚合所有章节进度）
-interface ContentProgress {
-  contentId: number;
-  totalChapters: number;
-  completedChapters: number;
-  currentChapterId: number | null;  // 最近阅读的章节
-  overallPercentage: number;        // 整体阅读百分比
-}
-
-// 阅读设置
-interface ReaderSettings {
-  // 漫画设置
-  comicMode: 'single' | 'scroll';
-  comicZoom: number;
-  comicFitWidth: boolean;
-  comicDirection: 'ltr' | 'rtl';
-  // 小说设置
-  novelFontSize: number;
-  novelTheme: 'light' | 'dark' | 'sepia';
-}
 ```
 
 ## Data Models
@@ -797,32 +637,6 @@ impl IntoResponse for AppError {
 }
 ```
 
-### Frontend Error Handling
-
-```typescript
-// API 错误处理
-interface ApiError {
-  code: number;
-  message: string;
-}
-
-async function handleApiError(response: Response): Promise<never> {
-  const error: { error: ApiError } = await response.json();
-  throw new Error(error.error.message);
-}
-
-// 全局错误处理
-const errorHandler = {
-  handle(error: Error) {
-    // 显示错误通知
-    notification.error({
-      title: '错误',
-      message: error.message,
-    });
-  }
-};
-```
-
 ## Testing Strategy
 
 ### Dual Testing Approach
@@ -839,16 +653,6 @@ const errorHandler = {
 ```toml
 [dev-dependencies]
 proptest = "1.4"
-```
-
-**前端 (TypeScript)**: 使用 `fast-check` 库进行属性测试
-
-```json
-{
-  "devDependencies": {
-    "fast-check": "^3.15.0"
-  }
-}
 ```
 
 ### Test Configuration
@@ -893,15 +697,4 @@ backend/
         ├── content_props.rs
         ├── search_props.rs
         └── serialization_props.rs
-
-frontend/
-├── src/
-│   └── ...
-└── tests/
-    ├── unit/
-    │   ├── api.test.ts
-    │   └── store.test.ts
-    └── property/
-        ├── library.prop.test.ts
-        └── content.prop.test.ts
 ```
