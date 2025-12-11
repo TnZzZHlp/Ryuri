@@ -2,5 +2,6 @@
 </script>
 
 <template>
-  <RouterView />
+    <RouterView />
+    <Toaster />
 </template>
