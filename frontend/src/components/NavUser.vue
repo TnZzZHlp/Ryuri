@@ -4,6 +4,7 @@ import {
     IconDotsVertical,
     IconLogout,
     IconNotification,
+    IconSettings,
     IconUserCircle,
 } from "@tabler/icons-vue"
 
@@ -27,18 +28,27 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from "@/components/ui/sidebar"
-
-interface User {
-    name: string
-    email: string
-    avatar: string
-}
+import type { UserResponse } from "@/api/types"
+import { useAuthStore } from "@/stores/useAuthStore"
+import { useRouter } from "vue-router"
 
 defineProps<{
-    user: User
+    user: UserResponse
 }>()
 
 const { isMobile } = useSidebar()
+const authStore = useAuthStore()
+const router = useRouter()
+
+function handleLogout() {
+    authStore.logout()
+    router.push('/login')
+}
+
+// Helper to get user initials for avatar fallback
+function getUserInitials(username: string): string {
+    return username.slice(0, 2).toUpperCase()
+}
 </script>
 
 <template>
@@ -49,15 +59,15 @@ const { isMobile } = useSidebar()
                     <SidebarMenuButton size="lg"
                         class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
                         <Avatar class="h-8 w-8 rounded-lg grayscale">
-                            <AvatarImage :src="user.avatar" :alt="user.name" />
+                            <AvatarImage src="" :alt="user.username" />
                             <AvatarFallback class="rounded-lg">
-                                CN
+                                {{ getUserInitials(user.username) }}
                             </AvatarFallback>
                         </Avatar>
                         <div class="grid flex-1 text-left text-sm leading-tight">
-                            <span class="truncate font-medium">{{ user.name }}</span>
+                            <span class="truncate font-medium">{{ user.username }}</span>
                             <span class="text-muted-foreground truncate text-xs">
-                                {{ user.email }}
+                                ID: {{ user.id }}
                             </span>
                         </div>
                         <IconDotsVertical class="ml-auto size-4" />
@@ -68,15 +78,15 @@ const { isMobile } = useSidebar()
                     <DropdownMenuLabel class="p-0 font-normal">
                         <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                             <Avatar class="h-8 w-8 rounded-lg">
-                                <AvatarImage :src="user.avatar" :alt="user.name" />
+                                <AvatarImage src="" :alt="user.username" />
                                 <AvatarFallback class="rounded-lg">
-                                    CN
+                                    {{ getUserInitials(user.username) }}
                                 </AvatarFallback>
                             </Avatar>
                             <div class="grid flex-1 text-left text-sm leading-tight">
-                                <span class="truncate font-medium">{{ user.name }}</span>
+                                <span class="truncate font-medium">{{ user.username }}</span>
                                 <span class="text-muted-foreground truncate text-xs">
-                                    {{ user.email }}
+                                    ID: {{ user.id }}
                                 </span>
                             </div>
                         </div>
@@ -84,22 +94,14 @@ const { isMobile } = useSidebar()
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                         <DropdownMenuItem>
-                            <IconUserCircle />
-                            Account
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            <IconCreditCard />
-                            Billing
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            <IconNotification />
-                            Notifications
+                            <IconSettings />
+                            设置
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
+                    <DropdownMenuItem @click="handleLogout">
                         <IconLogout />
-                        Log out
+                        登出
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>

@@ -1,21 +1,6 @@
 <script setup lang="ts">
-import {
-    IconCamera,
-    IconChartBar,
-    IconDashboard,
-    IconDatabase,
-    IconFileAi,
-    IconFileDescription,
-    IconFolder,
-    IconHelp,
-    IconInnerShadowTop,
-    IconListDetails,
-    IconReport,
-    IconSearch,
-    IconSettings,
-    IconUsers,
-} from "@tabler/icons-vue"
-
+import { IconInnerShadowTop } from "@tabler/icons-vue"
+import NavMain from "./NavMain.vue";
 import NavUser from "@/components/NavUser.vue"
 import {
     Sidebar,
@@ -26,18 +11,32 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { onBeforeMount, ref } from "vue";
-import { useAuth } from "@/composables/useAuth";
+import { computed, onBeforeMount } from "vue";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useLibraryStore } from "@/stores/useLibraryStore";
 
-const { fetchUser } = useAuth()
+const authStore = useAuthStore()
+const libraryStore = useLibraryStore()
+
+const libraries = computed(() => libraryStore.libraries.map((lib) => {
+    return {
+        id: lib.id,
+        title: lib.name,
+        url: `/library/${lib.id}`,
+    }
+}))
 
 onBeforeMount(() => {
-    // fetch user informations
-    fetchUser().then((data) => {
-        data.user = data.user
-    })
-})
+    // fetch user information if authenticated but user not loaded
+    if (authStore.isAuthenticated && !authStore.user) {
+        authStore.fetchUser()
+    }
 
+    // fetch library information if authenticated but library not loaded
+    if (libraryStore.libraries.length == 0) {
+        libraryStore.fetchLibraries()
+    }
+})
 </script>
 
 <template>
@@ -46,18 +45,19 @@ onBeforeMount(() => {
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton as-child class="data-[slot=sidebar-menu-button]:!p-1.5">
-                        <a href="#">
+                        <router-link to="/">
                             <IconInnerShadowTop class="!size-5" />
                             <span class="text-base font-semibold">Wyuri</span>
-                        </a>
+                        </router-link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
+            <NavMain :items="libraries" />
         </SidebarContent>
         <SidebarFooter>
-            <NavUser :user="data.user" />
+            <NavUser v-if="authStore.user" :user="authStore.user" />
         </SidebarFooter>
     </Sidebar>
 </template>

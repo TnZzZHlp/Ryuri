@@ -2,7 +2,7 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/composables/useAuth'
+import { useAuthStore } from '@/stores/useAuthStore'
 import { toast } from 'vue-sonner'
 import { useRouter } from 'vue-router'
 import {
@@ -24,8 +24,7 @@ import { Spinner } from '@/components/ui/spinner'
 import type { ApiError } from '@/api'
 
 const router = useRouter()
-const { login, loading } = useAuth()
-
+const authStore = useAuthStore()
 
 const formSchema = toTypedSchema(
     z.object({
@@ -35,10 +34,9 @@ const formSchema = toTypedSchema(
 )
 
 function onSubmit(values: Record<string, unknown>) {
-    // 调用 API 登录
     const { username, password } = values
 
-    login(username as string, password as string)
+    authStore.login(username as string, password as string)
         .then(() => {
             router.push('/')
         })
@@ -87,8 +85,8 @@ function onSubmit(values: Record<string, unknown>) {
                         </FormField>
 
                         <!-- Login Button -->
-                        <Button type="submit" class="w-full mt-4" :disable="loading">
-                            <Spinner v-if="loading" />登录
+                        <Button type="submit" class="w-full mt-4" :disable="authStore.loading">
+                            <Spinner v-if="authStore.loading" />登录
                         </Button>
                     </Form>
                 </CardContent>

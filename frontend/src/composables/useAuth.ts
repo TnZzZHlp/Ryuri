@@ -1,3 +1,25 @@
+/**
+ * @deprecated This composable is deprecated and will be removed in a future version.
+ * Please use `useAuthStore` from `@/stores/useAuthStore` instead.
+ *
+ * Migration guide:
+ * ```typescript
+ * // Before (deprecated)
+ * import { useAuth } from '@/composables/useAuth'
+ * const { isAuthenticated, user, login, logout } = useAuth()
+ *
+ * // After (recommended)
+ * import { useAuthStore } from '@/stores/useAuthStore'
+ * const authStore = useAuthStore()
+ * // Access: authStore.isAuthenticated, authStore.user, authStore.login(), authStore.logout()
+ * ```
+ *
+ * The Pinia store provides:
+ * - Vue DevTools integration for state debugging
+ * - Consistent state management patterns
+ * - Better TypeScript support
+ */
+
 import { ref, computed } from "vue";
 import { ApiClient } from "@/api/client";
 import { createAuthApi, type AuthApi } from "@/api/auth";
@@ -31,7 +53,16 @@ function getAuthApi(): AuthApi {
     return authApi;
 }
 
+/**
+ * @deprecated Use `useAuthStore` from `@/stores/useAuthStore` instead.
+ */
 export function useAuth() {
+    if (import.meta.env.DEV) {
+        console.warn(
+            '[DEPRECATED] useAuth() is deprecated. Please migrate to useAuthStore() from "@/stores/useAuthStore".'
+        );
+    }
+
     const isAuthenticated = computed(() => !!token.value);
 
     function setToken(newToken: string) {
