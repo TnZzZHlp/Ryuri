@@ -16,10 +16,16 @@ const routes = [
         meta: { requiresAuth: false },
     },
     {
-        path: "/dashboard",
-        name: "Dashboard",
-        component: () => import("@/views/DashBoard.vue"),
+        path: "/",
+        component: () => import("@/layouts/MainLayout.vue"),
         meta: { requiresAuth: true },
+        children: [
+            {
+                path: "dashboard",
+                name: "Dashboard",
+                component: () => import("@/views/Dashboard.vue"),
+            },
+        ],
     },
 ];
 
@@ -38,7 +44,7 @@ router.beforeEach((to) => {
     }
 
     // 已登录访问登录页 -> 跳转dashboard
-    if (isAuthenticated.value) {
+    if (to.name === "Login" && isAuthenticated.value) {
         return { name: "Dashboard" };
     }
 });

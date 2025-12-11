@@ -20,9 +20,12 @@ import {
     FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import type { ApiError } from '@/api'
 
 const router = useRouter()
+const { login, loading } = useAuth()
+
 
 const formSchema = toTypedSchema(
     z.object({
@@ -33,18 +36,15 @@ const formSchema = toTypedSchema(
 
 function onSubmit(values: Record<string, unknown>) {
     // 调用 API 登录
-    const { login } = useAuth()
+    const { username, password } = values
 
-    toast.promise(login(values.username as string, values.password as string), {
-        loading: '登录中...',
-        success: () => {
-            router.push('/dashboard')
-        },
-        error: (err: ApiError) => {
-            console.debug(err)
-            return err.message
-        },
-    })
+    login(username as string, password as string)
+        .then(() => {
+            router.push('/')
+        })
+        .catch((error: ApiError) => {
+            toast.error(error.message)
+        })
 }
 </script>
 
@@ -63,7 +63,7 @@ function onSubmit(values: Record<string, unknown>) {
                             <FormItem>
                                 <FormLabel>用户名</FormLabel>
                                 <FormControl>
-                                    <Input type="text" v-bind="componentField" />
+                                    <Input type="text" v-bind="componentField" autocomplete="username" />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -76,19 +76,19 @@ function onSubmit(values: Record<string, unknown>) {
                                     <FormLabel>密码</FormLabel>
                                     <a href="#"
                                         class="text-sm text-muted-foreground underline-offset-4 hover:underline">
-                                        Forgot your password?
+                                        忘记了密码?
                                     </a>
                                 </div>
                                 <FormControl>
-                                    <Input type="password" v-bind="componentField" />
+                                    <Input type="password" v-bind="componentField" autocomplete="current-password" />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
                         </FormField>
 
                         <!-- Login Button -->
-                        <Button type="submit" class="w-full mt-4">
-                            登录
+                        <Button type="submit" class="w-full mt-4" :disable="loading">
+                            <Spinner v-if="loading" />登录
                         </Button>
                     </Form>
                 </CardContent>
