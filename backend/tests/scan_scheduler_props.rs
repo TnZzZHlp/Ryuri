@@ -3,8 +3,7 @@
 //! This module contains property-based tests for the scheduler and watch services.
 
 use backend::db::{DbConfig, init_db};
-use backend::services::scan::ScanService;
-use backend::services::scan_queue::ScanQueueService;
+use backend::services::scan_queue::{ScanQueueService, ScanService};
 use backend::services::scheduler::SchedulerService;
 use backend::services::watch::WatchService;
 use chrono::{Duration, Utc};

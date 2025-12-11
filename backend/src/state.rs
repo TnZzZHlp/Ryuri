@@ -10,8 +10,7 @@ use crate::services::auth::{AuthConfig, AuthService, middleware::HasAuthService}
 use crate::services::bangumi::BangumiService;
 use crate::services::library::LibraryService;
 use crate::services::progress::ProgressService;
-use crate::services::scan::ScanService;
-use crate::services::scan_queue::ScanQueueService;
+use crate::services::scan_queue::{ScanQueueService, ScanService};
 use crate::services::scheduler::SchedulerService;
 use crate::services::watch::WatchService;
 

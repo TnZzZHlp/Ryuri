@@ -9,8 +9,7 @@ use utoipa::OpenApi;
 
 use crate::handlers::bangumi::BangumiSearchQuery;
 use crate::handlers::content::{
-    ChapterTextParams, ChapterTextResponse, PageParams, ScanResponse, SearchQuery,
-    UpdateMetadataRequest,
+    ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
 };
 use crate::handlers::library::{AddScanPathRequest, ScanPathParams};
 use crate::handlers::progress::UpdateProgressWithPercentageRequest;
@@ -60,7 +59,6 @@ use crate::services::bangumi::BangumiSearchResult;
         crate::openapi::paths::remove_scan_path,
         // Content endpoints
         crate::openapi::paths::list_contents,
-        crate::openapi::paths::scan_library,
         crate::openapi::paths::search_contents,
         crate::openapi::paths::get_content,
         crate::openapi::paths::delete_content,
@@ -100,7 +98,6 @@ use crate::services::bangumi::BangumiSearchResult;
             ContentType,
             ContentResponse,
             Chapter,
-            ScanResponse,
             SearchQuery,
             ChapterTextResponse,
             ChapterTextParams,
@@ -132,8 +129,7 @@ pub mod paths {
 
     use crate::handlers::bangumi::BangumiSearchQuery;
     use crate::handlers::content::{
-        ChapterTextParams, ChapterTextResponse, PageParams, ScanResponse, SearchQuery,
-        UpdateMetadataRequest,
+        ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
     };
     use crate::handlers::library::AddScanPathRequest;
     use crate::handlers::progress::UpdateProgressWithPercentageRequest;
@@ -339,20 +335,6 @@ pub mod paths {
         )
     )]
     pub async fn list_contents() {}
-
-    /// Scan a library for new content
-    #[utoipa::path(
-        post,
-        path = "/api/libraries/{id}/scan",
-        tag = "contents",
-        params(
-            ("id" = i64, Path, description = "Library ID")
-        ),
-        responses(
-            (status = 200, description = "Scan results", body = ScanResponse)
-        )
-    )]
-    pub async fn scan_library() {}
 
     /// Search contents by title
     #[utoipa::path(

@@ -2,7 +2,6 @@
 //!
 //! This module provides HTTP handlers for content management endpoints:
 //! - GET /api/libraries/{id}/contents - List all contents in a library
-//! - POST /api/libraries/{id}/scan - Scan a library for new content
 //! - GET /api/libraries/{id}/search - Search contents by title
 //! - GET /api/contents/{id} - Get a content by ID
 //! - DELETE /api/contents/{id} - Delete a content
@@ -23,7 +22,6 @@ use serde::{Deserialize, Serialize};
 use crate::error::Result;
 use crate::models::{Chapter, ContentResponse};
 use crate::services::content::ContentService;
-use crate::services::scan::ScanResult;
 use crate::state::AppState;
 
 /// GET /api/libraries/{id}/contents
@@ -36,49 +34,6 @@ pub async fn list(
     let contents = ContentService::list_contents(&state.pool, library_id).await?;
     let responses: Vec<ContentResponse> = contents.into_iter().map(ContentResponse::from).collect();
     Ok(Json(responses))
-}
-
-/// Response for scan operation.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
-pub struct ScanResponse {
-    /// Number of contents added.
-    pub added_count: usize,
-    /// Number of contents removed.
-    pub removed_count: usize,
-    /// Number of contents that failed metadata scraping.
-    pub failed_scrape_count: usize,
-    /// Added content items.
-    pub added: Vec<ContentResponse>,
-    /// IDs of removed content items.
-    pub removed: Vec<i64>,
-}
-
-impl From<ScanResult> for ScanResponse {
-    fn from(result: ScanResult) -> Self {
-        Self {
-            added_count: result.added.len(),
-            removed_count: result.removed.len(),
-            failed_scrape_count: result.failed_scrape.len(),
-            added: result
-                .added
-                .into_iter()
-                .map(ContentResponse::from)
-                .collect(),
-            removed: result.removed,
-        }
-    }
-}
-
-/// POST /api/libraries/{id}/scan
-///
-/// Triggers a scan of the library to discover new content.
-pub async fn scan(
-    State(state): State<AppState>,
-    Path(library_id): Path<i64>,
-) -> Result<Json<ScanResponse>> {
-    let result = state.scan_service.scan_library(library_id).await?;
-    Ok(Json(ScanResponse::from(result)))
 }
 
 /// Query parameters for search.

@@ -6,7 +6,7 @@
 use backend::db::{DbConfig, init_db};
 use backend::models::{ContentType, CreateLibraryRequest};
 use backend::services::library::LibraryService;
-use backend::services::scan::ScanService;
+use backend::services::scan_queue::ScanService;
 use proptest::prelude::*;
 use sqlx::{Pool, Sqlite};
 use std::fs;

@@ -16,7 +16,7 @@ use tracing::{debug, error, instrument, warn};
 
 use crate::error::Result;
 use crate::repository::library::ScanPathRepository;
-use crate::services::scan::ScanService;
+use crate::services::scan_queue::ScanService;
 
 /// Handle for a running watcher that can be used to stop it.
 struct WatcherHandle {
