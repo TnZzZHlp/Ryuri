@@ -28,6 +28,7 @@ zip = "6.0.0"
 utoipa = { version = "5.4.0", features = [
     "axum_extras",
     "chrono",
+    "uuid",
 ], optional = true }
 utoipa-axum = { version = "0.2.0", optional = true }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"], optional = true }

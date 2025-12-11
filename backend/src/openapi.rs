@@ -14,9 +14,10 @@ use crate::handlers::content::{
 };
 use crate::handlers::library::{AddScanPathRequest, ScanPathParams};
 use crate::handlers::progress::UpdateProgressWithPercentageRequest;
+use crate::handlers::scan_queue::{ListTasksResponse, SubmitScanResponse};
 use crate::models::{
     Chapter, ContentProgressResponse, ContentResponse, ContentType, CreateLibraryRequest, Library,
-    LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath,
+    LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath, ScanTask,
     UpdateLibraryRequest, UpdatePasswordRequest, UpdateProgressRequest, UpdateUserRequest,
     UserResponse,
 };
@@ -39,6 +40,7 @@ use crate::services::bangumi::BangumiSearchResult;
         (name = "contents", description = "Content management endpoints"),
         (name = "chapters", description = "Chapter and reading endpoints"),
         (name = "progress", description = "Reading progress endpoints"),
+        (name = "scan-tasks", description = "Scan queue management endpoints"),
         (name = "bangumi", description = "Bangumi metadata endpoints")
     ),
     paths(
@@ -70,6 +72,11 @@ use crate::services::bangumi::BangumiSearchResult;
         crate::openapi::paths::get_content_progress,
         crate::openapi::paths::get_chapter_progress,
         crate::openapi::paths::update_chapter_progress,
+        // Scan queue endpoints
+        crate::openapi::paths::submit_scan,
+        crate::openapi::paths::get_task,
+        crate::openapi::paths::list_tasks,
+        crate::openapi::paths::cancel_task,
         // Bangumi endpoints
         crate::openapi::paths::search_bangumi,
     ),
@@ -104,6 +111,10 @@ use crate::services::bangumi::BangumiSearchResult;
             ContentProgressResponse,
             UpdateProgressRequest,
             UpdateProgressWithPercentageRequest,
+            // Scan queue schemas
+            ScanTask,
+            SubmitScanResponse,
+            ListTasksResponse,
             // Bangumi schemas
             BangumiSearchQuery,
             BangumiSearchResult,
@@ -126,9 +137,10 @@ pub mod paths {
     };
     use crate::handlers::library::AddScanPathRequest;
     use crate::handlers::progress::UpdateProgressWithPercentageRequest;
+    use crate::handlers::scan_queue::{ListTasksResponse, SubmitScanResponse};
     use crate::models::{
         Chapter, ContentProgressResponse, ContentResponse, CreateLibraryRequest, Library,
-        LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath,
+        LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath, ScanTask,
         UpdateLibraryRequest, UpdatePasswordRequest, UpdateUserRequest, UserResponse,
     };
     use crate::services::bangumi::BangumiSearchResult;
@@ -522,4 +534,67 @@ pub mod paths {
         )
     )]
     pub async fn search_bangumi() {}
+
+    // ========================================================================
+    // Scan queue endpoints
+    // ========================================================================
+
+    /// Submit a scan task for a library
+    #[utoipa::path(
+        post,
+        path = "/api/libraries/{id}/scan",
+        tag = "scan-tasks",
+        params(
+            ("id" = i64, Path, description = "Library ID")
+        ),
+        responses(
+            (status = 200, description = "Scan task submitted", body = SubmitScanResponse),
+            (status = 404, description = "Library not found")
+        )
+    )]
+    pub async fn submit_scan() {}
+
+    /// Get a scan task by ID
+    #[utoipa::path(
+        get,
+        path = "/api/scan-tasks/{id}",
+        tag = "scan-tasks",
+        params(
+            ("id" = String, Path, description = "Task ID (UUID)")
+        ),
+        responses(
+            (status = 200, description = "Task details", body = ScanTask),
+            (status = 404, description = "Task not found")
+        )
+    )]
+    pub async fn get_task() {}
+
+    /// List all scan tasks
+    #[utoipa::path(
+        get,
+        path = "/api/scan-tasks",
+        tag = "scan-tasks",
+        params(
+            ("limit" = Option<usize>, Query, description = "Maximum number of history tasks to return (default: 50)")
+        ),
+        responses(
+            (status = 200, description = "List of tasks", body = ListTasksResponse)
+        )
+    )]
+    pub async fn list_tasks() {}
+
+    /// Cancel a scan task
+    #[utoipa::path(
+        delete,
+        path = "/api/scan-tasks/{id}",
+        tag = "scan-tasks",
+        params(
+            ("id" = String, Path, description = "Task ID (UUID)")
+        ),
+        responses(
+            (status = 200, description = "Task cancelled", body = ScanTask),
+            (status = 404, description = "Task not found")
+        )
+    )]
+    pub async fn cancel_task() {}
 }
