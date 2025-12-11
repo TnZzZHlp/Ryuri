@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { IconInnerShadowTop } from "@tabler/icons-vue"
 import NavMain from "./NavMain.vue";
-import NavUser from "@/components/NavUser.vue"
+import NavUser from "@/components/sidebar/NavUser.vue"
 import {
     Sidebar,
     SidebarContent,
@@ -54,7 +54,7 @@ onBeforeMount(() => {
             </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
-            <NavMain :items="libraries" />
+            <NavMain :libraries="libraries" />
         </SidebarContent>
         <SidebarFooter>
             <NavUser v-if="authStore.user" :user="authStore.user" />

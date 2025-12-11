@@ -1,16 +1,16 @@
 <script setup>
 import { RouterView } from 'vue-router'
-import SiteHeader from "@/components/SiteHeader.vue"
+import SiteHeader from "@/components/header/SiteHeader.vue"
 import {
     SidebarInset,
     SidebarProvider,
 } from "@/components/ui/sidebar"
-import AppSidebar from '@/components/AppSidebar.vue'
+import AppSidebar from '@/components/sidebar/AppSidebar.vue'
 import { KeepAlive } from 'vue';
 </script>
 
 <template>
-    <SidebarProvider class="dark" :style="{
+    <SidebarProvider :style="{
         '--sidebar-width': 'calc(var(--spacing) * 72)',
         '--header-height': 'calc(var(--spacing) * 12)',
     }">
