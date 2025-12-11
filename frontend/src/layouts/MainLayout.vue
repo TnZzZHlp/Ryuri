@@ -17,15 +17,13 @@ import { KeepAlive } from 'vue';
         <AppSidebar variant="inset" />
         <SidebarInset>
             <SiteHeader />
-            <div class="flex flex-1 flex-col">
-                <div class="@container/main flex flex-1 flex-col gap-2">
-                    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                        <router-view v-slot="{ Component }">
-                            <keep-alive>
-                                <component :is="Component" />
-                            </keep-alive>
-                        </router-view>
-                    </div>
+            <div class="flex flex-1 flex-col max-h-screen overflow-scroll">
+                <div class="@container/main flex flex-1 flex-col p-4">
+                    <router-view v-slot="{ Component }">
+                        <keep-alive>
+                            <component :is="Component" />
+                        </keep-alive>
+                    </router-view>
                 </div>
             </div>
         </SidebarInset>
