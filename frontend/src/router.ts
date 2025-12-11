@@ -13,7 +13,7 @@ const routes = [
         path: "/login",
         name: "Login",
         component: () => import("@/views/Login.vue"),
-        meta: { requiresGuest: true },
+        meta: { requiresAuth: false },
     },
     {
         path: "/dashboard",
@@ -38,7 +38,7 @@ router.beforeEach((to) => {
     }
 
     // 已登录访问登录页 -> 跳转dashboard
-    if (to.meta.requiresGuest && isAuthenticated.value) {
+    if (isAuthenticated.value) {
         return { name: "Dashboard" };
     }
 });

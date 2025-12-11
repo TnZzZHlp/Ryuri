@@ -54,14 +54,12 @@ export function useAuth() {
         password: string
     ): Promise<LoginResponse> {
         loading.value = true;
-        error.value = null;
         try {
             const response = await getAuthApi().login(username, password);
             setToken(response.token);
             user.value = response.user;
             return response;
         } catch (e) {
-            error.value = e instanceof Error ? e.message : "登录失败";
             throw e;
         } finally {
             loading.value = false;

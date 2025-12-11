@@ -80,22 +80,31 @@ export function buildAuthHeader(token: string): string {
  * Parses an error response body and extracts the error message.
  * Backend returns errors in format: { "error": "message" }
  */
-async function parseErrorResponse(response: Response): Promise<string> {
+async function parseErrorResponse(response: Response): Promise<ApiError> {
     try {
         const body = await response.text();
         if (!body) {
-            return response.statusText || "Unknown error";
+            return new ApiError(
+                response.status,
+                response.statusText || "Unknown error"
+            );
         }
 
         try {
-            const json = JSON.parse(body) as { error?: string };
+            const json = JSON.parse(body) as { error: ApiError};
             return json.error || body;
         } catch {
             // If not valid JSON, return the raw text
-            return body;
+            return new ApiError(
+                response.status,
+                response.statusText || "Unknown error"
+            );
         }
     } catch {
-        return response.statusText || "Unknown error";
+        return new ApiError(
+            response.status,
+            response.statusText || "Unknown error"
+        );
     }
 }
 
@@ -207,8 +216,8 @@ export class ApiClient {
 
         // Handle error responses
         if (!response.ok) {
-            const message = await parseErrorResponse(response);
-            throw new ApiError(response.status, message);
+            const body = await parseErrorResponse(response);
+            throw body;
         }
 
         // Handle empty responses (204 No Content)
