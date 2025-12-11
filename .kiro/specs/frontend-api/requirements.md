@@ -6,14 +6,24 @@
 
 ## Glossary
 
-- **API Client**: 封装 HTTP 请求的客户端模块，处理请求/响应的序列化和错误处理
-- **Content**: 漫画或小说内容项，包含多个章节
+- **API_Client**: 封装 HTTP 请求的客户端模块，处理请求/响应的序列化和错误处理
+- **ApiError**: API 错误对象，包含状态码和错误消息
+- **Auth_API**: 认证相关的 API 模块
+- **Bangumi_API**: Bangumi 元数据搜索 API 模块
+- **BangumiSearchResult**: Bangumi 搜索结果对象
 - **Chapter**: 内容中的单个章节（漫画卷/小说章节）
-- **Library**: 内容库，包含多个扫描路径和内容项
-- **ScanPath**: 文件系统扫描路径，用于发现新内容
-- **Progress**: 用户的阅读进度记录
-- **Bangumi**: 第三方元数据服务 (bangumi.tv)
+- **Content**: 漫画或小说内容项，包含多个章节
+- **Content_API**: 内容管理相关的 API 模块
 - **ContentType**: 内容类型枚举 (Comic | Novel)
+- **Library**: 内容库，包含多个扫描路径和内容项
+- **Library_API**: 内容库管理相关的 API 模块
+- **LoginResponse**: 登录响应对象，包含用户信息和 JWT token
+- **Progress**: 用户的阅读进度记录
+- **Progress_API**: 阅读进度相关的 API 模块
+- **Reader_API**: 阅读器内容获取相关的 API 模块
+- **ScanPath**: 文件系统扫描路径，用于发现新内容
+- **Types_Module**: TypeScript 类型定义模块
+- **User**: 用户信息对象
 
 ## Requirements
 
@@ -23,10 +33,12 @@
 
 #### Acceptance Criteria
 
-1. THE API Client SHALL provide a base HTTP client with configurable base URL
-2. WHEN a request requires authentication THEN THE API Client SHALL automatically include the JWT token in the Authorization header
-3. WHEN the server returns an error response THEN THE API Client SHALL parse the error and throw a typed error object
-4. THE API Client SHALL support JSON request/response serialization
+1. THE API_Client SHALL provide a base HTTP client with configurable base URL
+2. WHEN a request requires authentication, THE API_Client SHALL automatically include the JWT token in the Authorization header
+3. WHEN the server returns an error response, THE API_Client SHALL parse the error and throw a typed ApiError object containing status code and message
+4. THE API_Client SHALL support JSON request and response serialization
+5. WHEN serializing a request body, THE API_Client SHALL convert TypeScript objects to JSON format
+6. WHEN deserializing a response body, THE API_Client SHALL convert JSON to typed TypeScript objects
 
 ### Requirement 2: 认证 API
 
@@ -34,10 +46,10 @@
 
 #### Acceptance Criteria
 
-1. WHEN a user provides valid credentials THEN THE Auth API SHALL return a login response containing user info and JWT token
-2. WHEN an authenticated user requests their profile THEN THE Auth API SHALL return the current user information
-3. WHEN an authenticated user updates their profile THEN THE Auth API SHALL send the update request and return the updated user info
-4. WHEN an authenticated user changes their password THEN THE Auth API SHALL send the password update request
+1. WHEN a user provides valid credentials, THE Auth_API SHALL return a LoginResponse containing user info and JWT token
+2. WHEN an authenticated user requests their profile, THE Auth_API SHALL return the current User information
+3. WHEN an authenticated user updates their profile, THE Auth_API SHALL send the update request and return the updated User info
+4. WHEN an authenticated user changes their password, THE Auth_API SHALL send the password update request and return success status
 
 ### Requirement 3: 内容库 API
 
@@ -45,14 +57,14 @@
 
 #### Acceptance Criteria
 
-1. WHEN a user requests the library list THEN THE Library API SHALL return all libraries with their statistics
-2. WHEN a user creates a new library THEN THE Library API SHALL send the creation request and return the new library
-3. WHEN a user requests a specific library THEN THE Library API SHALL return the library details with statistics
-4. WHEN a user updates a library THEN THE Library API SHALL send the update request and return the updated library
-5. WHEN a user deletes a library THEN THE Library API SHALL send the deletion request
-6. WHEN a user requests scan paths for a library THEN THE Library API SHALL return all scan paths
-7. WHEN a user adds a scan path THEN THE Library API SHALL send the add request and return the new scan path
-8. WHEN a user removes a scan path THEN THE Library API SHALL send the removal request
+1. WHEN a user requests the library list, THE Library_API SHALL return all Library objects with their statistics
+2. WHEN a user creates a new library, THE Library_API SHALL send the creation request and return the new Library object
+3. WHEN a user requests a specific library by ID, THE Library_API SHALL return the Library details with statistics
+4. WHEN a user updates a library, THE Library_API SHALL send the update request and return the updated Library object
+5. WHEN a user deletes a library, THE Library_API SHALL send the deletion request and return success status
+6. WHEN a user requests scan paths for a library, THE Library_API SHALL return all ScanPath objects for that library
+7. WHEN a user adds a scan path to a library, THE Library_API SHALL send the add request and return the new ScanPath object
+8. WHEN a user removes a scan path from a library, THE Library_API SHALL send the removal request and return success status
 
 ### Requirement 4: 内容 API
 
@@ -60,13 +72,13 @@
 
 #### Acceptance Criteria
 
-1. WHEN a user requests contents for a library THEN THE Content API SHALL return all content items in that library
-2. WHEN a user triggers a library scan THEN THE Content API SHALL send the scan request and return the scan results
-3. WHEN a user searches for content THEN THE Content API SHALL return matching content items
-4. WHEN a user requests a specific content THEN THE Content API SHALL return the content details
-5. WHEN a user deletes a content THEN THE Content API SHALL send the deletion request
-6. WHEN a user updates content metadata THEN THE Content API SHALL send the update request and return the updated content
-7. WHEN a user requests chapters for a content THEN THE Content API SHALL return all chapters
+1. WHEN a user requests contents for a library, THE Content_API SHALL return all Content objects in that library
+2. WHEN a user triggers a library scan, THE Content_API SHALL send the scan request and return the scan results
+3. WHEN a user searches for content with a query string, THE Content_API SHALL return matching Content objects
+4. WHEN a user requests a specific content by ID, THE Content_API SHALL return the Content details
+5. WHEN a user deletes a content, THE Content_API SHALL send the deletion request and return success status
+6. WHEN a user updates content metadata, THE Content_API SHALL send the update request and return the updated Content object
+7. WHEN a user requests chapters for a content, THE Content_API SHALL return all Chapter objects for that content
 
 ### Requirement 5: 阅读器 API
 
@@ -74,8 +86,8 @@
 
 #### Acceptance Criteria
 
-1. WHEN a user requests a comic page THEN THE Reader API SHALL return the page image URL
-2. WHEN a user requests novel chapter text THEN THE Reader API SHALL return the chapter text content
+1. WHEN a user requests a comic page by chapter ID and page number, THE Reader_API SHALL return the page image URL
+2. WHEN a user requests novel chapter text by chapter ID, THE Reader_API SHALL return the chapter text content as a string
 
 ### Requirement 6: 阅读进度 API
 
@@ -83,9 +95,9 @@
 
 #### Acceptance Criteria
 
-1. WHEN a user requests content progress THEN THE Progress API SHALL return the overall reading progress for that content
-2. WHEN a user requests chapter progress THEN THE Progress API SHALL return the reading progress for that chapter
-3. WHEN a user updates chapter progress THEN THE Progress API SHALL send the update request and return the updated progress
+1. WHEN a user requests content progress by content ID, THE Progress_API SHALL return the overall Progress for that content
+2. WHEN a user requests chapter progress by chapter ID, THE Progress_API SHALL return the Progress for that chapter
+3. WHEN a user updates chapter progress, THE Progress_API SHALL send the update request and return the updated Progress object
 
 ### Requirement 7: Bangumi 元数据 API
 
@@ -93,7 +105,7 @@
 
 #### Acceptance Criteria
 
-1. WHEN a user searches on Bangumi THEN THE Bangumi API SHALL return matching search results with metadata
+1. WHEN a user searches on Bangumi with a query string, THE Bangumi_API SHALL return matching BangumiSearchResult objects with metadata
 
 ### Requirement 8: TypeScript 类型定义
 
@@ -101,6 +113,8 @@
 
 #### Acceptance Criteria
 
-1. THE Types module SHALL define all request and response types matching the backend API schemas
-2. THE Types module SHALL define enum types for ContentType
-3. THE Types module SHALL use proper TypeScript optional types for nullable fields
+1. THE Types_Module SHALL define all request and response types matching the backend API schemas
+2. THE Types_Module SHALL define enum types for ContentType (Comic and Novel)
+3. THE Types_Module SHALL use proper TypeScript optional types for nullable fields
+4. WHEN a type is serialized to JSON, THE Types_Module SHALL ensure the serialized output matches the expected backend format
+5. WHEN a JSON response is deserialized, THE Types_Module SHALL produce a correctly typed TypeScript object
