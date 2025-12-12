@@ -44,9 +44,9 @@ onBeforeMount(() => {
         <SidebarHeader>
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton as-child class="data-[slot=sidebar-menu-button]:!p-1.5">
+                    <SidebarMenuButton as-child class="data-[slot=sidebar-menu-button]:p-1.5!">
                         <router-link to="/">
-                            <IconInnerShadowTop class="!size-5" />
+                            <IconInnerShadowTop class="size-5!" />
                             <span class="text-base font-semibold">Wyuri</span>
                         </router-link>
                     </SidebarMenuButton>
