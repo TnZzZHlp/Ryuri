@@ -7,6 +7,9 @@ import {
 } from "@/components/ui/sidebar"
 import AppSidebar from '@/components/sidebar/AppSidebar.vue'
 import { KeepAlive } from 'vue';
+import { useRoute } from 'vue-router';
+
+const route = useRoute();
 </script>
 
 <template>
@@ -19,10 +22,10 @@ import { KeepAlive } from 'vue';
             <SiteHeader />
             <div class="flex flex-1 flex-col max-h-screen overflow-scroll">
                 <div class="@container/main flex flex-1 flex-col p-4">
-                    <router-view v-slot="{ Component }">
-                        <keep-alive>
-                            <component :is="Component" />
-                        </keep-alive>
+                    <router-view v-slot="{ Component, route: currentRoute }">
+                        <transition :name="currentRoute.meta.transition || 'fade'" mode="out-in">
+                            <component :is="Component" :key="currentRoute.path" />
+                        </transition>
                     </router-view>
                 </div>
             </div>

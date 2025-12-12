@@ -3,5 +3,7 @@
 </script>
 
 <template>
-    123
+    <div>
+        Dashboard
+    </div>
 </template>

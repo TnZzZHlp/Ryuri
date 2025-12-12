@@ -7,13 +7,14 @@
  * **Implements: Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7**
  */
 
-import { ApiClient } from "./client";
+import { ApiClient, buildUrl, buildAuthHeader } from "./client";
 import type {
     ContentResponse,
     Chapter,
     SubmitScanResponse,
     UpdateMetadataRequest,
 } from "./types";
+import { ApiError } from "./types";
 
 /**
  * Content API interface.
@@ -29,6 +30,7 @@ export interface ContentApi {
     ): Promise<ContentResponse>;
     listChapters(contentId: number): Promise<Chapter[]>;
     triggerScan(libraryId: number): Promise<SubmitScanResponse>;
+    getThumbnail(id: number): Promise<Blob>;
 }
 
 /**
@@ -141,6 +143,50 @@ export function createContentApi(client: ApiClient): ContentApi {
             return client.post<SubmitScanResponse>(
                 `/api/libraries/${libraryId}/scan`
             );
+        },
+
+        /**
+         * Gets the thumbnail image for a content.
+         *
+         * **Implements: Requirements 2.1, 2.2, 2.3, 2.4, 2.5**
+         *
+         * @param id - The content ID
+         * @returns Promise resolving to the thumbnail image Blob
+         */
+        async getThumbnail(id: number): Promise<Blob> {
+            const url = buildUrl(client.baseUrl, `/api/contents/${id}/thumbnail`);
+            const token = client['getToken']();
+
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers['Authorization'] = buildAuthHeader(token);
+            }
+
+            const response = await fetch(url, { headers });
+
+            if (!response.ok) {
+                // Parse error response
+                try {
+                    const body = await response.text();
+                    if (body) {
+                        try {
+                            const json = JSON.parse(body) as { error: ApiError };
+                            throw json.error || new ApiError(response.status, body);
+                        } catch (e) {
+                            if (e instanceof ApiError) throw e;
+                            throw new ApiError(response.status, body);
+                        }
+                    }
+                } catch (e) {
+                    if (e instanceof ApiError) throw e;
+                }
+                throw new ApiError(
+                    response.status,
+                    response.statusText || 'Failed to fetch thumbnail'
+                );
+            }
+
+            return response.blob();
         },
     };
 }

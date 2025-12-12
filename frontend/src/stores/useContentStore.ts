@@ -38,6 +38,11 @@ export const useContentStore = defineStore('content', () => {
     const loading = ref(false)
     const error = ref<string | null>(null)
 
+    // Thumbnail state
+    // **Implements: Requirements 3.4, 3.5**
+    const thumbnailUrls = ref<Map<number, string>>(new Map())
+    const thumbnailLoading = ref<Set<number>>(new Set())
+
     // Getters
     // **Implements: Requirement 1.2**
     const contentsByLibrary = computed(() => {
@@ -52,6 +57,27 @@ export const useContentStore = defineStore('content', () => {
         return chapters.value.get(currentContent.value.id) ?? []
     })
 
+    // Thumbnail getters
+    // **Implements: Requirements 3.4, 3.5**
+    /**
+     * Gets the thumbnail URL for a content ID.
+     * Returns null if the thumbnail is not loaded.
+     */
+    const getThumbnailUrl = computed(() => {
+        return (contentId: number): string | null => {
+            return thumbnailUrls.value.get(contentId) ?? null
+        }
+    })
+
+    /**
+     * Checks if a thumbnail is currently loading.
+     */
+    const isThumbnailLoading = computed(() => {
+        return (contentId: number): boolean => {
+            return thumbnailLoading.value.has(contentId)
+        }
+    })
+
     // Internal helper to get token from auth store
     function getToken(): string | null {
         const authStore = useAuthStore()
@@ -62,7 +88,8 @@ export const useContentStore = defineStore('content', () => {
 
     /**
      * Fetches contents for a library and caches them.
-     * **Implements: Requirements 2.1, 2.2, 2.3**
+     * Automatically triggers thumbnail preloading after fetching.
+     * **Implements: Requirements 1.1, 2.1, 2.2, 2.3, 4.1, 4.3, 5.5**
      *
      * @param libraryId - The library ID to fetch contents for
      * @param force - If true, bypasses cache and fetches fresh data
@@ -82,6 +109,12 @@ export const useContentStore = defineStore('content', () => {
             const response = await getContentApi(getToken).list(libraryId)
             // **Implements: Requirement 2.1** - Cache results by library ID
             contents.value.set(libraryId, response)
+
+            // **Implements: Requirements 1.1, 4.3, 5.5** - Auto-trigger thumbnail preload (non-blocking)
+            preloadThumbnails(response).catch(err => {
+                console.warn('Failed to preload thumbnails:', err)
+            })
+
             return response
         } catch (e) {
             // **Implements: Requirement 6.1** - Set error state on failure
@@ -164,7 +197,7 @@ export const useContentStore = defineStore('content', () => {
 
     /**
      * Deletes a content and removes it from cache.
-     * **Implements: Requirements 5.1, 5.2**
+     * **Implements: Requirements 5.1, 5.2, 5.3**
      *
      * @param id - The content ID to delete
      */
@@ -187,6 +220,9 @@ export const useContentStore = defineStore('content', () => {
             // Remove chapters from cache
             chapters.value.delete(id)
 
+            // **Implements: Requirement 5.3** - Clear thumbnail cache for deleted content
+            invalidateThumbnailCache(id)
+
             // **Implements: Requirement 5.2** - Clear currentContent if it was deleted
             if (currentContent.value?.id === id) {
                 currentContent.value = null
@@ -202,16 +238,99 @@ export const useContentStore = defineStore('content', () => {
 
     /**
      * Invalidates the cache for a specific library or all libraries.
-     * **Implements: Requirement 2.3**
+     * Also clears associated thumbnail caches and revokes Object URLs.
+     * **Implements: Requirements 2.3, 5.4**
      *
      * @param libraryId - Optional library ID to invalidate. If not provided, clears all caches.
      */
     function invalidateCache(libraryId?: number): void {
         if (libraryId !== undefined) {
+            // **Implements: Requirement 5.4** - Clear thumbnails for contents in this library
+            const libraryContents = contents.value.get(libraryId) ?? []
+            libraryContents.forEach(content => {
+                invalidateThumbnailCache(content.id)
+            })
             contents.value.delete(libraryId)
         } else {
+            // **Implements: Requirement 5.4** - Clear all thumbnails
+            invalidateThumbnailCache()
             contents.value.clear()
             chapters.value.clear()
+        }
+    }
+
+    /**
+     * Loads a single thumbnail for a content.
+     * If already cached or loading, returns immediately.
+     * **Implements: Requirements 1.2, 1.4, 3.1**
+     *
+     * @param contentId - The content ID to load thumbnail for
+     */
+    async function loadThumbnail(contentId: number): Promise<void> {
+        // **Implements: Requirement 3.1** - Return if already cached
+        if (thumbnailUrls.value.has(contentId)) {
+            return
+        }
+
+        // **Implements: Requirement 1.4** - Prevent duplicate requests
+        if (thumbnailLoading.value.has(contentId)) {
+            return
+        }
+
+        thumbnailLoading.value.add(contentId)
+
+        try {
+            // **Implements: Requirement 1.2** - Fetch thumbnail blob
+            const blob = await getContentApi(getToken).getThumbnail(contentId)
+            // **Implements: Requirement 3.1** - Create Object URL and cache
+            const url = URL.createObjectURL(blob)
+            thumbnailUrls.value.set(contentId, url)
+        } catch (error) {
+            // **Implements: Requirement 1.5** - Silent error handling
+            console.warn(`Failed to load thumbnail for content ${contentId}:`, error)
+        } finally {
+            thumbnailLoading.value.delete(contentId)
+        }
+    }
+
+    /**
+     * Preloads thumbnails for multiple contents.
+     * Loads all thumbnails concurrently, with error isolation.
+     * **Implements: Requirements 1.5, 3.1**
+     *
+     * @param contentList - Array of contents to preload thumbnails for
+     */
+    async function preloadThumbnails(contentList: ContentResponse[]): Promise<void> {
+        // **Implements: Requirement 1.1** - Filter contents with thumbnails
+        const loadPromises = contentList
+            .filter(content => content.has_thumbnail)
+            .map(content => loadThumbnail(content.id))
+
+        // **Implements: Requirement 1.5** - Use allSettled for error isolation
+        await Promise.allSettled(loadPromises)
+    }
+
+    /**
+     * Invalidates thumbnail cache for a specific content or all contents.
+     * Properly releases Object URLs to prevent memory leaks.
+     * **Implements: Requirements 3.3, 3.5**
+     *
+     * @param contentId - Optional content ID to invalidate. If not provided, clears all thumbnail caches.
+     */
+    function invalidateThumbnailCache(contentId?: number): void {
+        if (contentId !== undefined) {
+            // **Implements: Requirement 3.3** - Release single Object URL
+            const url = thumbnailUrls.value.get(contentId)
+            if (url) {
+                URL.revokeObjectURL(url)
+                thumbnailUrls.value.delete(contentId)
+            }
+        } else {
+            // **Implements: Requirement 3.3** - Release all Object URLs
+            for (const url of thumbnailUrls.value.values()) {
+                URL.revokeObjectURL(url)
+            }
+            thumbnailUrls.value.clear()
         }
     }
 
@@ -222,9 +341,13 @@ export const useContentStore = defineStore('content', () => {
         chapters,
         loading,
         error,
+        thumbnailUrls,
+        thumbnailLoading,
         // Getters
         contentsByLibrary,
         currentChapters,
+        getThumbnailUrl,
+        isThumbnailLoading,
         // Actions
         fetchContents,
         searchContents,
@@ -232,5 +355,8 @@ export const useContentStore = defineStore('content', () => {
         clearCurrentContent,
         deleteContent,
         invalidateCache,
+        loadThumbnail,
+        preloadThumbnails,
+        invalidateThumbnailCache,
     }
 })

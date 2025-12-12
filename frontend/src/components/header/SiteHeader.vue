@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { SidebarTrigger } from "@/components/ui/sidebar"
+// import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Sun } from "lucide-vue-next";
+import { Sun, ArrowLeft } from "lucide-vue-next";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
 
 // change app theme
 const changeAppTheme = () => {
@@ -17,7 +20,10 @@ const changeAppTheme = () => {
     <header
         class="flex h-(--header-height) shrink-0 items-center gap-2 border-b text-foreground transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
         <div class="flex w-full items-center justify-between gap-1 px-4 lg:gap-2 lg:px-6">
-            <SidebarTrigger class="-ml-1" />
+            <div>
+                <!-- <SidebarTrigger class="-ml-1" /> -->
+                <ArrowLeft @click="router.back()" v-if="router.currentRoute.value.name == 'Content'" />
+            </div>
             <Button size="icon" variant="ghost" class="hidden lg:flex" @click="changeAppTheme">
                 <Sun />
             </Button>
