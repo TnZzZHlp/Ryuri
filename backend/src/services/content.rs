@@ -191,4 +191,20 @@ impl ContentService {
 
         ContentRepository::update_metadata(pool, content_id, metadata).await
     }
+
+    /// Get thumbnail for a content.
+    ///
+    /// # Arguments
+    /// * `pool` - Database connection pool
+    /// * `content_id` - ID of the content
+    ///
+    /// # Returns
+    /// The thumbnail image bytes if available.
+    pub async fn get_thumbnail(pool: &Pool<Sqlite>, content_id: i64) -> Result<Vec<u8>> {
+        let content = Self::get_content(pool, content_id).await?;
+
+        content.thumbnail.ok_or_else(|| {
+            AppError::NotFound(format!("Thumbnail not found for content {}", content_id))
+        })
+    }
 }

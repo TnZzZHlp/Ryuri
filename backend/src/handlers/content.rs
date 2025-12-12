@@ -184,3 +184,20 @@ pub async fn update_metadata(
     let content = ContentService::update_metadata(&state.pool, id, request.metadata).await?;
     Ok(Json(ContentResponse::from(content)))
 }
+
+/// GET /api/contents/{id}/thumbnail
+///
+/// Returns the thumbnail image for a content.
+pub async fn get_thumbnail(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<impl IntoResponse> {
+    let thumbnail_data = ContentService::get_thumbnail(&state.pool, id).await?;
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "image/jpeg")
+        .header(header::CACHE_CONTROL, "public, max-age=86400")
+        .body(Body::from(thumbnail_data))
+        .unwrap())
+}

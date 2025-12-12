@@ -75,6 +75,7 @@ pub fn create_router(state: AppState) -> Router {
             get(content::get).delete(content::delete),
         )
         .route("/api/contents/{id}/metadata", put(content::update_metadata))
+        .route("/api/contents/{id}/thumbnail", get(content::get_thumbnail))
         .route("/api/contents/{id}/chapters", get(content::list_chapters))
         .route(
             "/api/contents/{id}/progress",
