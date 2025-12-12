@@ -83,6 +83,7 @@ const rating = computed(() => {
     const r = getMetaValue('rating');
     return r?.score ?? null;
 });
+const originalName = computed(() => getMetaValue('name'));
 
 const tags = computed(() => {
     const t = getMetaValue('tags');
@@ -158,7 +159,9 @@ const handleStartReading = () => {
                 <h1 class="text-3xl font-bold text-foreground mb-3">
                     {{ content.title }}
                 </h1>
-
+                <h2 v-if="originalName" class="text-lg text-muted-foreground mb-3">
+                    {{ originalName }}
+                </h2>
                 <!-- Author -->
                 <div class="flex items-center gap-2 text-muted-foreground mb-3">
                     <User class="size-4" />
@@ -256,7 +259,7 @@ const handleStartReading = () => {
                     </div>
 
                     <!-- Chapters List -->
-                    <div v-else-if="chapters.length > 0" class="space-y-2 max-h-96 overflow-y-auto pr-2">
+                    <div v-else-if="chapters.length > 0" class="space-y-2 overflow-y-auto pr-2">
                         <div v-for="chapter in chapters" :key="chapter.id"
                             class="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer group"
                             @click="handleStartReading">

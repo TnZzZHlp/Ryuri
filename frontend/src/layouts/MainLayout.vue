@@ -18,9 +18,9 @@ const route = useRoute();
         '--header-height': 'calc(var(--spacing) * 12)',
     }">
         <AppSidebar variant="inset" />
-        <SidebarInset>
-            <SiteHeader />
-            <div class="flex flex-1 flex-col max-h-screen overflow-scroll">
+        <SidebarInset class="flex flex-col md:max-h-[calc(100vh-1rem)]">
+            <SiteHeader class="shrink-0" />
+            <div class="flex-1 flex flex-col overflow-auto">
                 <div class="@container/main flex flex-1 flex-col p-4">
                     <router-view v-slot="{ Component, route: currentRoute }">
                         <transition :name="currentRoute.meta.transition || 'fade'" mode="out-in">
