@@ -19,9 +19,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { useRouter } from "vue-router";
 import { computed, onBeforeMount, ref } from "vue"
 import { useLibraryStore } from "@/stores/useLibraryStore"
+import { useScanTaskStore } from "@/stores/useScanTaskStore"
 import type { Library } from "@/api"
 
 const libraryStore = useLibraryStore()
+const scanTaskStore = useScanTaskStore()
 
 const libraries = computed(() => libraryStore.libraries.map((lib) => {
     return {
@@ -47,7 +49,7 @@ const handleOpenSetting = (library: Library) => {
 }
 
 const handleScanLibrary = (libraryId: number) => {
-    libraryStore.triggerScan(libraryId)
+    scanTaskStore.triggerScan(libraryId)
 }
 
 onBeforeMount(() => {

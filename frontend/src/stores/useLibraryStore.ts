@@ -10,21 +10,18 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ApiClient } from '@/api/client'
 import { createLibraryApi, type LibraryApi } from '@/api/library'
-import { createContentApi, type ContentApi } from '@/api/content'
 import type {
     Library,
     LibraryWithStats,
     CreateLibraryRequest,
     UpdateLibraryRequest,
     ScanPath,
-    SubmitScanResponse,
 } from '@/api/types'
 import { useAuthStore } from './useAuthStore'
 
 // Lazy-initialized API instance
 let apiClient: ApiClient | null = null
 let libraryApi: LibraryApi | null = null
-let contentApi: ContentApi | null = null
 
 function getApiClient(getToken: () => string | null): ApiClient {
     if (!apiClient) {
@@ -41,13 +38,6 @@ function getLibraryApi(getToken: () => string | null): LibraryApi {
         libraryApi = createLibraryApi(getApiClient(getToken))
     }
     return libraryApi
-}
-
-function getContentApi(getToken: () => string | null): ContentApi {
-    if (!contentApi) {
-        contentApi = createContentApi(getApiClient(getToken))
-    }
-    return contentApi
 }
 
 export const useLibraryStore = defineStore('library', () => {
@@ -82,7 +72,7 @@ export const useLibraryStore = defineStore('library', () => {
             const response = await getLibraryApi(getToken).list()
             libraries.value = response
         } catch (e) {
-            error.value = e instanceof Error ? e.message : '获取库列表失败'
+            error.value = e instanceof Error ? e.message : 'Failed to retrieve library list.'
             throw e
         } finally {
             loading.value = false
@@ -97,7 +87,7 @@ export const useLibraryStore = defineStore('library', () => {
         try {
             return await getLibraryApi(getToken).listScanPaths(libraryId)
         } catch (e) {
-            error.value = e instanceof Error ? e.message : '获取扫描路径失败'
+            error.value = e instanceof Error ? e.message : 'Failed to retrieve the scan path.'
             throw e
         }
     }
@@ -110,7 +100,7 @@ export const useLibraryStore = defineStore('library', () => {
         try {
             return await getLibraryApi(getToken).addScanPath(libraryId, path)
         } catch (e) {
-            error.value = e instanceof Error ? e.message : '添加扫描路径失败'
+            error.value = e instanceof Error ? e.message : 'Failed to add scan path.'
             throw e
         }
     }
@@ -123,7 +113,7 @@ export const useLibraryStore = defineStore('library', () => {
         try {
             await getLibraryApi(getToken).removeScanPath(libraryId, pathId)
         } catch (e) {
-            error.value = e instanceof Error ? e.message : '删除扫描路径失败'
+            error.value = e instanceof Error ? e.message : 'Failed to delete the scan path.'
             throw e
         }
     }
@@ -141,7 +131,7 @@ export const useLibraryStore = defineStore('library', () => {
             await fetchLibraries()
             return newLibrary
         } catch (e) {
-            error.value = e instanceof Error ? e.message : '创建库失败'
+            error.value = e instanceof Error ? e.message : 'Failed to create library'
             throw e
         } finally {
             loading.value = false
@@ -161,7 +151,7 @@ export const useLibraryStore = defineStore('library', () => {
             await fetchLibraries()
             return updatedLibrary
         } catch (e) {
-            error.value = e instanceof Error ? e.message : '更新库失败'
+            error.value = e instanceof Error ? e.message : 'Library update failed'
             throw e
         } finally {
             loading.value = false
@@ -180,23 +170,10 @@ export const useLibraryStore = defineStore('library', () => {
             // Remove from cache
             libraries.value = libraries.value.filter((lib) => lib.id !== id)
         } catch (e) {
-            error.value = e instanceof Error ? e.message : '删除库失败'
+            error.value = e instanceof Error ? e.message : 'Deletion of database failed'
             throw e
         } finally {
             loading.value = false
-        }
-    }
-
-    /**
-     * Triggers a scan for a library.
-     * **Implements: Requirement 4.2**
-     */
-    async function triggerScan(libraryId: number): Promise<SubmitScanResponse> {
-        try {
-            return await getContentApi(getToken).triggerScan(libraryId)
-        } catch (e) {
-            error.value = e instanceof Error ? e.message : '触发扫描失败'
-            throw e
         }
     }
 
@@ -215,6 +192,5 @@ export const useLibraryStore = defineStore('library', () => {
         createLibrary,
         updateLibrary,
         deleteLibrary,
-        triggerScan,
     }
 })

@@ -118,7 +118,7 @@ export const useContentStore = defineStore('content', () => {
             return response
         } catch (e) {
             // **Implements: Requirement 6.1** - Set error state on failure
-            error.value = e instanceof Error ? e.message : '获取内容列表失败'
+            error.value = e instanceof Error ? e.message : 'Failed to fetch content list'
             throw e
         } finally {
             loading.value = false
@@ -148,7 +148,7 @@ export const useContentStore = defineStore('content', () => {
             return await getContentApi(getToken).search(libraryId, query)
         } catch (e) {
             // **Implements: Requirement 6.1** - Set error state on failure
-            error.value = e instanceof Error ? e.message : '搜索内容失败'
+            error.value = e instanceof Error ? e.message : 'Search content failed'
             return []
         } finally {
             loading.value = false
@@ -180,7 +180,7 @@ export const useContentStore = defineStore('content', () => {
             chapters.value.set(content.id, chapterList)
         } catch (e) {
             // **Implements: Requirement 6.1** - Set error state on failure
-            error.value = e instanceof Error ? e.message : '获取章节列表失败'
+            error.value = e instanceof Error ? e.message : 'Failed to retrieve the chapter list'
             throw e
         } finally {
             loading.value = false
@@ -229,7 +229,7 @@ export const useContentStore = defineStore('content', () => {
             }
         } catch (e) {
             // **Implements: Requirement 6.1** - Set error state on failure
-            error.value = e instanceof Error ? e.message : '删除内容失败'
+            error.value = e instanceof Error ? e.message : 'Failed to delete content'
             throw e
         } finally {
             loading.value = false
