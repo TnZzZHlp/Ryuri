@@ -91,8 +91,16 @@ async function parseErrorResponse(response: Response): Promise<ApiError> {
         }
 
         try {
-            const json = JSON.parse(body) as { error: ApiError};
-            return json.error || body;
+            const json = JSON.parse(body) as { error?: string | { code?: number; message?: string } };
+            if (json.error) {
+                // Handle both string and object error formats
+                if (typeof json.error === 'string') {
+                    return new ApiError(response.status, json.error);
+                } else if (typeof json.error === 'object' && json.error.message) {
+                    return new ApiError(json.error.code ?? response.status, json.error.message);
+                }
+            }
+            return new ApiError(response.status, body);
         } catch {
             // If not valid JSON, return the raw text
             return new ApiError(

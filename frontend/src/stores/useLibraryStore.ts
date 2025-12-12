@@ -43,6 +43,7 @@ function getLibraryApi(getToken: () => string | null): LibraryApi {
 export const useLibraryStore = defineStore('library', () => {
     // State
     const libraries = ref<LibraryWithStats[]>([])
+    const currentLibrary = ref<LibraryWithStats | null>(null)
     const loading = ref(false)
     const error = ref<string | null>(null)
 
@@ -169,6 +170,10 @@ export const useLibraryStore = defineStore('library', () => {
             await getLibraryApi(getToken).delete(id)
             // Remove from cache
             libraries.value = libraries.value.filter((lib) => lib.id !== id)
+            // Clear currentLibrary if it was the deleted one
+            if (currentLibrary.value?.id === id) {
+                currentLibrary.value = null
+            }
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Deletion of database failed'
             throw e
@@ -177,9 +182,21 @@ export const useLibraryStore = defineStore('library', () => {
         }
     }
 
+    /**
+     * Selects a library by ID and sets it as the current library.
+     * **Implements: Requirement 3.1**
+     */
+    function selectLibrary(id: number): void {
+        const library = libraries.value.find((lib) => lib.id === id)
+        if (library) {
+            currentLibrary.value = library
+        }
+    }
+
     return {
         // State
         libraries,
+        currentLibrary,
         loading,
         error,
         // Getters
@@ -192,5 +209,6 @@ export const useLibraryStore = defineStore('library', () => {
         createLibrary,
         updateLibrary,
         deleteLibrary,
+        selectLibrary,
     }
 })
