@@ -34,6 +34,11 @@ const routes = [
                 path: "content/:contentId",
                 name: "Content",
                 component: () => import("@/views/Content.vue")
+            },
+            {
+                path: "scan-tasks",
+                name: "ScanTasks",
+                component: () => import("@/views/ScanQueue.vue")
             }
         ],
     },
