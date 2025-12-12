@@ -11,8 +11,8 @@ use axum::{
 };
 
 use crate::error::Result;
+use crate::middlewares::auth::AuthUser;
 use crate::models::{ContentProgressResponse, ProgressResponse};
-use crate::services::auth::middleware::AuthUser;
 use crate::state::AppState;
 
 /// GET /api/contents/{id}/progress

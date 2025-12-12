@@ -9,10 +9,10 @@
 use axum::{Json, extract::State};
 
 use crate::error::Result;
+use crate::middlewares::auth::AuthUser;
 use crate::models::{
     LoginRequest, LoginResponse, UpdatePasswordRequest, UpdateUserRequest, UserResponse,
 };
-use crate::services::auth::middleware::AuthUser;
 use crate::state::AppState;
 
 /// POST /api/auth/login

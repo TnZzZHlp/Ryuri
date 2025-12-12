@@ -6,7 +6,7 @@
 use sqlx::{Pool, Sqlite};
 use std::sync::Arc;
 
-use crate::services::auth::{AuthConfig, AuthService, middleware::HasAuthService};
+use crate::services::auth::{AuthConfig, AuthService};
 use crate::services::bangumi::BangumiService;
 use crate::services::library::LibraryService;
 use crate::services::progress::ProgressService;
@@ -38,12 +38,6 @@ pub struct AppState {
     pub scan_queue_service: Arc<ScanQueueService>,
     /// Scheduled scanning service.
     pub scheduler_service: Arc<SchedulerService>,
-}
-
-impl HasAuthService for AppState {
-    fn auth_service(&self) -> &AuthService {
-        &self.auth_service
-    }
 }
 
 /// Configuration for the application.

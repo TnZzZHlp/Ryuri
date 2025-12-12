@@ -3,7 +3,7 @@
 //! This module provides the router configuration for the Axum web server.
 
 use axum::{
-    Router,
+    Router, middleware,
     routing::{delete, get, post, put},
 };
 use tower_http::{
@@ -16,19 +16,32 @@ use tracing::Level;
 use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
 use crate::handlers::{auth, bangumi, content, library, progress, scan_queue};
+use crate::middlewares::auth_middleware;
 use crate::state::AppState;
 
 /// Create the application router with all routes configured.
+///
+/// This function separates routes into public and protected groups:
+/// - Public routes: /api/auth/login (no authentication required)
+/// - Protected routes: All other routes (require authentication via middleware)
 ///
 /// # Arguments
 /// * `state` - The application state containing all services
 ///
 /// # Returns
 /// A configured Axum router with all API endpoints
+///
+/// # Requirements
+/// - 4.1: Allow applying middleware to specific route groups
+/// - 4.2: Process requests without authentication for routes without middleware
+/// - 4.3: Support nesting routers with and without authentication
 pub fn create_router(state: AppState) -> Router {
-    let router = Router::new()
-        // Auth routes
-        .route("/api/auth/login", post(auth::login))
+    // Public routes - no authentication required
+    let public_routes = Router::new().route("/api/auth/login", post(auth::login));
+
+    // Protected routes - authentication required
+    let protected_routes = Router::new()
+        // Auth routes (except login)
         .route("/api/auth/me", get(auth::get_me).put(auth::update_me))
         .route("/api/auth/password", put(auth::update_password))
         // Library routes
@@ -82,6 +95,16 @@ pub fn create_router(state: AppState) -> Router {
         )
         // Bangumi routes
         .route("/api/bangumi/search", get(bangumi::search))
+        // Apply authentication middleware to all protected routes
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ));
+
+    // Merge public and protected routers
+    let router = Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
         .with_state(state);
 
     // Add OpenAPI routes when dev feature is enabled
