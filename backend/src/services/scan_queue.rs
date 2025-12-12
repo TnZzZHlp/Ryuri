@@ -94,6 +94,8 @@ impl ScanService {
     /// Scan a single scan path and import/update content.
     #[instrument(skip(self), fields(scan_path_id = scan_path.id, path = %scan_path.path))]
     pub async fn scan_path(&self, scan_path: &ScanPath) -> Result<ScanResult> {
+        info!(path = ?scan_path, "Scanning...");
+
         let mut result = ScanResult::default();
         let base_path = Path::new(&scan_path.path);
 

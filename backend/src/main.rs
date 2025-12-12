@@ -99,6 +99,10 @@ async fn main() -> Result<(), AppError> {
     let state = AppState::new(pool, config.app);
     info!("Services created successfully");
 
+    // Start the scan queue worker to process submitted scan tasks
+    info!("Starting scan queue worker...");
+    state.scan_queue_service.start_worker().await;
+
     let app = create_router_with_layers(state);
 
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
