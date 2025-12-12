@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { useContentStore } from '@/stores/useContentStore';
-import { onActivated, computed, onBeforeMount } from 'vue';
+import { computed, onBeforeMount } from 'vue';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const router = useRouter();
-const library_id: number = router.currentRoute.value.params.id as unknown as number;
+const library_id: number = Number(router.currentRoute.value.params.libraryId);
 const contentStore = useContentStore();
 const { contents, fetchContents, loading, getThumbnailUrl, isThumbnailLoading } = contentStore;
 

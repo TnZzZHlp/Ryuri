@@ -14,19 +14,6 @@ import { useRouter } from "vue-router"
 
 const router = useRouter()
 
-defineProps<{
-    libraries: {
-        id: number
-        title: string
-        url: string
-        isActive?: boolean
-        items?: {
-            title: string
-            url: string
-        }[]
-    }[]
-}>()
-
 </script>
 
 <template>
@@ -34,6 +21,6 @@ defineProps<{
         <SidebarMenuButton @click="router.push('/dashboard')">
             <LayoutDashboard /> Dashboard
         </SidebarMenuButton>
-        <NavLibraries :libraries="libraries" />
+        <NavLibraries />
     </SidebarGroup>
 </template>

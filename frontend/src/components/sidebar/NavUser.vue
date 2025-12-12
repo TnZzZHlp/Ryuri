@@ -95,13 +95,13 @@ function getUserInitials(username: string): string {
                     <DropdownMenuGroup>
                         <DropdownMenuItem>
                             <IconSettings />
-                            设置
+                            Settings
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem @click="handleLogout">
                         <IconLogout />
-                        登出
+                        Logout
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>

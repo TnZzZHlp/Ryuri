@@ -11,30 +11,15 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { computed, onBeforeMount } from "vue";
+import { onBeforeMount } from "vue";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useLibraryStore } from "@/stores/useLibraryStore";
 
 const authStore = useAuthStore()
-const libraryStore = useLibraryStore()
-
-const libraries = computed(() => libraryStore.libraries.map((lib) => {
-    return {
-        id: lib.id,
-        title: lib.name,
-        url: `/library/${lib.id}`,
-    }
-}))
 
 onBeforeMount(() => {
     // fetch user information if authenticated but user not loaded
     if (authStore.isAuthenticated && !authStore.user) {
         authStore.fetchUser()
-    }
-
-    // fetch library information if authenticated but library not loaded
-    if (libraryStore.libraries.length == 0) {
-        libraryStore.fetchLibraries()
     }
 })
 </script>
@@ -54,7 +39,7 @@ onBeforeMount(() => {
             </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
-            <NavMain :libraries="libraries" />
+            <NavMain />
         </SidebarContent>
         <SidebarFooter>
             <NavUser v-if="authStore.user" :user="authStore.user" />

@@ -18,7 +18,7 @@ import {
 import type { Chapter } from '@/api/types';
 
 const router = useRouter();
-const contentId = Number(router.currentRoute.value.params.id);
+const contentId = Number(router.currentRoute.value.params.contentId);
 const contentStore = useContentStore();
 const { getThumbnailUrl, isThumbnailLoading, loadThumbnail } = contentStore;
 

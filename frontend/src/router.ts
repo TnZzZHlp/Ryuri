@@ -26,12 +26,12 @@ const routes = [
                 component: () => import("@/views/Dashboard.vue"),
             },
             {
-                path: "library/:id",
+                path: "library/:libraryId",
                 name: "Library",
                 component: () => import("@/views/Library.vue")
             },
             {
-                path: "content/:id",
+                path: "content/:contentId",
                 name: "Content",
                 component: () => import("@/views/Content.vue")
             }
