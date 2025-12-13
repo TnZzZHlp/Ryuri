@@ -16,6 +16,7 @@ import {
     ChevronRight
 } from 'lucide-vue-next';
 import type { Chapter } from '@/api/types';
+import { toast } from 'vue-sonner';
 
 const router = useRouter();
 const contentId = Number(router.currentRoute.value.params.contentId);
@@ -101,9 +102,15 @@ const renderStars = (score: number) => {
     return { fullStars, hasHalf, emptyStars: 10 - fullStars - (hasHalf ? 1 : 0) };
 };
 
-const handleStartReading = () => {
-    // TODO: 跳转到阅读器
-    console.log('Start reading content:', contentId);
+const handleStartReading = (chapterId?: number) => {
+    if (chapterId) {
+        router.push(`/read/${contentId}/${chapterId}`);
+    } else if (chapters.value.length > 0) {
+        // Default to first chapter
+        router.push(`/read/${contentId}/${chapters.value[0]!.id}`);
+    } else {
+        toast.error('暂无章节');
+    }
 };
 </script>
 
@@ -147,7 +154,7 @@ const handleStartReading = () => {
                 </div>
 
                 <!-- Start Reading Button -->
-                <Button @click="handleStartReading" class="w-full mt-4 h-12 text-base" size="lg">
+                <Button @click="() => handleStartReading()" class="w-full mt-4 h-12 text-base" size="lg">
                     <BookOpen class="size-5" />
                     开始阅读
                 </Button>
@@ -262,7 +269,7 @@ const handleStartReading = () => {
                     <div v-else-if="chapters.length > 0" class="space-y-2 overflow-y-auto pr-2">
                         <div v-for="chapter in chapters" :key="chapter.id"
                             class="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer group"
-                            @click="handleStartReading">
+                            @click="handleStartReading(chapter.id)">
                             <div class="flex items-center gap-3 min-w-0">
                                 <span class="text-sm text-muted-foreground w-8 shrink-0">
                                     {{ chapter.sort_order + 1 }}

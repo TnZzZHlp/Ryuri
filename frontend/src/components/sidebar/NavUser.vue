@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import {
-    IconCreditCard,
     IconDotsVertical,
     IconLogout,
-    IconNotification,
     IconSettings,
-    IconUserCircle,
 } from "@tabler/icons-vue"
 
 import {

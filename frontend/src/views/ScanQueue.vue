@@ -2,11 +2,19 @@
 import { computed, onMounted, ref } from 'vue'
 import { useScanTaskStore } from '@/stores/useScanTaskStore'
 import { useLibraryStore } from '@/stores/useLibraryStore'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { toast } from 'vue-sonner'
 import type { ScanTask } from '@/api/types'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
+import { useIntervalFn } from '@vueuse/core'
 
 const scanTaskStore = useScanTaskStore()
 const libraryStore = useLibraryStore()
@@ -21,6 +29,11 @@ onMounted(async () => {
         libraryStore.fetchLibraries()
     ])
 })
+
+// Poll tasks every 3 seconds
+useIntervalFn(() => {
+    scanTaskStore.fetchTasks()
+}, 3000)
 
 // Computed properties
 const libraryNameMap = computed(() => {
@@ -137,44 +150,68 @@ async function handleCancel(taskId: string) {
                         当前没有活动任务
                     </div>
 
-                    <!-- Pending task cards -->
-                    <div v-else class="grid gap-4">
-                        <Card v-for="task in pendingTasks" :key="task.id" class="py-4">
-                            <CardHeader class="pb-2">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
+                    <!-- Pending task table -->
+                    <div v-else class="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead class="w-[150px]">
+                                        状态
+                                    </TableHead>
+                                    <TableHead>
+                                        库
+                                    </TableHead>
+                                    <TableHead>
+                                        创建时间
+                                    </TableHead>
+                                    <TableHead>
+                                        进度
+                                    </TableHead>
+                                    <TableHead class="text-right">
+                                        操作
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-for="task in pendingTasks" :key="task.id">
+                                    <TableCell>
                                         <span
                                             :class="['px-2 py-1 rounded-full text-xs font-medium', getStatusBadgeClass(task.status)]">
                                             {{ getStatusText(task.status) }}
                                         </span>
-                                        <span class="font-medium">{{ getLibraryName(task.library_id) }}</span>
-                                    </div>
-                                    <Button v-if="canCancel(task)" variant="outline" size="sm"
-                                        :disabled="cancellingTaskId === task.id" @click="handleCancel(task.id)">
-                                        {{ cancellingTaskId === task.id ? '取消中...' : '取消' }}
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div class="text-sm text-muted-foreground">
-                                    创建时间: {{ formatTime(task.created_at) }}
-                                </div>
-                                <!-- Progress for running tasks -->
-                                <div v-if="task.status === 'Running' && task.progress" class="mt-3">
-                                    <div class="flex items-center justify-between text-sm mb-1">
-                                        <span>扫描进度</span>
-                                        <span>{{ calculateProgress(task) }}%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-                                        <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                            :style="{ width: `${calculateProgress(task)}%` }"></div>
-                                    </div>
-                                    <div class="text-xs text-muted-foreground mt-1">
-                                        {{ task.progress.scanned_paths }} / {{ task.progress.total_paths }} 路径
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                    </TableCell>
+                                    <TableCell>
+                                        {{ getLibraryName(task.library_id) }}
+                                    </TableCell>
+                                    <TableCell>
+                                        {{ formatTime(task.created_at) }}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div v-if="task.status === 'Running' && task.progress" class="w-48">
+                                            <div class="flex items-center justify-between text-sm mb-1">
+                                                <span>扫描进度</span>
+                                                <span>{{ calculateProgress(task) }}%</span>
+                                            </div>
+                                            <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                                                <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                    :style="{ width: `${calculateProgress(task)}%` }"></div>
+                                            </div>
+                                            <div class="text-xs text-muted-foreground mt-1">
+                                                {{ task.progress.scanned_paths }} / {{ task.progress.total_paths }}
+                                                路径
+                                            </div>
+                                        </div>
+                                        <span v-else class="text-muted-foreground text-sm">-</span>
+                                    </TableCell>
+                                    <TableCell class="text-right">
+                                        <Button v-if="canCancel(task)" variant="outline" size="sm"
+                                            :disabled="cancellingTaskId === task.id" @click="handleCancel(task.id)">
+                                            {{ cancellingTaskId === task.id ? '取消中...' : '取消' }}
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
                     </div>
                 </section>
 
@@ -182,46 +219,68 @@ async function handleCancel(taskId: string) {
                 <section v-if="historyTasks.length > 0" class="space-y-4">
                     <h2 class="text-lg font-semibold">历史记录</h2>
 
-                    <div class="grid gap-4">
-                        <Card v-for="task in historyTasks" :key="task.id" class="py-4">
-                            <CardHeader class="pb-2">
-                                <div class="flex items-center gap-3">
-                                    <span
-                                        :class="['px-2 py-1 rounded-full text-xs font-medium', getStatusBadgeClass(task.status)]">
-                                        {{ getStatusText(task.status) }}
-                                    </span>
-                                    <span class="font-medium">{{ getLibraryName(task.library_id) }}</span>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div class="text-sm text-muted-foreground">
-                                    创建时间: {{ formatTime(task.created_at) }}
-                                </div>
+                    <div class="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead class="w-[150px]">
+                                        状态
+                                    </TableHead>
+                                    <TableHead>
+                                        库
+                                    </TableHead>
+                                    <TableHead>
+                                        创建时间
+                                    </TableHead>
+                                    <TableHead>
+                                        结果/错误
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-for="task in historyTasks" :key="task.id">
+                                    <TableCell>
+                                        <span
+                                            :class="['px-2 py-1 rounded-full text-xs font-medium', getStatusBadgeClass(task.status)]">
+                                            {{ getStatusText(task.status) }}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        {{ getLibraryName(task.library_id) }}
+                                    </TableCell>
+                                    <TableCell>
+                                        {{ formatTime(task.created_at) }}
+                                    </TableCell>
+                                    <TableCell>
+                                        <!-- Result for completed tasks -->
+                                        <div v-if="task.status === 'Completed' && task.result"
+                                            class="flex flex-col gap-1 text-sm">
+                                            <span class="text-green-600 dark:text-green-400">
+                                                新增: {{ task.result.added_count }}
+                                            </span>
+                                            <span class="text-red-600 dark:text-red-400">
+                                                删除: {{ task.result.removed_count }}
+                                            </span>
+                                            <span v-if="task.result.failed_scrape_count > 0"
+                                                class="text-yellow-600 dark:text-yellow-400">
+                                                抓取失败: {{ task.result.failed_scrape_count }}
+                                            </span>
+                                        </div>
 
-                                <!-- Result for completed tasks -->
-                                <div v-if="task.status === 'Completed' && task.result" class="mt-3 flex gap-4 text-sm">
-                                    <span class="text-green-600 dark:text-green-400">
-                                        新增: {{ task.result.added_count }}
-                                    </span>
-                                    <span class="text-red-600 dark:text-red-400">
-                                        删除: {{ task.result.removed_count }}
-                                    </span>
-                                    <span v-if="task.result.failed_scrape_count > 0"
-                                        class="text-yellow-600 dark:text-yellow-400">
-                                        抓取失败: {{ task.result.failed_scrape_count }}
-                                    </span>
-                                </div>
-
-                                <!-- Error for failed tasks -->
-                                <div v-if="task.status === 'Failed' && task.error"
-                                    class="mt-3 text-sm text-red-600 dark:text-red-400">
-                                    错误: {{ task.error }}
-                                </div>
-                            </CardContent>
-                        </Card>
+                                        <!-- Error for failed tasks -->
+                                        <div v-else-if="task.status === 'Failed' && task.error"
+                                            class="text-sm text-red-600 dark:text-red-400">
+                                            错误: {{ task.error }}
+                                        </div>
+                                        <span v-else class="text-muted-foreground text-sm">-</span>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
                     </div>
                 </section>
             </template>
         </template>
     </div>
 </template>
+

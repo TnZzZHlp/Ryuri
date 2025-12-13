@@ -19,6 +19,7 @@ export interface ReaderApi {
         contentId: number,
         chapter: number
     ): Promise<ChapterTextResponse>;
+    getPageImage(contentId: number, chapter: number, page: number): Promise<Blob>;
 }
 
 /**
@@ -64,5 +65,9 @@ export function createReaderApi(client: ApiClient): ReaderApi {
                 `/api/contents/${contentId}/chapters/${chapter}/text`
             );
         },
+
+        async getPageImage(contentId: number, chapter: number, page: number): Promise<Blob> {
+            return client.getBlob(`/api/contents/${contentId}/chapters/${chapter}/pages/${page}`);
+        }
     };
 }

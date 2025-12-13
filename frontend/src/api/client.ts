@@ -172,6 +172,48 @@ export class ApiClient {
     }
 
     /**
+     * Performs a GET request and returns a Blob.
+     */
+    async getBlob(path: string, options?: RequestOptions): Promise<Blob> {
+        let url = buildUrl(this._baseUrl, path);
+        url = appendQueryParams(url, options?.params);
+
+        const headers: Record<string, string> = {
+            ...options?.headers,
+        };
+
+        const requiresAuth = options?.requiresAuth ?? true;
+        if (requiresAuth) {
+            const token = this.getToken();
+            if (token) {
+                headers["Authorization"] = buildAuthHeader(token);
+            }
+        }
+
+        const init: RequestInit = {
+            method: "GET",
+            headers,
+        };
+
+        let response: Response;
+        try {
+            response = await fetch(url, init);
+        } catch (error) {
+            throw new ApiError(0, error instanceof Error ? error.message : "Network error");
+        }
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.dispatchEvent(new CustomEvent('api:unauthorized'));
+            }
+            const body = await parseErrorResponse(response);
+            throw body;
+        }
+
+        return response.blob();
+    }
+
+    /**
      * Core request method that handles all HTTP operations.
      */
     private async request<T>(
@@ -224,6 +266,9 @@ export class ApiClient {
 
         // Handle error responses
         if (!response.ok) {
+            if (response.status === 401) {
+                window.dispatchEvent(new CustomEvent('api:unauthorized'));
+            }
             const body = await parseErrorResponse(response);
             throw body;
         }
