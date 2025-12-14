@@ -141,6 +141,7 @@ fn arb_chapter() -> impl Strategy<Value = Chapter> {
             title,
             file_path,
             sort_order,
+            page_count: 0, // Skip page_count for serialization tests
         },
     )
 }

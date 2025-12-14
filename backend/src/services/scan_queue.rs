@@ -250,11 +250,12 @@ impl ScanService {
         let new_chapters: Vec<NewChapter> = chapters
             .into_iter()
             .enumerate()
-            .map(|(idx, (chapter_title, file_path))| NewChapter {
+            .map(|(idx, (chapter_title, file_path, page_count))| NewChapter {
                 content_id: content.id,
                 title: chapter_title,
                 file_path,
                 sort_order: idx as i32,
+                page_count,
             })
             .collect();
 
@@ -314,7 +315,7 @@ impl ScanService {
     fn detect_content_type_and_chapters(
         &self,
         folder_path: &Path,
-    ) -> Result<(ContentType, Vec<(String, String)>)> {
+    ) -> Result<(ContentType, Vec<(String, String, i32)>)> {
         let mut comic_files = Vec::new();
         let mut novel_files = Vec::new();
 
@@ -353,18 +354,30 @@ impl ScanService {
         });
 
         // Create chapter entries (title derived from filename without extension)
-        let chapters: Vec<(String, String)> = files
-            .into_iter()
-            .map(|path| {
-                let title = path
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("Unknown")
-                    .to_string();
-                let file_path = path.to_string_lossy().to_string();
-                (title, file_path)
-            })
-            .collect();
+        // And calculate page count
+        let mut chapters: Vec<(String, String, i32)> = Vec::with_capacity(files.len());
+        
+        for path in files {
+            let title = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Unknown")
+                .to_string();
+            let file_path = path.to_string_lossy().to_string();
+            
+            // Calculate page count based on content type
+            let page_count = match content_type {
+                ContentType::Comic => {
+                    // Start a best effort to get page count, default to 0 on error (will be calculated on demand later)
+                    ComicArchiveExtractor::page_count(&path).unwrap_or(0) as i32
+                },
+                ContentType::Novel => {
+                    NovelArchiveExtractor::chapter_count(&path).unwrap_or(0) as i32
+                }
+            };
+            
+            chapters.push((title, file_path, page_count));
+        }
 
         Ok((content_type, chapters))
     }

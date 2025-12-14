@@ -49,6 +49,12 @@ async fn run_migrations(pool: &Pool<Sqlite>) -> Result<()> {
         .await
         .map_err(AppError::Database)?;
 
+    // Migration: Add page_count column to chapters table if it doesn't exist
+    sqlx::query("ALTER TABLE chapters ADD COLUMN page_count INTEGER NOT NULL DEFAULT 0")
+        .execute(pool)
+        .await
+        .ok(); // Ignore error if column already exists
+
     Ok(())
 }
 
@@ -96,6 +102,7 @@ CREATE TABLE IF NOT EXISTS chapters (
     title TEXT NOT NULL,
     file_path TEXT NOT NULL,
     sort_order INTEGER NOT NULL,
+    page_count INTEGER NOT NULL DEFAULT 0,
     UNIQUE(content_id, file_path)
 );
 

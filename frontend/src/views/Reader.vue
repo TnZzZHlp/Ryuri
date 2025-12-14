@@ -7,21 +7,21 @@ import { createReaderApi } from '@/api/reader'
 import { ApiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Button } from '@/components/ui/button'
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
     DropdownMenuTrigger,
     DropdownMenuLabel,
     DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
-import { 
-    ArrowLeft, 
-    ChevronLeft, 
-    ChevronRight, 
-    Settings, 
-    AlignJustify, 
-    Columns 
+import {
+    ArrowLeft,
+    ChevronLeft,
+    ChevronRight,
+    Settings,
+    AlignJustify,
+    Columns
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { Progress } from '@/components/ui/progress'
@@ -58,11 +58,11 @@ const readerMode = ref<ReaderMode>(localStorage.getItem('reader_mode') as Reader
 const currentPage = ref(0) // For paged mode
 
 // Computed
-const currentChapter = computed(() => 
+const currentChapter = computed(() =>
     chapters.value.find(c => c.id === chapterId.value)
 )
 
-const currentChapterIndex = computed(() => 
+const currentChapterIndex = computed(() =>
     chapters.value.findIndex(c => c.id === chapterId.value)
 )
 
@@ -79,7 +79,6 @@ const nextChapter = computed(() => {
     }
     return null
 })
-
 // Methods
 const setMode = (mode: ReaderMode) => {
     readerMode.value = mode
@@ -132,7 +131,7 @@ const handleImageLoad = (pageIndex: number) => {
 
     // Extend buffer if we are close to the end
     const maxPage = Math.max(...pages.value)
-    
+
     if (pageIndex >= maxPage - 2 && !endOfChapter.value) {
         const nextPage = maxPage + 1
         if (!pages.value.includes(nextPage) && !failedPages.value.has(nextPage)) {
@@ -144,17 +143,17 @@ const handleImageLoad = (pageIndex: number) => {
 
 const handleImageError = (pageIndex: number) => {
     failedPages.value.add(pageIndex)
-    
+
     // Assume 404/Error means end of chapter
     // Only mark end if it's a "reasonable" error (e.g. sequential)
-    
+
     if (readerMode.value === 'scroll') {
         endOfChapter.value = true
         pages.value = pages.value.filter(p => p < pageIndex)
     } else {
         // In paged mode, if current page fails, try to handle end
         if (pageIndex === currentPage.value) {
-             endOfChapter.value = true
+            endOfChapter.value = true
         }
     }
 }
@@ -169,7 +168,7 @@ const loadData = async () => {
             chapters.value = await contentApi.listChapters(contentId.value)
             chapters.value.sort((a, b) => a.sort_order - b.sort_order)
         }
-        
+
         // Start loading initial pages
         if (readerMode.value === 'scroll') {
             pages.value.forEach(p => loadPage(p))
@@ -177,7 +176,7 @@ const loadData = async () => {
             loadPage(currentPage.value)
             loadPage(currentPage.value + 1)
         }
-        
+
     } catch (e) {
         toast.error('Failed to load chapter')
         console.error(e)
@@ -208,7 +207,7 @@ const nextPage = () => {
     }
 
     const next = currentPage.value + 1
-    
+
     // Check if next page failed
     if (failedPages.value.has(next)) {
         endOfChapter.value = true
@@ -235,7 +234,7 @@ const handlePageClick = (e: MouseEvent) => {
     // Click left 30% -> prev, right 30% -> next, center -> toggle controls
     const width = window.innerWidth
     const x = e.clientX
-    
+
     if (x < width * 0.3) {
         prevPage()
     } else if (x > width * 0.7) {
@@ -251,14 +250,14 @@ watch(() => route.params.chapterId, () => {
     // Cleanup old URLs
     pageUrls.value.forEach(url => URL.revokeObjectURL(url))
     pageUrls.value.clear()
-    
+
     pages.value = [0, 1, 2]
     currentPage.value = 0
     failedPages.value.clear()
     endOfChapter.value = false
     readingProgress.value = 0
     window.scrollTo(0, 0)
-    
+
     // Load new pages
     if (readerMode.value === 'scroll') {
         pages.value.forEach(p => loadPage(p))
@@ -305,46 +304,35 @@ const handleKeydown = (e: KeyboardEvent) => {
 </script>
 
 <template>
-    <div class="relative min-h-screen bg-black text-white">
+    <div class="fixed inset-0 bg-black text-white overflow-auto">
         <!-- Reader Content -->
-        
+
         <!-- Scroll Mode -->
         <div v-if="readerMode === 'scroll'" class="mx-auto max-w-4xl min-h-screen" @click="toggleControls">
             <div v-if="loading" class="flex items-center justify-center h-screen">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
             </div>
-            
+
             <div v-else class="flex flex-col items-center pb-24">
                 <template v-for="page in pages" :key="page">
-                    <img 
-                        v-if="pageUrls.has(page)"
-                        :src="pageUrls.get(page)" 
-                        class="w-full h-auto object-contain max-h-screen mb-1"
-                        @load="handleImageLoad(page)"
-                        alt="Comic page"
-                    />
+                    <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)"
+                        class="w-full h-auto object-contain max-h-screen mb-1" @load="handleImageLoad(page)"
+                        alt="Comic page" />
                     <div v-else class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
                         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
                     </div>
                 </template>
-                
+
                 <!-- End of Chapter / Navigation -->
                 <div v-if="endOfChapter" class="py-12 flex flex-col items-center gap-4 w-full">
                     <p class="text-gray-400">End of Chapter</p>
                     <div class="flex gap-4">
-                        <Button 
-                            v-if="prevChapter" 
-                            variant="secondary" 
-                            @click.stop="navigateToChapter(prevChapter)"
-                        >
+                        <Button v-if="prevChapter" variant="secondary" @click.stop="navigateToChapter(prevChapter)">
                             <ChevronLeft class="mr-2 h-4 w-4" /> Previous Chapter
                         </Button>
-                        <Button 
-                            v-if="nextChapter" 
-                            variant="default" 
-                            @click.stop="navigateToChapter(nextChapter)"
-                        >
-                            Next Chapter <ChevronRight class="ml-2 h-4 w-4" />
+                        <Button v-if="nextChapter" variant="default" @click.stop="navigateToChapter(nextChapter)">
+                            Next Chapter
+                            <ChevronRight class="ml-2 h-4 w-4" />
                         </Button>
                     </div>
                 </div>
@@ -353,57 +341,41 @@ const handleKeydown = (e: KeyboardEvent) => {
 
         <!-- Paged Mode -->
         <div v-else class="h-screen w-full flex items-center justify-center overflow-hidden" @click="handlePageClick">
-             <div v-if="loading" class="flex items-center justify-center">
+            <div v-if="loading" class="flex items-center justify-center">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
             </div>
-            
+
             <div v-else-if="endOfChapter" class="flex flex-col items-center gap-6 p-8">
-                 <p class="text-xl text-gray-400">End of Chapter</p>
-                 <div class="flex flex-col gap-4 min-w-[200px]">
-                    <Button 
-                        v-if="nextChapter" 
-                        size="lg"
-                        variant="default" 
-                        @click.stop="navigateToChapter(nextChapter)"
-                    >
-                        Next Chapter <ChevronRight class="ml-2 h-4 w-4" />
+                <p class="text-xl text-gray-400">End of Chapter</p>
+                <div class="flex flex-col gap-4 min-w-[200px]">
+                    <Button v-if="nextChapter" size="lg" variant="default" @click.stop="navigateToChapter(nextChapter)">
+                        Next Chapter
+                        <ChevronRight class="ml-2 h-4 w-4" />
                     </Button>
-                     <Button 
-                        v-if="prevChapter" 
-                        variant="secondary" 
-                        @click.stop="navigateToChapter(prevChapter)"
-                    >
+                    <Button v-if="prevChapter" variant="secondary" @click.stop="navigateToChapter(prevChapter)">
                         <ChevronLeft class="mr-2 h-4 w-4" /> Previous Chapter
                     </Button>
-                     <Button 
-                        variant="outline" 
-                        @click.stop="prevPage"
-                    >
+                    <Button variant="outline" @click.stop="prevPage">
                         Re-read Page
                     </Button>
                 </div>
             </div>
 
             <div v-else class="relative h-full w-full flex items-center justify-center">
-                 <img 
-                    v-if="pageUrls.has(currentPage)"
-                    :src="pageUrls.get(currentPage)" 
-                    class="max-w-full max-h-full object-contain"
-                    alt="Comic page"
-                />
-                 <div v-else class="flex flex-col items-center gap-4">
+                <img v-if="pageUrls.has(currentPage)" :src="pageUrls.get(currentPage)"
+                    class="max-w-full max-h-full object-contain" alt="Comic page" />
+                <div v-else class="flex flex-col items-center gap-4">
                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
                     <p class="text-gray-400">Loading Page {{ currentPage + 1 }}...</p>
-                    <Button v-if="failedPages.has(currentPage)" variant="destructive" @click="loadPage(currentPage)">Retry</Button>
-                 </div>
+                    <Button v-if="failedPages.has(currentPage)" variant="destructive"
+                        @click="loadPage(currentPage)">Retry</Button>
+                </div>
             </div>
         </div>
 
         <!-- Top Bar -->
-        <div 
-            class="fixed top-0 left-0 right-0 h-16 bg-black/80 backdrop-blur-sm border-b border-white/10 flex items-center px-4 transition-transform duration-300 z-50"
-            :class="showControls ? 'translate-y-0' : '-translate-y-full'"
-        >
+        <div class="fixed top-0 left-0 right-0 h-16 bg-black/80 backdrop-blur-sm border-b border-white/10 flex items-center px-4 transition-transform duration-300 z-50"
+            :class="showControls ? 'translate-y-0' : '-translate-y-full'">
             <Button variant="ghost" size="icon" @click="router.push(`/content/${contentId}`)">
                 <ArrowLeft class="h-5 w-5 text-white" />
             </Button>
@@ -412,7 +384,7 @@ const handleKeydown = (e: KeyboardEvent) => {
                     {{ currentChapter?.title || 'Chapter ' + (currentChapterIndex + 1) }}
                 </h1>
             </div>
-            
+
             <!-- Settings Menu -->
             <DropdownMenu>
                 <DropdownMenuTrigger as-child>
@@ -438,39 +410,27 @@ const handleKeydown = (e: KeyboardEvent) => {
         </div>
 
         <!-- Bottom Bar (Navigation) -->
-        <div 
-            class="fixed bottom-0 left-0 right-0 h-16 bg-black/80 backdrop-blur-sm border-t border-white/10 flex items-center justify-between px-4 transition-transform duration-300 z-50"
-            :class="showControls ? 'translate-y-0' : 'translate-y-full'"
-        >
-            <Progress v-if="readerMode === 'scroll'" :model-value="readingProgress" class="absolute top-0 left-0 right-0 h-1 rounded-none bg-white/20" />
+        <div class="fixed bottom-0 left-0 right-0 h-16 bg-black/80 backdrop-blur-sm border-t border-white/10 flex items-center justify-between px-4 transition-transform duration-300 z-50"
+            :class="showControls ? 'translate-y-0' : 'translate-y-full'">
+            <Progress v-if="readerMode === 'scroll'" :model-value="readingProgress"
+                class="absolute top-0 left-0 right-0 h-1 rounded-none bg-white/20" />
 
-            <Button 
-                variant="ghost" 
-                size="sm" 
-                :disabled="!prevChapter"
-                @click="prevChapter && navigateToChapter(prevChapter)"
-                class="text-white hover:text-white/80"
-            >
+            <Button variant="ghost" size="sm" :disabled="!prevChapter"
+                @click="prevChapter && navigateToChapter(prevChapter)" class="text-white hover:text-white/80">
                 <ChevronLeft class="mr-1 h-4 w-4" /> Prev
             </Button>
-            
+
             <div class="flex flex-col items-center">
-                 <span class="text-xs text-gray-400">
-                    {{ currentChapterIndex + 1 }} / {{ chapters.length }}
-                </span>
-                <span v-if="readerMode === 'paged' && !endOfChapter" class="text-[10px] text-gray-500">
-                    Page {{ currentPage + 1 }}
+                <span class="text-xs text-gray-400">
+                    {{ readerMode === 'paged' ? (currentPage + 1) + ' / ' + (currentChapter?.page_count || '?') :
+                        `${currentChapterIndex + 1} / ${chapters.length}` }}
                 </span>
             </div>
 
-            <Button 
-                variant="ghost" 
-                size="sm" 
-                :disabled="!nextChapter"
-                @click="nextChapter && navigateToChapter(nextChapter)"
-                class="text-white hover:text-white/80"
-            >
-                Next <ChevronRight class="ml-1 h-4 w-4" />
+            <Button variant="ghost" size="sm" :disabled="!nextChapter"
+                @click="nextChapter && navigateToChapter(nextChapter)" class="text-white hover:text-white/80">
+                Next
+                <ChevronRight class="ml-1 h-4 w-4" />
             </Button>
         </div>
     </div>

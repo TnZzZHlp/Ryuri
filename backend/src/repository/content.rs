@@ -278,14 +278,15 @@ impl ChapterRepository {
     pub async fn create(pool: &Pool<Sqlite>, new_chapter: NewChapter) -> Result<Chapter> {
         let result = sqlx::query(
             r#"
-            INSERT INTO chapters (content_id, title, file_path, sort_order)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO chapters (content_id, title, file_path, sort_order, page_count)
+            VALUES (?, ?, ?, ?, ?)
             "#,
         )
         .bind(new_chapter.content_id)
         .bind(&new_chapter.title)
         .bind(&new_chapter.file_path)
         .bind(new_chapter.sort_order)
+        .bind(new_chapter.page_count)
         .execute(pool)
         .await;
 
@@ -326,7 +327,7 @@ impl ChapterRepository {
     pub async fn find_by_id(pool: &Pool<Sqlite>, id: i64) -> Result<Option<Chapter>> {
         sqlx::query_as::<_, Chapter>(
             r#"
-            SELECT id, content_id, title, file_path, sort_order
+            SELECT id, content_id, title, file_path, sort_order, page_count
             FROM chapters
             WHERE id = ?
             "#,
@@ -341,7 +342,7 @@ impl ChapterRepository {
     pub async fn list_by_content(pool: &Pool<Sqlite>, content_id: i64) -> Result<Vec<Chapter>> {
         sqlx::query_as::<_, Chapter>(
             r#"
-            SELECT id, content_id, title, file_path, sort_order
+            SELECT id, content_id, title, file_path, sort_order, page_count
             FROM chapters
             WHERE content_id = ?
             ORDER BY sort_order

@@ -120,6 +120,9 @@ pub struct Chapter {
     pub file_path: String,
     /// Sort order for displaying chapters.
     pub sort_order: i32,
+    /// Number of pages/images in this chapter (0 if not yet calculated).
+    #[sqlx(default)]
+    pub page_count: i32,
 }
 
 impl Chapter {
@@ -129,12 +132,14 @@ impl Chapter {
         title: String,
         file_path: String,
         sort_order: i32,
+        page_count: i32,
     ) -> NewChapter {
         NewChapter {
             content_id,
             title,
             file_path,
             sort_order,
+            page_count,
         }
     }
 }
@@ -146,6 +151,7 @@ pub struct NewChapter {
     pub title: String,
     pub file_path: String,
     pub sort_order: i32,
+    pub page_count: i32,
 }
 
 /// Response structure for content list API.

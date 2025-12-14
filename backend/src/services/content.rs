@@ -49,9 +49,25 @@ impl ContentService {
     /// List all chapters for a content.
     pub async fn list_chapters(pool: &Pool<Sqlite>, content_id: i64) -> Result<Vec<Chapter>> {
         // First verify the content exists
-        let _content = Self::get_content(pool, content_id).await?;
+        let content = Self::get_content(pool, content_id).await?;
 
-        ChapterRepository::list_by_content(pool, content_id).await
+        let mut chapters = ChapterRepository::list_by_content(pool, content_id).await?;
+
+        // Calculate page_count for each chapter if it's zero
+        for chapter in &mut chapters {
+            if chapter.page_count == 0 {
+                let archive_path = Path::new(&chapter.file_path);
+                let count = match content.content_type {
+                    ContentType::Comic => ComicArchiveExtractor::page_count(archive_path)? as i32,
+                    ContentType::Novel => {
+                        NovelArchiveExtractor::chapter_count(archive_path)? as i32
+                    }
+                };
+                chapter.page_count = count;
+            }
+        }
+
+        Ok(chapters)
     }
 
     /// Get a specific page image from a comic chapter.
