@@ -55,13 +55,13 @@ jobs:
               run: rustc --version && cargo --version
 
             - name: Build backend (release)
-              run: cd backend && cargo build --release && mv target/release/backend target/release/ryuri
+              run: cd backend && cargo build --release
 
             - name: Upload backend binary artifact
               uses: actions/upload-artifact@v4
               with:
                   name: backend-binary
-                  path: backend/target/release/ryuri
+                  path: backend/target/release/backend
                   retention-days: 1
 
     deploy:
@@ -83,6 +83,7 @@ jobs:
                   mkdir -p ~/.ssh
                   echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
                   chmod 600 ~/.ssh/id_ed25519
+                  chmod 700 ~/.ssh
                   ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
                   echo "SSH directory contents:"
                   ls -la ~/.ssh
@@ -100,6 +101,7 @@ jobs:
                   SSH_HOST: ${{ secrets.SSH_HOST }}
                   SSH_PORT: ${{ secrets.SSH_PORT }}
               run: |
+                  mv target/release/backend target/release/ryuri
                   echo "Deploying to $SSH_HOST:$SSH_PORT"
                   # Test SSH connection with verbose output
                   ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o LogLevel=VERBOSE -p $SSH_PORT root@$SSH_HOST "echo 'SSH connection successful'"
