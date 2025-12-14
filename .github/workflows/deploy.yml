@@ -83,15 +83,16 @@ jobs:
                   echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
                   chmod 600 ~/.ssh/id_ed25519
                   chmod 700 ~/.ssh
-                  ssh-keyscan -p ${{ matrix.server.port }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+                  ssh-keyscan -p $SSH_PORT ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
                   echo "SSH directory contents:"
                   ls -la ~/.ssh
                   echo "Private key fingerprint:"
                   ssh-keygen -lf ~/.ssh/id_ed25519
-                  echo "Deploying to server: ${{ secrets.SSH_HOST }}:${{ matrix.server.port }}"
+                  echo "Deploying to server: ${{ secrets.SSH_HOST }}:$SSH_PORT"
               shell: bash
               env:
                   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                  SSH_PORT: ${{ secrets.SSH_PORT }}
 
             - name: Deploy to server
               env:
