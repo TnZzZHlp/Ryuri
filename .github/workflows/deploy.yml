@@ -1,0 +1,114 @@
+name: Deploy dev
+
+on:
+    push:
+        branches: [dev]
+        paths:
+            - "src/**"
+            - "Cargo.toml"
+            - "Cargo.lock"
+            - ".github/workflows/deploy.yml"
+    workflow_dispatch:
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
+
+            - name: Cache cargo registry
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                  key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Cache cargo build
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      target
+                  key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Setup Rust
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Check toolchain
+              run: rustc --version && cargo --version
+
+            - name: Build (release)
+              run: cargo build --release
+
+            - name: Upload binary artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: binary
+                  path: target/release/bili_tg_sync
+                  retention-days: 1
+
+    deploy:
+        needs: build
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                server:
+                    - name: "server1"
+                      port: "9999"
+            fail-fast: false
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
+
+            - name: Download binary artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: binary
+                  path: target/release/
+
+            - name: Setup SSH
+              run: |
+                  mkdir -p ~/.ssh
+                  echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+                  chmod 600 ~/.ssh/id_ed25519
+                  chmod 700 ~/.ssh
+                  ssh-keyscan -p ${{ matrix.server.port }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+                  echo "SSH directory contents:"
+                  ls -la ~/.ssh
+                  echo "Private key fingerprint:"
+                  ssh-keygen -lf ~/.ssh/id_ed25519
+                  echo "Deploying to server: ${{ secrets.SSH_HOST }}:${{ matrix.server.port }}"
+              shell: bash
+              env:
+                  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+            - name: Deploy to server
+              env:
+                  SSH_HOST: ${{ secrets.SSH_HOST }}
+                  SSH_PORT: ${{ matrix.server.port }}
+              run: |
+                  echo "Deploying to $SSH_HOST:$SSH_PORT"
+                  # Test SSH connection with verbose output
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o LogLevel=VERBOSE -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'"
+
+                  # Ensure destination directory exists
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "mkdir -p /root/github/BiliTGSync"
+
+                  # Stop the service before replacing binary
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "systemctl stop bili_tg_sync || true"
+
+                  # Upload binary
+                  scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -P ${{ matrix.server.port }} target/release/bili_tg_sync root@${{ secrets.SSH_HOST }}:/root/github/BiliTGSync/bili_tg_sync
+
+                  # Make binary executable
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "chmod +x /root/github/BiliTGSync/bili_tg_sync"
+
+                  # Start the service
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "systemctl start bili_tg_sync"
+
+                  echo "Successfully deployed to $SSH_HOST:$SSH_PORT"
