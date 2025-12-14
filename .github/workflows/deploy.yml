@@ -77,8 +77,8 @@ jobs:
               run: |
                   mkdir -p ~/.ssh
                   echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-                  # 打印第一行
                   head -n 1 ~/.ssh/id_ed25519
+                  sha256sum ~/.ssh/id_ed25519
                   chmod 600 ~/.ssh/id_ed25519
                   chmod 700 ~/.ssh
                   ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
