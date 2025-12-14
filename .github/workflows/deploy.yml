@@ -38,6 +38,7 @@ jobs:
                   path: |
                       ~/.cargo/registry
                       ~/.cargo/git
+                      ./backend/target
                   key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
             - name: Cache cargo build
