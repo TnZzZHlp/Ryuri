@@ -54,13 +54,13 @@ jobs:
               run: rustc --version && cargo --version
 
             - name: Build backend (release)
-              run: cd backend && cargo build --release && mv target/release/backend target/release/wyuri
+              run: cd backend && cargo build --release && mv target/release/backend target/release/ryuri
 
             - name: Upload backend binary artifact
               uses: actions/upload-artifact@v4
               with:
                   name: backend-binary
-                  path: backend/target/release/wyuri
+                  path: backend/target/release/ryuri
                   retention-days: 1
 
     deploy:
@@ -109,18 +109,18 @@ jobs:
                   ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o LogLevel=VERBOSE -p $SSH_PORT root@$SSH_HOST "echo 'SSH connection successful'"
 
                   # Ensure destination directories exist
-                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "mkdir -p /root/github/Wyuri"
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "mkdir -p /root/github/ryuri"
 
                   # Stop the service before replacing binary
-                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "systemctl stop wyuri || true"
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "systemctl stop ryuri || true"
 
-                  # Upload wyuri binary
-                  scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -P $SSH_PORT wyuri root@$SSH_HOST:/root/github/Wyuri/wyuri
+                  # Upload ryuri binary
+                  scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -P $SSH_PORT ryuri root@$SSH_HOST:/root/github/ryuri/ryuri
 
                   # Make binary executable
-                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "chmod +x /root/github/Wyuri/wyuri"
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "chmod +x /root/github/ryuri/ryuri"
 
                   # Start the service
-                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "systemctl start wyuri"
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "systemctl start ryuri"
 
                   echo "Successfully deployed to $SSH_HOST:$SSH_PORT"
