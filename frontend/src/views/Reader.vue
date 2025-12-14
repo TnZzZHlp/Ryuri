@@ -54,7 +54,7 @@ const readingProgress = ref(0)
 
 // Reader Settings
 type ReaderMode = 'scroll' | 'paged'
-const readerMode = ref<ReaderMode>(localStorage.getItem('reader_mode') as ReaderMode || 'scroll')
+const readerMode = ref<ReaderMode>(localStorage.getItem('reader_mode') as ReaderMode || 'paged')
 const currentPage = ref(0) // For paged mode
 
 // Computed
