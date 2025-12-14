@@ -20,6 +20,18 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
 
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "latest"
+
+            - name: Build frontend
+              run: |
+                  cd frontend
+                  npm install -g pnpm
+                  pnpm install
+                  pnpm build
+
             - name: Cache cargo registry
               uses: actions/cache@v4
               with:
@@ -41,35 +53,35 @@ jobs:
             - name: Check toolchain
               run: rustc --version && cargo --version
 
-            - name: Build (release)
-              run: cargo build --release
+            - name: Build backend (release)
+              run: cd backend && cargo build --release && mv target/release/backend target/release/wyuri
 
-            - name: Upload binary artifact
+            - name: Upload backend binary artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: binary
-                  path: target/release/bili_tg_sync
+                  name: backend-binary
+                  path: backend/target/release/wyuri
                   retention-days: 1
 
     deploy:
         needs: build
         runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                server:
-                    - name: "server1"
-                      port: "9999"
-            fail-fast: false
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v5
 
-            - name: Download binary artifact
+            - name: Download frontend artifact
               uses: actions/download-artifact@v4
               with:
-                  name: binary
-                  path: target/release/
+                  name: frontend-dist
+                  path: frontend/dist
+
+            - name: Download backend binary artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: backend-binary
+                  path: ./
 
             - name: Setup SSH
               run: |
@@ -90,25 +102,25 @@ jobs:
             - name: Deploy to server
               env:
                   SSH_HOST: ${{ secrets.SSH_HOST }}
-                  SSH_PORT: ${{ matrix.server.port }}
+                  SSH_PORT: ${{ secrets.SSH_PORT }}
               run: |
                   echo "Deploying to $SSH_HOST:$SSH_PORT"
                   # Test SSH connection with verbose output
-                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o LogLevel=VERBOSE -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'"
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o LogLevel=VERBOSE -p $SSH_PORT root@$SSH_HOST "echo 'SSH connection successful'"
 
-                  # Ensure destination directory exists
-                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "mkdir -p /root/github/BiliTGSync"
+                  # Ensure destination directories exist
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "mkdir -p /root/github/Wyuri"
 
                   # Stop the service before replacing binary
-                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "systemctl stop bili_tg_sync || true"
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "systemctl stop wyuri || true"
 
-                  # Upload binary
-                  scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -P ${{ matrix.server.port }} target/release/bili_tg_sync root@${{ secrets.SSH_HOST }}:/root/github/BiliTGSync/bili_tg_sync
+                  # Upload wyuri binary
+                  scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -P $SSH_PORT wyuri root@$SSH_HOST:/root/github/Wyuri/wyuri
 
                   # Make binary executable
-                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "chmod +x /root/github/BiliTGSync/bili_tg_sync"
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "chmod +x /root/github/Wyuri/wyuri"
 
                   # Start the service
-                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} root@${{ secrets.SSH_HOST }} "systemctl start bili_tg_sync"
+                  ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "systemctl start wyuri"
 
                   echo "Successfully deployed to $SSH_HOST:$SSH_PORT"
