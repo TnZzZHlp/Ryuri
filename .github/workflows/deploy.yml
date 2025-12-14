@@ -83,7 +83,6 @@ jobs:
                   mkdir -p ~/.ssh
                   echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
                   chmod 600 ~/.ssh/id_ed25519
-                  chmod 700 ~/.ssh
                   ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
                   echo "SSH directory contents:"
                   ls -la ~/.ssh
