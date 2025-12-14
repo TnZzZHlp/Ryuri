@@ -15,7 +15,7 @@ use tracing::Level;
 #[cfg(feature = "dev")]
 use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
-use crate::handlers::{auth, bangumi, content, library, progress, scan_queue};
+use crate::handlers::{auth, bangumi, content, library, progress, scan_queue, static_files};
 use crate::middlewares::auth_middleware;
 use crate::state::AppState;
 
@@ -103,9 +103,12 @@ pub fn create_router(state: AppState) -> Router {
         ));
 
     // Merge public and protected routers
+    let api_router = Router::new().merge(public_routes).merge(protected_routes);
+
     let router = Router::new()
-        .merge(public_routes)
-        .merge(protected_routes)
+        .merge(api_router)
+        .route("/", get(static_files::serve_index))
+        .route("/{*path}", get(static_files::serve_static))
         .with_state(state);
 
     // Add OpenAPI routes when dev feature is enabled
