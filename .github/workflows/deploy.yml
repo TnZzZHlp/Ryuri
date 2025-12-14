@@ -71,12 +71,6 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
 
-            - name: Download frontend artifact
-              uses: actions/download-artifact@v4
-              with:
-                  name: frontend-dist
-                  path: frontend/dist
-
             - name: Download backend binary artifact
               uses: actions/download-artifact@v4
               with:
