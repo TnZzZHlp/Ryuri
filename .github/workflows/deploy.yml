@@ -76,23 +76,15 @@ jobs:
             - name: Setup SSH
               run: |
                   mkdir -p ~/.ssh
-                  chmod 700 ~/.ssh
-
                   echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
                   chmod 600 ~/.ssh/id_ed25519
-
-                  echo "Validating SSH key..."
-                  if ! ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null 2>&1; then
-                      echo "ERROR: Invalid SSH key format"
-                      echo "Key file size: $(wc -c < ~/.ssh/id_ed25519)"
-                      echo "First line: $(head -n 1 ~/.ssh/id_ed25519)"
-                      exit 1
-                  fi
-
-                  echo "✓ SSH key is valid"
-                  ssh-keygen -lf ~/.ssh/id_ed25519
-
+                  chmod 700 ~/.ssh
                   ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+                  echo "SSH directory contents:"
+                  ls -la ~/.ssh
+                  echo "Private key fingerprint:"
+                  ssh-keygen -lf ~/.ssh/id_ed25519
+                  echo "Deploying to server: $SSH_HOST:$SSH_PORT"
               shell: bash
               env:
                   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -104,7 +96,7 @@ jobs:
                   SSH_HOST: ${{ secrets.SSH_HOST }}
                   SSH_PORT: ${{ secrets.SSH_PORT }}
               run: |
-                  mv target/release/backend target/release/ryuri
+                  mv backend/target/release/backend backend/target/release/ryuri
                   echo "Deploying to $SSH_HOST:$SSH_PORT"
                   # Test SSH connection with verbose output
                   ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o LogLevel=VERBOSE -p $SSH_PORT root@$SSH_HOST "echo 'SSH connection successful'"
@@ -116,7 +108,7 @@ jobs:
                   ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "systemctl stop ryuri || true"
 
                   # Upload ryuri binary
-                  scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -P $SSH_PORT ryuri root@$SSH_HOST:/root/github/ryuri/ryuri
+                  scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -P $SSH_PORT backend/target/release/ryuri root@$SSH_HOST:/root/github/ryuri/ryuri
 
                   # Make binary executable
                   ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_HOST "chmod +x /root/github/ryuri/ryuri"
