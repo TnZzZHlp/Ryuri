@@ -312,6 +312,7 @@ describe("Content API", () => {
                     title: "Chapter 1",
                     file_path: "/path/to/chapter1.cbz",
                     sort_order: 0,
+                    page_count: 20
                 },
                 {
                     id: 2,
@@ -319,6 +320,7 @@ describe("Content API", () => {
                     title: "Chapter 2",
                     file_path: "/path/to/chapter2.cbz",
                     sort_order: 1,
+                    page_count: 22
                 },
             ];
             mockFetch.mockResolvedValue(mockSuccessResponse(mockChapters));

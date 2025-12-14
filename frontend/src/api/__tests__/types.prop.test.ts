@@ -166,6 +166,7 @@ const chapterArb: fc.Arbitrary<Chapter> = fc.record({
     title: fc.string({ minLength: 1 }),
     file_path: fc.string({ minLength: 1 }),
     sort_order: nonNegativeIntArb,
+    page_count: nonNegativeIntArb,
 });
 
 const progressResponseArb: fc.Arbitrary<ProgressResponse> = fc.record({
