@@ -81,15 +81,23 @@ jobs:
             - name: Setup SSH
               run: |
                   mkdir -p ~/.ssh
-                  echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-                  chmod 600 ~/.ssh/id_ed25519
                   chmod 700 ~/.ssh
-                  ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
-                  echo "SSH directory contents:"
-                  ls -la ~/.ssh
-                  echo "Private key fingerprint:"
+
+                  echo "$SSH_PRIVATE_KEY" | tr -d '[:space:]' > ~/.ssh/id_ed25519
+                  chmod 600 ~/.ssh/id_ed25519
+
+                  echo "Validating SSH key..."
+                  if ! ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null 2>&1; then
+                      echo "ERROR: Invalid SSH key format"
+                      echo "Key file size: $(wc -c < ~/.ssh/id_ed25519)"
+                      echo "First line: $(head -n 1 ~/.ssh/id_ed25519)"
+                      exit 1
+                  fi
+
+                  echo "✓ SSH key is valid"
                   ssh-keygen -lf ~/.ssh/id_ed25519
-                  echo "Deploying to server: $SSH_HOST:$SSH_PORT"
+
+                  ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
               shell: bash
               env:
                   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
