@@ -50,7 +50,7 @@ jobs:
               run: rustc --version && cargo --version
 
             - name: Build backend (release)
-              run: cd backend && cargo build --release
+              run: cd backend && cargo build --release --features dev
 
             - name: Upload backend binary artifact
               uses: actions/upload-artifact@v6
