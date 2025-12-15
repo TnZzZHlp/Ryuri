@@ -34,18 +34,18 @@ const routes = [
             {
                 path: "library/:libraryId",
                 name: "Library",
-                component: () => import("@/views/Library.vue")
+                component: () => import("@/views/Library.vue"),
             },
             {
-                path: "content/:contentId",
+                path: "library/:libraryId/content/:contentId",
                 name: "Content",
-                component: () => import("@/views/Content.vue")
+                component: () => import("@/views/Content.vue"),
             },
             {
                 path: "scan-tasks",
                 name: "ScanTasks",
-                component: () => import("@/views/ScanQueue.vue")
-            }
+                component: () => import("@/views/ScanQueue.vue"),
+            },
         ],
     },
 ];
