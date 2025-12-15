@@ -90,16 +90,12 @@ pub fn create_router(state: AppState) -> Router {
             get(content::get_chapter_text),
         )
         // Progress routes
-        .route(
-            "/api/progress/recent",
-            get(progress::get_recent_progress),
-        )
+        .route("/api/progress/recent", get(progress::get_recent_progress))
         .route(
             "/api/contents/{id}/progress",
             get(progress::get_content_progress),
         )
         // Chapter progress routes
-
         .route("/api/bangumi/search", get(bangumi::search))
         // Apply authentication middleware to all protected routes
         .layer(middleware::from_fn_with_state(
@@ -173,7 +169,7 @@ fn add_tracing_layer(router: Router) -> Router {
         .on_response(
             DefaultOnResponse::new()
                 .level(Level::INFO)
-                .latency_unit(LatencyUnit::Micros),
+                .latency_unit(LatencyUnit::Millis),
         );
 
     router.layer(tracing)
@@ -189,7 +185,7 @@ fn add_tracing_layer(router: Router) -> Router {
         .on_failure(
             DefaultOnFailure::new()
                 .level(Level::WARN)
-                .latency_unit(LatencyUnit::Micros),
+                .latency_unit(LatencyUnit::Millis),
         )
         .make_span_with(
             DefaultMakeSpan::new()
