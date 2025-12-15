@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, onBeforeMount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useReaderStore } from '@/stores/useReaderStore'
 import { Button } from '@/components/ui/button'
@@ -195,18 +195,20 @@ watch(currentPage, (newPage) => {
     }
 })
 
-onMounted(() => {
+const preventSelection = (e: Event) => e.preventDefault()
+
+onBeforeMount(() => {
     loadData()
     window.addEventListener('keydown', handleKeydown)
     window.addEventListener('scroll', updateProgress)
+    // Prevent selection in reader
+    document.addEventListener('selectstart', preventSelection)
 })
 
 onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown)
     window.removeEventListener('scroll', updateProgress)
-    // URLs are revoked in store when chapter changes or can be added to a cleanup action if needed, 
-    // but typically Vue unmount doesn't destroy the store. 
-    // We should probably have a 'reset' or 'cleanup' action in store if we want to free memory when leaving the reader view.
+    document.removeEventListener('selectstart', preventSelection)
 })
 
 const handleKeydown = (e: KeyboardEvent) => {

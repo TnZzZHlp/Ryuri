@@ -55,17 +55,25 @@ export const router = createRouter({
     routes,
 });
 
-// 导航守卫
+// Route guard
 router.beforeEach((to) => {
     const { isAuthenticated } = useAuthStore();
 
-    // 需要登录但未登录 -> 跳转登录页
+    // Requires authentication but not authenticated -> redirect to login
     if (to.meta.requiresAuth && !isAuthenticated) {
         return { name: "Login", query: { redirect: to.fullPath } };
     }
 
-    // 已登录访问登录页 -> 跳转dashboard
+    // Authenticated user accessing login page -> redirect to dashboard
     if (to.name === "Login" && isAuthenticated) {
         return { name: "Dashboard" };
+    }
+
+    // Change html title
+    if (to.name) {
+        document.title = `Ryuri - ${to.name
+            .toString()
+            .replace(/([A-Z])/g, " $1")
+            .trim()}`;
     }
 });
