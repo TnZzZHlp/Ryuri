@@ -129,11 +129,14 @@ impl ProgressRepository {
             r#"
             SELECT c.*
             FROM contents c
-            JOIN chapters ch ON c.id = ch.content_id
-            JOIN reading_progress rp ON ch.id = rp.chapter_id
-            WHERE rp.user_id = ?
-            GROUP BY c.id
-            ORDER BY MAX(rp.updated_at) DESC
+            JOIN (
+                SELECT ch.content_id, MAX(rp.updated_at) as max_updated_at
+                FROM reading_progress rp
+                JOIN chapters ch ON rp.chapter_id = ch.id
+                WHERE rp.user_id = ?
+                GROUP BY ch.content_id
+            ) recent ON c.id = recent.content_id
+            ORDER BY recent.max_updated_at DESC
             LIMIT ?
             "#,
         )
