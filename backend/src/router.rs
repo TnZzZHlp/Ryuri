@@ -91,11 +91,12 @@ pub fn create_router(state: AppState) -> Router {
         )
         // Progress routes
         .route("/api/progress/recent", get(progress::get_recent_progress))
-        .route(
-            "/api/contents/{id}/progress",
-            get(progress::get_content_progress),
-        )
         // Chapter progress routes
+        .route(
+            "/api/chapters/{id}/progress",
+            get(progress::get_chapter_progress).put(progress::update_chapter_progress),
+        )
+        // Bangumi routes
         .route("/api/bangumi/search", get(bangumi::search))
         // Apply authentication middleware to all protected routes
         .layer(middleware::from_fn_with_state(
