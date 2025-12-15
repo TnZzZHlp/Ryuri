@@ -4,9 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useContentStore } from '@/stores/useContentStore'
 import { createContentApi } from '@/api/content'
 import { createReaderApi } from '@/api/reader'
+import { createProgressApi } from '@/api/progress'
 import { ApiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Button } from '@/components/ui/button'
+import { useDebounceFn } from '@vueuse/core'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -35,17 +37,20 @@ const apiClient = new ApiClient({
 })
 const contentApi = createContentApi(apiClient)
 const readerApi = createReaderApi(apiClient)
+const progressApi = createProgressApi(apiClient)
 
 const route = useRoute()
 const router = useRouter()
 const contentStore = useContentStore()
 
 // State
+const libraryId = computed(() => Number(route.params.libraryId))
 const contentId = computed(() => Number(route.params.contentId))
 const chapterId = computed(() => Number(route.params.chapterId))
 const chapters = ref<Chapter[]>([])
 const loading = ref(true)
-const pages = ref<number[]>([0, 1, 2]) // Buffer for scroll mode
+const PRELOAD_BUFFER = 5
+const pages = ref<number[]>([0, 1, 2, 3, 4]) // Buffer for scroll mode
 const pageUrls = ref<Map<number, string>>(new Map())
 const failedPages = ref<Set<number>>(new Set())
 const endOfChapter = ref(false)
@@ -79,6 +84,20 @@ const nextChapter = computed(() => {
     }
     return null
 })
+
+// Progress Saving
+const saveProgress = useDebounceFn(async (pageIndex: number) => {
+    if (!currentChapter.value) return
+    const total = currentChapter.value.page_count
+    const percentage = total > 0 ? ((pageIndex + 1) / total) * 100 : 0
+
+    try {
+        await progressApi.updateChapterProgress(chapterId.value, pageIndex, percentage)
+    } catch (e) {
+        console.warn('Failed to save progress', e)
+    }
+}, 1000)
+
 // Methods
 const setMode = (mode: ReaderMode) => {
     readerMode.value = mode
@@ -87,12 +106,21 @@ const setMode = (mode: ReaderMode) => {
     if (mode === 'paged') {
         loadPage(currentPage.value)
         // Preload next
-        loadPage(currentPage.value + 1)
+        for (let i = 1; i <= PRELOAD_BUFFER; i++) {
+            loadPage(currentPage.value + i)
+        }
         readingProgress.value = 0
     } else {
         // If switching to scroll, ensure we have a buffer
-        if (pages.value.length < 3) {
-            pages.value = [0, 1, 2]
+        if (pages.value.length < PRELOAD_BUFFER) {
+            // Rebuild buffer around current page
+            const newPages = []
+            for (let i = 0; i < PRELOAD_BUFFER; i++) {
+                const p = currentPage.value + i
+                if (currentChapter.value && p >= currentChapter.value.page_count) break
+                newPages.push(p)
+            }
+            pages.value = newPages.length > 0 ? newPages : [currentPage.value]
             pages.value.forEach(p => loadPage(p))
         }
         updateProgress()
@@ -106,6 +134,28 @@ const updateProgress = () => {
         const winHeight = window.innerHeight
         const total = docHeight - winHeight
         readingProgress.value = total > 0 ? (scrollTop / total) * 100 : 0
+
+        // Find visible page
+        const images = document.querySelectorAll('img[data-page-index]')
+        let bestMatch = -1
+        let minDiff = Infinity
+
+        images.forEach(img => {
+            const rect = img.getBoundingClientRect()
+            // We want the image closest to the vertical center of the viewport
+            const imgCenter = rect.top + rect.height / 2
+            const diff = Math.abs(imgCenter - (window.innerHeight / 2))
+
+            if (diff < minDiff) {
+                minDiff = diff
+                bestMatch = Number(img.getAttribute('data-page-index'))
+            }
+        })
+
+        if (bestMatch !== -1) {
+            currentPage.value = bestMatch
+            saveProgress(bestMatch)
+        }
     }
 }
 
@@ -132,7 +182,7 @@ const handleImageLoad = (pageIndex: number) => {
     // Extend buffer if we are close to the end
     const maxPage = Math.max(...pages.value)
 
-    if (pageIndex >= maxPage - 2 && !endOfChapter.value) {
+    if (pageIndex >= maxPage - PRELOAD_BUFFER + 1 && !endOfChapter.value) {
         const nextPage = maxPage + 1
         if (!pages.value.includes(nextPage) && !failedPages.value.has(nextPage)) {
             pages.value.push(nextPage)
@@ -169,12 +219,39 @@ const loadData = async () => {
             chapters.value.sort((a, b) => a.sort_order - b.sort_order)
         }
 
+        // Fetch Progress
+        let startPage = 0
+        try {
+            const progress = await progressApi.getChapterProgress(chapterId.value)
+            if (progress) {
+                startPage = progress.position
+            }
+        } catch (e) {
+            // Ignore progress load errors
+        }
+
         // Start loading initial pages
         if (readerMode.value === 'scroll') {
+            const initialPages = []
+            for (let i = 0; i < PRELOAD_BUFFER; i++) {
+                const p = startPage + i
+                if (currentChapter.value && p >= currentChapter.value.page_count) break
+                initialPages.push(p)
+            }
+            // Fallback if empty or startPage was invalid, just load 0
+            if (initialPages.length === 0) initialPages.push(0)
+
+            pages.value = initialPages
             pages.value.forEach(p => loadPage(p))
+
+            // Note: Scroll position restoration is not strictly handled here as images load asynchronously.
+            // But we start loading from the last read page, which is the most important part.
         } else {
+            currentPage.value = startPage
             loadPage(currentPage.value)
-            loadPage(currentPage.value + 1)
+            for (let i = 1; i <= PRELOAD_BUFFER; i++) {
+                loadPage(currentPage.value + i)
+            }
         }
 
     } catch (e) {
@@ -216,14 +293,18 @@ const nextPage = () => {
 
     currentPage.value = next
     loadPage(next)
-    loadPage(next + 1) // Preload
+    for (let i = 1; i <= PRELOAD_BUFFER; i++) {
+        loadPage(next + i)
+    }
     window.scrollTo(0, 0)
+    saveProgress(currentPage.value)
 }
 
 const prevPage = () => {
     if (currentPage.value > 0) {
         currentPage.value--
         window.scrollTo(0, 0)
+        saveProgress(currentPage.value)
     } else {
         if (prevChapter.value) navigateToChapter(prevChapter.value)
     }
@@ -251,20 +332,18 @@ watch(() => route.params.chapterId, () => {
     pageUrls.value.forEach(url => URL.revokeObjectURL(url))
     pageUrls.value.clear()
 
-    pages.value = [0, 1, 2]
+    // pages reset will be handled in loadData mostly, but we reset here for UI
+    pages.value = []
+    for (let i = 0; i < PRELOAD_BUFFER; i++) pages.value.push(i)
+
     currentPage.value = 0
     failedPages.value.clear()
     endOfChapter.value = false
     readingProgress.value = 0
     window.scrollTo(0, 0)
 
-    // Load new pages
-    if (readerMode.value === 'scroll') {
-        pages.value.forEach(p => loadPage(p))
-    } else {
-        loadPage(0)
-        loadPage(1)
-    }
+    // Trigger data reload
+    loadData()
 })
 
 onMounted(() => {
@@ -315,7 +394,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 
             <div v-else class="flex flex-col items-center pb-24">
                 <template v-for="page in pages" :key="page">
-                    <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)"
+                    <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)" :data-page-index="page"
                         class="w-full h-auto object-contain max-h-screen mb-1" @load="handleImageLoad(page)"
                         alt="Comic page" />
                     <div v-else class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
@@ -376,7 +455,7 @@ const handleKeydown = (e: KeyboardEvent) => {
         <!-- Top Bar -->
         <div class="fixed top-0 left-0 right-0 h-16 bg-black/80 backdrop-blur-sm border-b border-white/10 flex items-center px-4 transition-transform duration-300 z-50"
             :class="showControls ? 'translate-y-0' : '-translate-y-full'">
-            <Button variant="ghost" size="icon" @click="router.push(`/content/${contentId}`)">
+            <Button variant="ghost" size="icon" @click="router.push(`/library/${libraryId}/content/${contentId}`)">
                 <ArrowLeft class="h-5 w-5 text-white" />
             </Button>
             <div class="ml-4 flex-1 overflow-hidden">

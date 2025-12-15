@@ -16,7 +16,7 @@ const routes = [
         meta: { requiresAuth: false },
     },
     {
-        path: "/read/:contentId/:chapterId",
+        path: "/read/:libraryId/:contentId/:chapterId",
         name: "Reader",
         component: () => import("@/views/Reader.vue"),
         meta: { requiresAuth: true },

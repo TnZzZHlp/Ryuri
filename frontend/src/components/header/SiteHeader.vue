@@ -27,8 +27,8 @@ const is_mobile = computed(() => {
         <div class="flex w-full items-center justify-between gap-1 px-4 lg:gap-2 lg:px-6">
             <div class="flex items-center">
                 <SidebarTrigger class="-ml-1" v-if="is_mobile" />
-                <ArrowLeft @click="router.back()" v-if="router.currentRoute.value.name == 'Content'"
-                    class="cursor-pointer" :size=20 />
+                <ArrowLeft @click="router.push(`/library/${router.currentRoute.value.params.libraryId}`)"
+                    v-if="router.currentRoute.value.name == 'Content'" class="cursor-pointer" :size=20 />
             </div>
             <Button size="icon" variant="ghost" class="hidden lg:flex" @click="changeAppTheme">
                 <Sun />

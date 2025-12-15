@@ -19,6 +19,7 @@ import type { Chapter } from '@/api/types';
 import { toast } from 'vue-sonner';
 
 const router = useRouter();
+const libraryId = Number(router.currentRoute.value.params.libraryId);
 const contentId = Number(router.currentRoute.value.params.contentId);
 const contentStore = useContentStore();
 const { getThumbnailUrl, isThumbnailLoading, loadThumbnail } = contentStore;
@@ -104,10 +105,10 @@ const renderStars = (score: number) => {
 
 const handleStartReading = (chapterId?: number) => {
     if (chapterId) {
-        router.push(`/read/${contentId}/${chapterId}`);
+        router.push(`/read/${libraryId}/${contentId}/${chapterId}`);
     } else if (chapters.value.length > 0) {
         // Default to first chapter
-        router.push(`/read/${contentId}/${chapters.value[0]!.id}`);
+        router.push(`/read/${libraryId}/${contentId}/${chapters.value[0]!.id}`);
     } else {
         toast.error('暂无章节');
     }
