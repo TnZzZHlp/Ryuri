@@ -8,13 +8,14 @@
  */
 
 import { ApiClient } from "./client";
-import type { ProgressResponse, ContentProgressResponse } from "./types";
+import type { ProgressResponse, ContentProgressResponse, ContentResponse } from "./types";
 
 /**
  * Progress API interface.
  */
 export interface ProgressApi {
     getContentProgress(contentId: number): Promise<ContentProgressResponse>;
+    getRecentProgress(limit?: number): Promise<ContentResponse[]>;
     getChapterProgress(chapterId: number): Promise<ProgressResponse | null>;
     updateChapterProgress(
         chapterId: number,
@@ -45,6 +46,18 @@ export function createProgressApi(client: ApiClient): ProgressApi {
             return client.get<ContentProgressResponse>(
                 `/api/contents/${contentId}/progress`
             );
+        },
+
+        /**
+         * Gets the most recently read contents.
+         *
+         * @param limit - Max number of items to return (default 5)
+         * @returns List of content items
+         */
+        async getRecentProgress(limit?: number): Promise<ContentResponse[]> {
+            return client.get<ContentResponse[]>('/api/progress/recent', {
+                params: { limit },
+            });
         },
 
         /**

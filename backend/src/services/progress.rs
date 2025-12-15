@@ -218,6 +218,21 @@ impl ProgressService {
         let progress = self.get_chapter_progress(user_id, chapter_id).await?;
         Ok(progress.map(ProgressResponse::from))
     }
+
+    /// Get the most recently read contents for a user.
+    ///
+    /// Returns the contents that have the most recently updated reading progress.
+    pub async fn get_recent_contents(
+        &self,
+        user_id: i64,
+        limit: i64,
+    ) -> Result<Vec<crate::models::ContentResponse>> {
+        let contents = ProgressRepository::find_recent_contents_by_user(&self.pool, user_id, limit).await?;
+        Ok(contents
+            .into_iter()
+            .map(crate::models::ContentResponse::from)
+            .collect())
+    }
 }
 
 /// Utility functions for progress percentage calculation.

@@ -6,6 +6,7 @@ use chrono::Utc;
 use sqlx::{Pool, Sqlite};
 
 use crate::error::{AppError, Result};
+use crate::models::Content;
 use crate::models::{NewReadingProgress, ReadingProgress};
 
 /// Repository for reading progress database operations.
@@ -14,7 +15,7 @@ pub struct ProgressRepository;
 impl ProgressRepository {
     /// Create or update reading progress for a user on a chapter.
     ///
-    /// Uses INSERT OR REPLACE to handle both new and existing progress.
+    /// Uses INSERT OR REPLACE to handle both high-level progress tracking.
     pub async fn upsert(
         pool: &Pool<Sqlite>,
         progress: NewReadingProgress,
@@ -112,6 +113,33 @@ impl ProgressRepository {
         .bind(user_id)
         .bind(content_id)
         .fetch_optional(pool)
+        .await
+        .map_err(AppError::Database)
+    }
+
+    /// Find the most recently read contents by a user.
+    ///
+    /// Returns the contents that have the most recently updated reading progress.
+    pub async fn find_recent_contents_by_user(
+        pool: &Pool<Sqlite>,
+        user_id: i64,
+        limit: i64,
+    ) -> Result<Vec<Content>> {
+        sqlx::query_as::<_, Content>(
+            r#"
+            SELECT c.*
+            FROM contents c
+            JOIN chapters ch ON c.id = ch.content_id
+            JOIN reading_progress rp ON ch.id = rp.chapter_id
+            WHERE rp.user_id = ?
+            GROUP BY c.id
+            ORDER BY MAX(rp.updated_at) DESC
+            LIMIT ?
+            "#,
+        )
+        .bind(user_id)
+        .bind(limit)
+        .fetch_all(pool)
         .await
         .map_err(AppError::Database)
     }
