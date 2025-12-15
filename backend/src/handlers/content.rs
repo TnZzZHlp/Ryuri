@@ -115,9 +115,7 @@ pub async fn get_page(
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type)
-        .header(header::CACHE_CONTROL, "public, max-age=86400")
-        .body(Body::from(image_data))
-        .unwrap())
+        .body(Body::from(image_data).into_data_stream())?)
 }
 
 /// Detect image type from magic bytes.

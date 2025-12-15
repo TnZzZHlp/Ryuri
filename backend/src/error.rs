@@ -33,6 +33,9 @@ pub enum AppError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Internal error: {0}")]
+    Axum(#[from] axum::http::Error),
 }
 
 /// Error response body structure.
@@ -59,6 +62,7 @@ impl AppError {
             AppError::FileSystem(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Archive(_) => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::Axum(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -72,6 +76,7 @@ impl AppError {
             AppError::FileSystem(_) => "File system error".to_string(),
             AppError::Archive(msg) => msg.clone(),
             AppError::Internal(msg) => msg.clone(),
+            AppError::Axum(_) => "HTTP error".to_string(),
         }
     }
 
