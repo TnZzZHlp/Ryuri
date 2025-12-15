@@ -28,11 +28,13 @@ const content = ref<typeof contentStore.currentContent>(null);
 const chapters = ref<Chapter[]>([]);
 const contentLoading = ref(true);
 const chaptersLoading = ref(false);
+const lastReadChapterId = ref<number | null>(null);
 
 onBeforeMount(async () => {
     try {
         // 获取内容详情
         const api = await import('@/api/content');
+        const progressApiModule = await import('@/api/progress');
         const { ApiClient } = await import('@/api/client');
         const { useAuthStore } = await import('@/stores/useAuthStore');
         const authStore = useAuthStore();
@@ -42,12 +44,21 @@ onBeforeMount(async () => {
             getToken: () => authStore.token,
         });
         const contentApi = api.createContentApi(client);
-        const data = await contentApi.get(contentId);
-        content.value = data;
+        const progressApi = progressApiModule.createProgressApi(client);
+        
+        const [contentData, progressData] = await Promise.all([
+            contentApi.get(contentId),
+            progressApi.getContentProgress(contentId).catch(() => null)
+        ]);
+        
+        content.value = contentData;
+        if (progressData?.current_chapter_id) {
+            lastReadChapterId.value = progressData.current_chapter_id;
+        }
 
         // 加载缩略图
-        if (data.has_thumbnail) {
-            loadThumbnail(data.id);
+        if (contentData.has_thumbnail) {
+            loadThumbnail(contentData.id);
         }
 
         // 加载章节列表
@@ -106,6 +117,8 @@ const renderStars = (score: number) => {
 const handleStartReading = (chapterId?: number) => {
     if (chapterId) {
         router.push(`/read/${libraryId}/${contentId}/${chapterId}`);
+    } else if (lastReadChapterId.value) {
+        router.push(`/read/${libraryId}/${contentId}/${lastReadChapterId.value}`);
     } else if (chapters.value.length > 0) {
         // Default to first chapter
         router.push(`/read/${libraryId}/${contentId}/${chapters.value[0]!.id}`);
@@ -157,7 +170,7 @@ const handleStartReading = (chapterId?: number) => {
                 <!-- Start Reading Button -->
                 <Button @click="() => handleStartReading()" class="w-full mt-4 h-12 text-base" size="lg">
                     <BookOpen class="size-5" />
-                    开始阅读
+                    {{ lastReadChapterId ? '继续阅读' : '开始阅读' }}
                 </Button>
             </div>
 
