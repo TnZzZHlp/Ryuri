@@ -18,6 +18,7 @@ use crate::state::AppState;
 
 /// Query parameters for recent progress.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct RecentProgressQuery {
     #[serde(default = "default_recent_limit")]
     pub limit: i64,

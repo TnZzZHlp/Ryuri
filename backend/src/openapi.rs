@@ -12,7 +12,7 @@ use crate::handlers::content::{
     ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
 };
 use crate::handlers::library::{AddScanPathRequest, ScanPathParams};
-use crate::handlers::progress::UpdateProgressWithPercentageRequest;
+use crate::handlers::progress::{RecentProgressQuery, UpdateProgressWithPercentageRequest};
 use crate::handlers::scan_queue::{ListTasksResponse, SubmitScanResponse};
 use crate::models::{
     Chapter, ContentProgressResponse, ContentResponse, ContentType, CreateLibraryRequest, Library,
@@ -63,11 +63,13 @@ use crate::services::bangumi::BangumiSearchResult;
         crate::openapi::paths::get_content,
         crate::openapi::paths::delete_content,
         crate::openapi::paths::update_metadata,
+        crate::openapi::paths::get_thumbnail,
         crate::openapi::paths::list_chapters,
         crate::openapi::paths::get_page,
         crate::openapi::paths::get_chapter_text,
         // Progress endpoints
         crate::openapi::paths::get_content_progress,
+        crate::openapi::paths::get_recent_progress,
         crate::openapi::paths::get_chapter_progress,
         crate::openapi::paths::update_chapter_progress,
         // Scan queue endpoints
@@ -108,6 +110,7 @@ use crate::services::bangumi::BangumiSearchResult;
             ContentProgressResponse,
             UpdateProgressRequest,
             UpdateProgressWithPercentageRequest,
+            RecentProgressQuery,
             // Scan queue schemas
             ScanTask,
             SubmitScanResponse,
@@ -132,7 +135,7 @@ pub mod paths {
         ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
     };
     use crate::handlers::library::AddScanPathRequest;
-    use crate::handlers::progress::UpdateProgressWithPercentageRequest;
+    use crate::handlers::progress::{RecentProgressQuery, UpdateProgressWithPercentageRequest};
     use crate::handlers::scan_queue::{ListTasksResponse, SubmitScanResponse};
     use crate::models::{
         Chapter, ContentProgressResponse, ContentResponse, CreateLibraryRequest, Library,
@@ -397,6 +400,21 @@ pub mod paths {
     )]
     pub async fn update_metadata() {}
 
+    /// Get content thumbnail
+    #[utoipa::path(
+        get,
+        path = "/api/contents/{id}/thumbnail",
+        tag = "contents",
+        params(
+            ("id" = i64, Path, description = "Content ID")
+        ),
+        responses(
+            (status = 200, description = "Thumbnail image", content_type = "image/jpeg"),
+            (status = 404, description = "Content not found")
+        )
+    )]
+    pub async fn get_thumbnail() {}
+
     /// List chapters for a content
     #[utoipa::path(
         get,
@@ -463,6 +481,22 @@ pub mod paths {
         )
     )]
     pub async fn get_content_progress() {}
+
+    /// Get recent progress
+    #[utoipa::path(
+        get,
+        path = "/api/progress/recent",
+        tag = "progress",
+        security(("bearer_auth" = [])),
+        params(
+            ("limit" = Option<i64>, Query, description = "Limit number of results (default: 10)")
+        ),
+        responses(
+            (status = 200, description = "Recent progress", body = Vec<ContentResponse>),
+            (status = 401, description = "Not authenticated")
+        )
+    )]
+    pub async fn get_recent_progress() {}
 
     /// Get chapter progress
     #[utoipa::path(
