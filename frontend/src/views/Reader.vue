@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch, onBeforeMount } from 'vue'
+import { ref, onUnmounted, computed, watch, onBeforeMount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useReaderStore } from '@/stores/useReaderStore'
 import { Button } from '@/components/ui/button'
