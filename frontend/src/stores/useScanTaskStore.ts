@@ -220,6 +220,7 @@ export const useScanTaskStore = defineStore("scanTask", () => {
     return {
         // State
         pendingTasks,
+        processingTasks,
         historyTasks,
         loading,
         error,
