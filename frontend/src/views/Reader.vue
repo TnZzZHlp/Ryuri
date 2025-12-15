@@ -231,6 +231,7 @@ const loadData = async () => {
         }
 
         // Start loading initial pages
+        loading.value = false
         if (readerMode.value === 'scroll') {
             const initialPages = []
             for (let i = 0; i < PRELOAD_BUFFER; i++) {
@@ -257,7 +258,6 @@ const loadData = async () => {
     } catch (e) {
         toast.error('Failed to load chapter')
         console.error(e)
-    } finally {
         loading.value = false
     }
 }
