@@ -903,7 +903,7 @@ impl ScanQueueService {
         // Get Pending and Running tasks from the tasks map
         let mut result: Vec<ScanTask> = tasks
             .values()
-            .filter(|t| matches!(t.status, TaskStatus::Pending | TaskStatus::Running))
+            .filter(|t| t.status == TaskStatus::Pending)
             .cloned()
             .collect();
 
