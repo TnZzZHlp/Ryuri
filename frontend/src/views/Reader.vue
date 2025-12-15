@@ -162,6 +162,8 @@ const updateProgress = () => {
 const loadPage = async (pageIndex: number) => {
     if (pageUrls.value.has(pageIndex) || failedPages.value.has(pageIndex) || !currentChapter.value) return
 
+    if (pageIndex >= currentChapter.value.page_count) return
+
     try {
         const blob = await readerApi.getPageImage(contentId.value, currentChapter.value.sort_order, pageIndex)
         const url = URL.createObjectURL(blob)
@@ -184,7 +186,7 @@ const handleImageLoad = (pageIndex: number) => {
 
     if (pageIndex >= maxPage - PRELOAD_BUFFER + 1 && !endOfChapter.value) {
         const nextPage = maxPage + 1
-        if (!pages.value.includes(nextPage) && !failedPages.value.has(nextPage)) {
+        if (currentChapter.value && nextPage < currentChapter.value.page_count && !pages.value.includes(nextPage) && !failedPages.value.has(nextPage)) {
             pages.value.push(nextPage)
             loadPage(nextPage)
         }
