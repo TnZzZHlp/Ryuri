@@ -4,6 +4,7 @@ import { useContentStore } from '@/stores/useContentStore';
 import { computed, ref, onBeforeMount } from 'vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import {
     BookOpen,
     User,
@@ -15,7 +16,7 @@ import {
     List,
     ChevronRight
 } from 'lucide-vue-next';
-import type { Chapter } from '@/api/types';
+import type { Chapter, ContentProgressResponse } from '@/api/types';
 import { toast } from 'vue-sonner';
 
 const router = useRouter();
@@ -29,6 +30,7 @@ const chapters = ref<Chapter[]>([]);
 const contentLoading = ref(true);
 const chaptersLoading = ref(false);
 const lastReadChapterId = ref<number | null>(null);
+const progress = ref<ContentProgressResponse | null>(null);
 
 onBeforeMount(async () => {
     try {
@@ -52,6 +54,7 @@ onBeforeMount(async () => {
         ]);
         
         content.value = contentData;
+        progress.value = progressData;
         if (progressData?.current_chapter_id) {
             lastReadChapterId.value = progressData.current_chapter_id;
         }
@@ -172,6 +175,18 @@ const handleStartReading = (chapterId?: number) => {
                     <BookOpen class="size-5" />
                     {{ lastReadChapterId ? '继续阅读' : '开始阅读' }}
                 </Button>
+
+                <!-- Reading Progress -->
+                 <div v-if="progress" class="mt-4 space-y-2">
+                    <div class="flex justify-between text-sm text-muted-foreground">
+                        <span>阅读进度</span>
+                        <span>{{ progress.overall_percentage.toFixed(0) }}%</span>
+                    </div>
+                    <Progress :model-value="progress.overall_percentage" class="h-2" />
+                    <div class="text-xs text-muted-foreground text-center">
+                        已读 {{ progress.completed_chapters }} / {{ progress.total_chapters }} 章
+                    </div>
+                 </div>
             </div>
 
             <!-- Right: Content Info -->
@@ -282,16 +297,25 @@ const handleStartReading = (chapterId?: number) => {
                     <!-- Chapters List -->
                     <div v-else-if="chapters.length > 0" class="space-y-2 overflow-y-auto pr-2">
                         <div v-for="chapter in chapters" :key="chapter.id"
-                            class="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer group"
+                            class="flex items-center justify-between p-3 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer group"
+                            :class="lastReadChapterId === chapter.id ? 'bg-primary/10 hover:bg-primary/20' : 'bg-muted/30'"
                             @click="handleStartReading(chapter.id)">
                             <div class="flex items-center gap-3 min-w-0">
-                                <span class="text-sm text-muted-foreground w-8 shrink-0">
+                                <span class="text-sm w-8 shrink-0" 
+                                    :class="lastReadChapterId === chapter.id ? 'text-primary font-medium' : 'text-muted-foreground'">
                                     {{ chapter.sort_order + 1 }}
                                 </span>
-                                <span class="truncate">{{ chapter.title }}</span>
+                                <span class="truncate" :class="lastReadChapterId === chapter.id ? 'text-primary font-medium' : ''">
+                                    {{ chapter.title }}
+                                </span>
                             </div>
-                            <ChevronRight
-                                class="size-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                            <div class="flex items-center gap-2">
+                                <span v-if="lastReadChapterId === chapter.id" class="text-xs text-primary font-medium px-2 py-0.5 rounded-full bg-primary/10">
+                                    上次阅读
+                                </span>
+                                <ChevronRight
+                                    class="size-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                            </div>
                         </div>
                     </div>
 

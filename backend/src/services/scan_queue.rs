@@ -367,13 +367,20 @@ impl ScanService {
 
             // Calculate page count based on content type
             let page_count = match content_type {
-                ContentType::Comic => {
-                    // Start a best effort to get page count, default to 0 on error (will be calculated on demand later)
-                    ComicArchiveExtractor::page_count(&path).unwrap_or(0) as i32
-                }
-                ContentType::Novel => {
-                    NovelArchiveExtractor::chapter_count(&path).unwrap_or(0) as i32
-                }
+                ContentType::Comic => match ComicArchiveExtractor::page_count(&path) {
+                    Ok(count) => count as i32,
+                    Err(e) => {
+                        warn!(path = ?path, error = %e, "Failed to calculate comic page count");
+                        0
+                    }
+                },
+                ContentType::Novel => match NovelArchiveExtractor::chapter_count(&path) {
+                    Ok(count) => count as i32,
+                    Err(e) => {
+                        warn!(path = ?path, error = %e, "Failed to calculate novel chapter count");
+                        0
+                    }
+                },
             };
 
             chapters.push((title, file_path, page_count));
