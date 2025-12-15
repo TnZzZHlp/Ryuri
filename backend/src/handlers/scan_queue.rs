@@ -99,6 +99,8 @@ fn default_limit() -> usize {
 pub struct ListTasksResponse {
     /// Tasks currently pending in the queue.
     pub pending: Vec<ScanTask>,
+    /// Tasks currently being processed.
+    pub processing: Vec<ScanTask>,
     /// Recently completed/failed/cancelled tasks.
     pub history: Vec<ScanTask>,
 }
@@ -112,10 +114,15 @@ pub async fn list_tasks(
     State(state): State<AppState>,
     Query(query): Query<ListTasksQuery>,
 ) -> Result<Json<ListTasksResponse>> {
+    let processing = state.scan_queue_service.list_processing().await;
     let pending = state.scan_queue_service.list_pending().await;
     let history = state.scan_queue_service.list_history(query.limit).await;
 
-    Ok(Json(ListTasksResponse { pending, history }))
+    Ok(Json(ListTasksResponse {
+        pending,
+        processing,
+        history,
+    }))
 }
 
 /// DELETE /api/scan-tasks/{id}

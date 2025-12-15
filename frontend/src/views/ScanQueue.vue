@@ -32,7 +32,7 @@ onMounted(async () => {
 
 // Poll tasks every 3 seconds
 useIntervalFn(() => {
-    scanTaskStore.fetchTasks()
+    scanTaskStore.fetchTasks(50, true)
 }, 3000)
 
 // Computed properties
@@ -283,4 +283,3 @@ async function handleCancel(taskId: string) {
         </template>
     </div>
 </template>
-
