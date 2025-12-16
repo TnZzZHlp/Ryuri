@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted, computed, watch, onMounted } from 'vue'
+import { ref, onUnmounted, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useReaderStore } from '@/stores/useReaderStore'
 import { Button } from '@/components/ui/button'
@@ -51,6 +51,11 @@ const showControls = ref(true)
 const readingProgress = ref(0)
 const containerRef = ref<HTMLElement | null>(null)
 
+// Intersection Observer State
+const pageRefs = new Map<number, HTMLElement>()
+const visibilityMap = new Map<number, number>()
+let observer: IntersectionObserver | null = null
+
 const renderedPages = computed(() => {
     const pagesList: number[] = []
     if (!currentChapter.value) return pagesList
@@ -75,6 +80,92 @@ const renderedPages = computed(() => {
 })
 
 // Methods
+const scrollToPage = (pageIndex: number) => {
+    if (!containerRef.value) return
+    
+    // We need to wait for render
+    nextTick(() => {
+        const el = pageRefs.get(pageIndex)
+        if (el) {
+            el.scrollIntoView({ block: 'start' })
+        }
+    })
+}
+
+const initObserver = () => {
+    if (observer) observer.disconnect()
+    
+    if (readerMode.value !== 'scroll') return
+
+    observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const el = entry.target as HTMLElement
+            const index = Number(el.dataset.pageIndex)
+            
+            if (entry.isIntersecting) {
+                visibilityMap.set(index, entry.intersectionRatio)
+                // Lazy load image if visible
+                readerStore.loadPage(index)
+            } else {
+                visibilityMap.delete(index)
+            }
+
+            if (entry.isIntersecting) {
+                const maxPage = Math.max(...pages.value)
+                if (index >= maxPage - readerStore.PRELOAD_BUFFER && !endOfChapter.value) {
+                    loadMorePages()
+                }
+            }
+        })
+
+        let bestPage = -1
+        let maxRatio = 0
+        for (const [page, ratio] of visibilityMap.entries()) {
+            if (ratio > maxRatio) {
+                maxRatio = ratio
+                bestPage = page
+            }
+        }
+
+        if (bestPage !== -1 && bestPage !== currentPage.value) {
+            currentPage.value = bestPage
+            readerStore.saveProgress(bestPage)
+        }
+    }, {
+        threshold: [0, 0.1, 0.5, 0.8, 1.0],
+        rootMargin: '200px'
+    })
+
+    pageRefs.forEach(el => observer?.observe(el))
+}
+
+const setPageRef = (el: any, page: number) => {
+    if (el) {
+        const htmlEl = el as HTMLElement
+        if (pageRefs.get(page) !== htmlEl) {
+            pageRefs.set(page, htmlEl)
+            observer?.observe(htmlEl)
+        }
+    } else {
+        const oldEl = pageRefs.get(page)
+        if (oldEl) {
+            observer?.unobserve(oldEl)
+            pageRefs.delete(page)
+            visibilityMap.delete(page)
+        }
+    }
+}
+
+const loadMorePages = () => {
+    const maxPage = Math.max(...pages.value)
+    const nextPage = maxPage + 1
+    
+    if (currentChapter.value && nextPage < currentChapter.value.page_count && !pages.value.includes(nextPage) && !failedPages.value.has(nextPage)) {
+        pages.value.push(nextPage)
+        readerStore.loadPage(nextPage)
+    }
+}
+
 const updateProgress = () => {
     if (readerMode.value === 'scroll' && containerRef.value) {
         const scrollTop = containerRef.value.scrollTop
@@ -82,54 +173,21 @@ const updateProgress = () => {
         const winHeight = containerRef.value.clientHeight
         const total = docHeight - winHeight
         readingProgress.value = total > 0 ? (scrollTop / total) * 100 : 0
-
-        // Find visible page
-        const images = document.querySelectorAll('img[data-page-index]')
-        let bestMatch = -1
-        let minDiff = Infinity
-
-        images.forEach(img => {
-            const rect = img.getBoundingClientRect()
-            // We want the image closest to the vertical center of the viewport
-            const imgCenter = rect.top + rect.height / 2
-            const diff = Math.abs(imgCenter - (window.innerHeight / 2))
-
-            if (diff < minDiff) {
-                minDiff = diff
-                bestMatch = Number(img.getAttribute('data-page-index'))
-            }
-        })
-
-        if (bestMatch !== -1 && bestMatch !== currentPage.value) {
-            currentPage.value = bestMatch
-            readerStore.saveProgress(bestMatch)
-        }
-    }
-}
-
-const handleImageLoad = (pageIndex: number) => {
-    if (readerMode.value === 'scroll') {
-        // Update progress when new images load as dimensions change
-        updateProgress()
-    }
-
-    if (readerMode.value !== 'scroll') return
-
-    // Extend buffer if we are close to the end
-    const maxPage = Math.max(...pages.value)
-
-    if (pageIndex >= maxPage - readerStore.PRELOAD_BUFFER + 1 && !endOfChapter.value) {
-        const nextPage = maxPage + 1
-        if (currentChapter.value && nextPage < currentChapter.value.page_count && !pages.value.includes(nextPage) && !failedPages.value.has(nextPage)) {
-            pages.value.push(nextPage)
-            readerStore.loadPage(nextPage)
-        }
     }
 }
 
 const loadData = async () => {
     try {
         await readerStore.loadChapter(contentId.value, chapterId.value)
+        if (readerMode.value === 'scroll') {
+             nextTick(() => {
+                initObserver()
+                // If we have progress, scroll to it
+                if (currentPage.value > 0) {
+                    scrollToPage(currentPage.value)
+                }
+             })
+        }
     } catch (e) {
         toast.error('Failed to load chapter')
     }
@@ -158,13 +216,11 @@ const nextPage = () => {
 
     const next = currentPage.value + 1
 
-    // Check if next page is out of bounds
     if (currentChapter.value && next >= currentChapter.value.page_count) {
         endOfChapter.value = true
         return
     }
 
-    // Check if next page failed
     if (failedPages.value.has(next)) {
         endOfChapter.value = true
         return
@@ -192,7 +248,6 @@ const prevPage = () => {
 }
 
 const handlePageClick = (e: MouseEvent) => {
-    // Click left 30% -> prev, right 30% -> next, center -> toggle controls
     const width = window.innerWidth
     const x = e.clientX
 
@@ -209,7 +264,6 @@ const handlePageClick = (e: MouseEvent) => {
 watch(() => route.params.chapterId, () => {
     readingProgress.value = 0
     containerRef.value?.scrollTo(0, 0)
-    // Trigger data reload
     loadData()
 })
 
@@ -219,18 +273,27 @@ watch(currentPage, (newPage) => {
     }
 })
 
+watch(readerMode, (newMode) => {
+    if (newMode === 'scroll') {
+        nextTick(initObserver)
+    } else {
+        observer?.disconnect()
+        observer = null
+    }
+})
+
 const preventSelection = (e: Event) => e.preventDefault()
 
 onMounted(() => {
     loadData()
     window.addEventListener('keydown', handleKeydown)
-    // Prevent selection in reader
     document.addEventListener('selectstart', preventSelection)
 })
 
 onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown)
     document.removeEventListener('selectstart', preventSelection)
+    observer?.disconnect()
 })
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -248,7 +311,7 @@ const handleKeydown = (e: KeyboardEvent) => {
         }
     } else if (e.key === 'Escape') {
         router.push(`/content/${contentId.value}`)
-    } else if (e.key === ' ' || e.key === 'Space') { // Spacebar
+    } else if (e.key === ' ' || e.key === 'Space') {
         e.preventDefault()
         if (readerMode.value === 'paged') {
             nextPage()
@@ -271,9 +334,10 @@ const handleKeydown = (e: KeyboardEvent) => {
             <div v-else class="flex flex-col items-center pb-24">
                 <template v-for="page in pages" :key="page">
                     <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)" :data-page-index="page"
-                        class="w-full h-auto object-contain max-h-screen mb-1" @load="handleImageLoad(page)"
+                        :ref="(el) => setPageRef(el, page)"
+                        class="w-full h-auto object-contain max-h-screen mb-1" @load="updateProgress"
                         alt="Comic page" />
-                    <div v-else class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
+                    <div v-else :data-page-index="page" :ref="(el) => setPageRef(el, page)" class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
                         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
                     </div>
                 </template>

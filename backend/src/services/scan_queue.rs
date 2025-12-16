@@ -254,7 +254,7 @@ impl ScanService {
                 content_id: content.id,
                 title: chapter_title,
                 file_path,
-                sort_order: idx as i32,
+                sort_order: (idx + 1) as i32,
                 page_count,
             })
             .collect();

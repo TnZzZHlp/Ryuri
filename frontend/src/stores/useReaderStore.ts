@@ -181,20 +181,30 @@ export const useReaderStore = defineStore("reader", () => {
 
             if (readerMode.value === "scroll") {
                 const initialPages = [];
-                for (let i = 0; i < PRELOAD_BUFFER; i++) {
-                    const p = startPage + i;
+                // We want to have all pages from 0 up to the current position + buffer available in the list
+                // so the user can scroll up.
+                const endPage = startPage + PRELOAD_BUFFER;
+                
+                for (let i = 0; i <= endPage; i++) {
                     if (
                         currentChapter.value &&
-                        p >= currentChapter.value.page_count
+                        i >= currentChapter.value.page_count
                     )
                         break;
-                    initialPages.push(p);
+                    initialPages.push(i);
                 }
-                // Fallback if empty or startPage was invalid, just load 0
-                if (initialPages.length === 0) initialPages.push(0);
 
+                if (initialPages.length === 0) initialPages.push(0);
                 pages.value = initialPages;
-                pages.value.forEach((p) => loadPage(p));
+
+                // Load pages around the startPage
+                // We prioritize startPage and forward buffer
+                for (let i = 0; i < PRELOAD_BUFFER; i++) {
+                     loadPage(startPage + i);
+                }
+                
+                // Optionally load a few previous pages to ensure smooth upward scrolling
+                if (startPage > 0) loadPage(startPage - 1);
             } else {
                 loadPage(startPage);
                 for (let i = 1; i <= PRELOAD_BUFFER; i++) {
