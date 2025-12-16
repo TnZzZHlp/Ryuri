@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted, computed, watch, onBeforeMount } from 'vue'
+import { ref, onUnmounted, computed, watch, onBeforeMount, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useReaderStore } from '@/stores/useReaderStore'
 import { Button } from '@/components/ui/button'
@@ -49,13 +49,14 @@ const chapterId = computed(() => Number(route.params.chapterId))
 
 const showControls = ref(true)
 const readingProgress = ref(0)
+const containerRef = ref<HTMLElement | null>(null)
 
 // Methods
 const updateProgress = () => {
-    if (readerMode.value === 'scroll') {
-        const scrollTop = window.scrollY
-        const docHeight = document.documentElement.scrollHeight
-        const winHeight = window.innerHeight
+    if (readerMode.value === 'scroll' && containerRef.value) {
+        const scrollTop = containerRef.value.scrollTop
+        const docHeight = containerRef.value.scrollHeight
+        const winHeight = containerRef.value.clientHeight
         const total = docHeight - winHeight
         readingProgress.value = total > 0 ? (scrollTop / total) * 100 : 0
 
@@ -151,7 +152,7 @@ const nextPage = () => {
     for (let i = 1; i <= readerStore.PRELOAD_BUFFER; i++) {
         readerStore.loadPage(next + i)
     }
-    window.scrollTo(0, 0)
+    containerRef.value?.scrollTo(0, 0)
     readerStore.saveProgress(currentPage.value)
 }
 
@@ -159,7 +160,7 @@ const prevPage = () => {
     if (currentPage.value > 0) {
         currentPage.value--
         readerStore.loadPage(currentPage.value)
-        window.scrollTo(0, 0)
+        containerRef.value?.scrollTo(0, 0)
         readerStore.saveProgress(currentPage.value)
     } else {
         if (prevChapter.value) navigateToChapter(prevChapter.value)
@@ -184,7 +185,7 @@ const handlePageClick = (e: MouseEvent) => {
 // Watchers
 watch(() => route.params.chapterId, () => {
     readingProgress.value = 0
-    window.scrollTo(0, 0)
+    containerRef.value?.scrollTo(0, 0)
     // Trigger data reload
     loadData()
 })
@@ -197,17 +198,15 @@ watch(currentPage, (newPage) => {
 
 const preventSelection = (e: Event) => e.preventDefault()
 
-onBeforeMount(() => {
+onMounted(() => {
     loadData()
     window.addEventListener('keydown', handleKeydown)
-    window.addEventListener('scroll', updateProgress)
     // Prevent selection in reader
     document.addEventListener('selectstart', preventSelection)
 })
 
 onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown)
-    window.removeEventListener('scroll', updateProgress)
     document.removeEventListener('selectstart', preventSelection)
 })
 
@@ -236,7 +235,8 @@ const handleKeydown = (e: KeyboardEvent) => {
 </script>
 
 <template>
-    <div class="fixed inset-0 bg-black text-white overflow-auto">
+    <div ref="containerRef" class="fixed inset-0 bg-black text-white overflow-auto" @scroll="updateProgress">
+
         <!-- Reader Content -->
 
         <!-- Scroll Mode -->
