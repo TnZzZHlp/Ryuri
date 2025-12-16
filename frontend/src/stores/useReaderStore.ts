@@ -122,7 +122,7 @@ export const useReaderStore = defineStore("reader", () => {
 
         const url = readerApi.getPageImage(
             currentContentId.value,
-            currentChapter.value.sort_order,
+            currentChapter.value.id,
             pageIndex
         );
 
@@ -184,7 +184,7 @@ export const useReaderStore = defineStore("reader", () => {
                 // We want to have all pages from 0 up to the current position + buffer available in the list
                 // so the user can scroll up.
                 const endPage = startPage + PRELOAD_BUFFER;
-                
+
                 for (let i = 0; i <= endPage; i++) {
                     if (
                         currentChapter.value &&
@@ -200,9 +200,9 @@ export const useReaderStore = defineStore("reader", () => {
                 // Load pages around the startPage
                 // We prioritize startPage and forward buffer
                 for (let i = 0; i < PRELOAD_BUFFER; i++) {
-                     loadPage(startPage + i);
+                    loadPage(startPage + i);
                 }
-                
+
                 // Optionally load a few previous pages to ensure smooth upward scrolling
                 if (startPage > 0) loadPage(startPage - 1);
             } else {

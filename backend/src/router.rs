@@ -15,7 +15,7 @@ use tracing::Level;
 #[cfg(feature = "dev")]
 use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
-use crate::handlers::{auth, bangumi, content, library, progress, scan_queue, static_files, komga};
+use crate::handlers::{auth, bangumi, content, komga, library, progress, scan_queue, static_files};
 use crate::middlewares::auth_middleware;
 use crate::state::AppState;
 
@@ -43,12 +43,27 @@ pub fn create_router(state: AppState) -> Router {
     let komga_routes = Router::new()
         .route("/komga/api/v1/series", get(komga::get_series_list))
         .route("/komga/api/v1/series/{seriesId}", get(komga::get_series))
-        .route("/komga/api/v1/series/{seriesId}/thumbnail", get(komga::get_series_thumbnail))
-        .route("/komga/api/v1/series/{seriesId}/books", get(komga::get_books))
+        .route(
+            "/komga/api/v1/series/{seriesId}/thumbnail",
+            get(komga::get_series_thumbnail),
+        )
+        .route(
+            "/komga/api/v1/series/{seriesId}/books",
+            get(komga::get_books),
+        )
         .route("/komga/api/v1/books/{bookId}", get(komga::get_book))
-        .route("/komga/api/v1/books/{bookId}/thumbnail", get(komga::get_book_thumbnail))
-        .route("/komga/api/v1/books/{bookId}/pages", get(komga::get_page_list))
-        .route("/komga/api/v1/books/{bookId}/pages/{pageNumber}", get(komga::get_page))
+        .route(
+            "/komga/api/v1/books/{bookId}/thumbnail",
+            get(komga::get_book_thumbnail),
+        )
+        .route(
+            "/komga/api/v1/books/{bookId}/pages",
+            get(komga::get_page_list),
+        )
+        .route(
+            "/komga/api/v1/books/{bookId}/pages/{pageNumber}",
+            get(komga::get_page),
+        )
         .route("/komga/api/v1/libraries", get(komga::get_libraries));
 
     // Protected routes - authentication required
@@ -94,11 +109,11 @@ pub fn create_router(state: AppState) -> Router {
             get(progress::get_content_progress),
         )
         .route(
-            "/api/contents/{id}/chapters/{chapter}/pages/{page}",
+            "/api/contents/{content_id}/chapters/{chapter_id}/pages/{page}",
             get(content::get_page),
         )
         .route(
-            "/api/contents/{id}/chapters/{chapter}/text",
+            "/api/contents/{content_id}/chapters/{chapter_id}/text",
             get(content::get_chapter_text),
         )
         // Progress routes

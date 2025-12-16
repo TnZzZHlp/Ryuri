@@ -69,8 +69,8 @@ impl ContentService {
     pub async fn get_page(
         pool: &Pool<Sqlite>,
         content_id: i64,
-        chapter_index: i32,
-        page_index: i32,
+        chapter_id: i64,
+        page_index: i64,
     ) -> Result<Vec<u8>> {
         // Get the content and verify it's a comic
         let content = Self::get_content(pool, content_id).await?;
@@ -84,15 +84,15 @@ impl ContentService {
         // Get the chapters
         let chapters = ChapterRepository::list_by_content(pool, content_id).await?;
 
-        // Validate chapter index
-        if chapter_index < 0 || chapter_index as usize >= chapters.len() {
+        // Validate chapter id
+        if !chapters.iter().any(|chapter| chapter.id == chapter_id) {
             return Err(AppError::NotFound(format!(
                 "Chapter {} not found for content {}",
-                chapter_index, content_id
+                chapter_id, content_id
             )));
         }
 
-        let chapter = &chapters[chapter_index as usize];
+        let chapter = &chapters.iter().find(|c| c.id == chapter_id).unwrap();
         let archive_path = Path::new(&chapter.file_path);
 
         // List images in the archive
@@ -102,7 +102,7 @@ impl ContentService {
         if page_index < 0 || page_index as usize >= images.len() {
             return Err(AppError::NotFound(format!(
                 "Page {} not found in chapter {}",
-                page_index, chapter_index
+                page_index, chapter_id
             )));
         }
 

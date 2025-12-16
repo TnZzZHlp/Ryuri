@@ -23,6 +23,7 @@ import { toast } from 'vue-sonner'
 import { Progress } from '@/components/ui/progress'
 import type { Chapter } from '@/api/types'
 import { storeToRefs } from 'pinia'
+import { fa } from 'zod/locales'
 
 const route = useRoute()
 const router = useRouter()
@@ -59,15 +60,15 @@ let observer: IntersectionObserver | null = null
 const renderedPages = computed(() => {
     const pagesList: number[] = []
     if (!currentChapter.value) return pagesList
-    
+
     // Previous page
     if (currentPage.value > 0) {
         pagesList.push(currentPage.value - 1)
     }
-    
+
     // Current page
     pagesList.push(currentPage.value)
-    
+
     // Next pages (buffer)
     for (let i = 1; i <= readerStore.PRELOAD_BUFFER; i++) {
         const p = currentPage.value + i
@@ -75,14 +76,14 @@ const renderedPages = computed(() => {
             pagesList.push(p)
         }
     }
-    
+
     return pagesList
 })
 
 // Methods
 const scrollToPage = (pageIndex: number) => {
     if (!containerRef.value) return
-    
+
     // We need to wait for render
     nextTick(() => {
         const el = pageRefs.get(pageIndex)
@@ -94,14 +95,14 @@ const scrollToPage = (pageIndex: number) => {
 
 const initObserver = () => {
     if (observer) observer.disconnect()
-    
+
     if (readerMode.value !== 'scroll') return
 
     observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const el = entry.target as HTMLElement
             const index = Number(el.dataset.pageIndex)
-            
+
             if (entry.isIntersecting) {
                 visibilityMap.set(index, entry.intersectionRatio)
                 // Lazy load image if visible
@@ -159,7 +160,7 @@ const setPageRef = (el: any, page: number) => {
 const loadMorePages = () => {
     const maxPage = Math.max(...pages.value)
     const nextPage = maxPage + 1
-    
+
     if (currentChapter.value && nextPage < currentChapter.value.page_count && !pages.value.includes(nextPage) && !failedPages.value.has(nextPage)) {
         pages.value.push(nextPage)
         readerStore.loadPage(nextPage)
@@ -180,13 +181,13 @@ const loadData = async () => {
     try {
         await readerStore.loadChapter(contentId.value, chapterId.value)
         if (readerMode.value === 'scroll') {
-             nextTick(() => {
+            nextTick(() => {
                 initObserver()
                 // If we have progress, scroll to it
                 if (currentPage.value > 0) {
                     scrollToPage(currentPage.value)
                 }
-             })
+            })
         }
     } catch (e) {
         toast.error('Failed to load chapter')
@@ -236,11 +237,13 @@ const nextPage = () => {
 }
 
 const prevPage = () => {
-    if (currentPage.value > 0) {
+    if (currentPage.value > 0 && !endOfChapter.value) {
         currentPage.value--
         readerStore.loadPage(currentPage.value)
         containerRef.value?.scrollTo(0, 0)
         readerStore.saveProgress(currentPage.value)
+    } else if (endOfChapter.value) {
+        endOfChapter.value = false
     } else {
         if (prevChapter.value) navigateToChapter(prevChapter.value)
     }
@@ -303,6 +306,7 @@ const handleKeydown = (e: KeyboardEvent) => {
         } else {
             if (prevChapter.value) navigateToChapter(prevChapter.value)
         }
+
     } else if (e.key === 'ArrowRight') {
         if (readerMode.value === 'paged') {
             nextPage()
@@ -317,6 +321,8 @@ const handleKeydown = (e: KeyboardEvent) => {
             nextPage()
         }
     }
+
+    showControls.value = false
 }
 </script>
 
@@ -334,10 +340,10 @@ const handleKeydown = (e: KeyboardEvent) => {
             <div v-else class="flex flex-col items-center pb-24">
                 <template v-for="page in pages" :key="page">
                     <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)" :data-page-index="page"
-                        :ref="(el) => setPageRef(el, page)"
-                        class="w-full h-auto object-contain max-h-screen mb-1" @load="updateProgress"
-                        alt="Comic page" />
-                    <div v-else :data-page-index="page" :ref="(el) => setPageRef(el, page)" class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
+                        :ref="(el) => setPageRef(el, page)" class="w-full h-auto object-contain max-h-screen mb-1"
+                        @load="updateProgress" alt="Comic page" />
+                    <div v-else :data-page-index="page" :ref="(el) => setPageRef(el, page)"
+                        class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
                         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
                     </div>
                 </template>

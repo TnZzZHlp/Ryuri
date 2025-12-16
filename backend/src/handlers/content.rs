@@ -92,11 +92,11 @@ pub async fn list_chapters(
 #[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct PageParams {
     /// The content ID.
-    pub id: i64,
+    pub content_id: i64,
     /// The chapter index (0-based).
-    pub chapter: i32,
+    pub chapter_id: i64,
     /// The page index (0-based).
-    pub page: i32,
+    pub page: i64,
 }
 
 /// GET /api/contents/{id}/chapters/{chapter}/pages/{page}
@@ -106,8 +106,13 @@ pub async fn get_page(
     State(state): State<AppState>,
     Path(params): Path<PageParams>,
 ) -> Result<impl IntoResponse> {
-    let image_data =
-        ContentService::get_page(&state.pool, params.id, params.chapter, params.page).await?;
+    let image_data = ContentService::get_page(
+        &state.pool,
+        params.content_id,
+        params.chapter_id,
+        params.page,
+    )
+    .await?;
 
     // Detect image type from magic bytes
     let content_type = detect_image_type(&image_data);
