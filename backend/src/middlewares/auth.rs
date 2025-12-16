@@ -4,6 +4,7 @@
 //! to route groups. The middleware extracts and verifies JWT tokens from the
 //! Authorization header and stores authenticated user information in request extensions.
 
+use axum::http::Method;
 use axum::{
     body::Body,
     extract::{FromRequestParts, Request, State},
@@ -11,6 +12,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+use std::borrow::Cow;
 
 use crate::error::AppError;
 use crate::models::JwtClaims;
@@ -57,27 +59,52 @@ pub async fn auth_middleware(
     mut req: Request<Body>,
     next: Next,
 ) -> Result<Response, AppError> {
-    // Extract the Authorization header
-    let auth_header = req
+    // Prefer Authorization: Bearer <token>. If absent, optionally accept `?token=`
+    // for image resources so the frontend can use <img src> (progressive loading).
+    let token: Cow<'_, str> = if let Some(auth_header) = req
         .headers()
         .get(AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
-        .ok_or_else(|| {
+    {
+        // Check for Bearer token format
+        Cow::Borrowed(auth_header.strip_prefix("Bearer ").ok_or_else(|| {
+            tracing::warn!("Authentication failed: Invalid authorization header format");
+            AppError::Unauthorized("Invalid authorization header format".to_string())
+        })?)
+    } else {
+        // Only allow query token for safe, cacheable-ish image reads.
+        // We intentionally scope this to image endpoints to avoid broad token-in-URL usage.
+        let method = req.method().clone();
+        let path = req.uri().path();
+        let is_image_resource = path.starts_with("/api/contents/")
+            && (path.contains("/pages/") || path.ends_with("/thumbnail"));
+
+        if !matches!(method, Method::GET | Method::HEAD) || !is_image_resource {
             tracing::warn!("Authentication failed: Missing authorization header");
+            return Err(AppError::Unauthorized(
+                "Missing authorization header".to_string(),
+            ));
+        }
+
+        let query = req.uri().query().unwrap_or("");
+        let token = extract_query_param(query, "token").ok_or_else(|| {
+            tracing::warn!(
+                "Authentication failed: Missing authorization header and token query param"
+            );
             AppError::Unauthorized("Missing authorization header".to_string())
         })?;
 
-    // Check for Bearer token format
-    let token = auth_header.strip_prefix("Bearer ").ok_or_else(|| {
-        tracing::warn!("Authentication failed: Invalid authorization header format");
-        AppError::Unauthorized("Invalid authorization header format".to_string())
-    })?;
+        Cow::Owned(token)
+    };
 
     // Verify the token using AuthService
-    let claims = state.auth_service.verify_token(token).map_err(|e| {
-        tracing::warn!("Authentication failed: {:?}", e);
-        e
-    })?;
+    let claims = state
+        .auth_service
+        .verify_token(token.as_ref())
+        .map_err(|e| {
+            tracing::warn!("Authentication failed: {:?}", e);
+            e
+        })?;
 
     // Convert claims to AuthUser and store in request extensions
     let auth_user = AuthUser::from(claims);
@@ -85,6 +112,25 @@ pub async fn auth_middleware(
 
     // Continue to the next middleware or handler
     Ok(next.run(req).await)
+}
+
+/// Extract a query parameter value by key from a raw query string.
+///
+/// This is a tiny parser to avoid pulling additional dependencies.
+fn extract_query_param(query: &str, key: &str) -> Option<String> {
+    for pair in query.split('&') {
+        if pair.is_empty() {
+            continue;
+        }
+        let mut it = pair.splitn(2, '=');
+        let k = it.next().unwrap_or("");
+        if k != key {
+            continue;
+        }
+        let v = it.next().unwrap_or("");
+        return urlencoding::decode(v).ok().map(|s| s.into_owned());
+    }
+    None
 }
 
 /// Extractor for authenticated user from request extensions.
