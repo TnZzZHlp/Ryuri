@@ -113,10 +113,8 @@ export const useContentStore = defineStore("content", () => {
             // **Implements: Requirement 2.1** - Cache results by library ID
             contents.value.set(libraryId, response);
 
-            // **Implements: Requirements 1.1, 4.3, 5.5** - Auto-trigger thumbnail preload (non-blocking)
-            preloadThumbnails(response).catch((err) => {
-                console.warn("Failed to preload thumbnails:", err);
-            });
+            // **Implements: Requirements 1.1, 4.3, 5.5** - Auto-trigger thumbnail preload
+            preloadThumbnails(response);
 
             return response;
         } catch (e) {
@@ -280,24 +278,16 @@ export const useContentStore = defineStore("content", () => {
      *
      * @param contentId - The content ID to load thumbnail for
      */
-    async function loadThumbnail(contentId: number): Promise<void> {
+    function loadThumbnail(contentId: number): void {
         // **Implements: Requirement 3.1** - Return if already cached
         if (thumbnailUrls.value.has(contentId)) {
             return;
         }
 
-        // **Implements: Requirement 1.4** - Prevent duplicate requests
-        if (thumbnailLoading.value.has(contentId)) {
-            return;
-        }
-
-        thumbnailLoading.value.add(contentId);
-
         try {
-            // **Implements: Requirement 1.2** - Fetch thumbnail blob
-            const blob = await getContentApi(getToken).getThumbnail(contentId);
-            // **Implements: Requirement 3.1** - Create Object URL and cache
-            const url = URL.createObjectURL(blob);
+            // **Implements: Requirement 1.2** - Generate thumbnail URL
+            const url = getContentApi(getToken).getThumbnail(contentId);
+            // **Implements: Requirement 3.1** - Cache URL
             thumbnailUrls.value.set(contentId, url);
         } catch (error) {
             // **Implements: Requirement 1.5** - Silent error handling
@@ -305,8 +295,6 @@ export const useContentStore = defineStore("content", () => {
                 `Failed to load thumbnail for content ${contentId}:`,
                 error
             );
-        } finally {
-            thumbnailLoading.value.delete(contentId);
         }
     }
 
@@ -317,38 +305,25 @@ export const useContentStore = defineStore("content", () => {
      *
      * @param contentList - Array of contents to preload thumbnails for
      */
-    async function preloadThumbnails(
-        contentList: ContentResponse[]
-    ): Promise<void> {
+    function preloadThumbnails(contentList: ContentResponse[]): void {
         // **Implements: Requirement 1.1** - Filter contents with thumbnails
-        const loadPromises = contentList
+        contentList
             .filter((content) => content.has_thumbnail)
-            .map((content) => loadThumbnail(content.id));
-
-        // **Implements: Requirement 1.5** - Use allSettled for error isolation
-        await Promise.allSettled(loadPromises);
+            .forEach((content) => loadThumbnail(content.id));
     }
 
     /**
      * Invalidates thumbnail cache for a specific content or all contents.
-     * Properly releases Object URLs to prevent memory leaks.
      * **Implements: Requirements 3.3, 3.5**
      *
      * @param contentId - Optional content ID to invalidate. If not provided, clears all thumbnail caches.
      */
     function invalidateThumbnailCache(contentId?: number): void {
         if (contentId !== undefined) {
-            // **Implements: Requirement 3.3** - Release single Object URL
-            const url = thumbnailUrls.value.get(contentId);
-            if (url) {
-                URL.revokeObjectURL(url);
-                thumbnailUrls.value.delete(contentId);
-            }
+            // **Implements: Requirement 3.3** - Release single thumbnail URL
+            thumbnailUrls.value.delete(contentId);
         } else {
-            // **Implements: Requirement 3.3** - Release all Object URLs
-            for (const url of thumbnailUrls.value.values()) {
-                URL.revokeObjectURL(url);
-            }
+            // **Implements: Requirement 3.3** - Release all thumbnail URLs
             thumbnailUrls.value.clear();
         }
     }
