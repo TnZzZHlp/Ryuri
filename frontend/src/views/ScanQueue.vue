@@ -51,7 +51,7 @@ const loading = computed(() => scanTaskStore.loading)
 
 // Helper functions
 function getLibraryName(libraryId: number): string {
-    return libraryNameMap.value.get(libraryId) || '未知库'
+    return libraryNameMap.value.get(libraryId) || 'Unknown Library'
 }
 
 function formatTime(dateString: string): string {
@@ -82,17 +82,6 @@ function getStatusBadgeClass(status: string): string {
     }
 }
 
-function getStatusText(status: string): string {
-    switch (status) {
-        case 'Pending': return '等待中'
-        case 'Running': return '运行中'
-        case 'Completed': return '已完成'
-        case 'Failed': return '失败'
-        case 'Cancelled': return '已取消'
-        default: return status
-    }
-}
-
 function calculateProgress(task: ScanTask): number {
     if (!task.progress || task.progress.total_paths === 0) return 0
     return Math.round((task.progress.scanned_paths / task.progress.total_paths) * 100)
@@ -107,8 +96,8 @@ async function handleCancel(taskId: string) {
     try {
         await scanTaskStore.cancelTask(taskId)
     } catch (e) {
-        toast.error('取消任务失败', {
-            description: e instanceof Error ? e.message : '未知错误'
+        toast.error('Cancel task failed', {
+            description: e instanceof Error ? e.message : 'Unknown error'
         })
     } finally {
         cancellingTaskId.value = null
@@ -134,17 +123,17 @@ async function handleCancel(taskId: string) {
         <!-- Content -->
         <template v-else>
             <!-- Empty State - No tasks at all -->
-            <div v-if="pendingTasks.length === 0 && historyTasks.length === 0"
+            <div v-if="pendingTasks.length === 0 && historyTasks.length === 0 && processingTasks.length === 0"
                 class="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                <p class="text-lg">暂无扫描任务</p>
-                <p class="text-sm">在库设置中触发扫描以添加任务</p>
+                <p class="text-lg">No scan tasks available</p>
+                <p class="text-sm">Trigger a scan in library settings to add tasks</p>
             </div>
 
             <template v-else>
                 <!-- Pending Tasks Section -->
                 <section class="space-y-4">
                     <!-- Empty pending state -->
-                    <div v-if="pendingTasks.length === 0"
+                    <div v-if="pendingTasks.length === 0 && processingTasks.length === 0"
                         class="text-muted-foreground py-4 text-center border rounded-lg">
                         There are no active tasks at the moment.
                     </div>
@@ -176,7 +165,7 @@ async function handleCancel(taskId: string) {
                                     <TableCell>
                                         <span
                                             :class="['px-2 py-1 rounded-full text-xs font-medium', getStatusBadgeClass(task.status)]">
-                                            {{ getStatusText(task.status) }}
+                                            {{ task.status }}
                                         </span>
                                     </TableCell>
                                     <TableCell>
@@ -241,7 +230,7 @@ async function handleCancel(taskId: string) {
                                     <TableCell>
                                         <span
                                             :class="['px-2 py-1 rounded-full text-xs font-medium', getStatusBadgeClass(task.status)]">
-                                            {{ getStatusText(task.status) }}
+                                            {{ task.status }}
                                         </span>
                                     </TableCell>
                                     <TableCell>
