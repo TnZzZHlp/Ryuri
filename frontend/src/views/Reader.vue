@@ -51,6 +51,29 @@ const showControls = ref(true)
 const readingProgress = ref(0)
 const containerRef = ref<HTMLElement | null>(null)
 
+const renderedPages = computed(() => {
+    const pagesList: number[] = []
+    if (!currentChapter.value) return pagesList
+    
+    // Previous page
+    if (currentPage.value > 0) {
+        pagesList.push(currentPage.value - 1)
+    }
+    
+    // Current page
+    pagesList.push(currentPage.value)
+    
+    // Next pages (buffer)
+    for (let i = 1; i <= readerStore.PRELOAD_BUFFER; i++) {
+        const p = currentPage.value + i
+        if (p < currentChapter.value.page_count) {
+            pagesList.push(p)
+        }
+    }
+    
+    return pagesList
+})
+
 // Methods
 const updateProgress = () => {
     if (readerMode.value === 'scroll' && containerRef.value) {
@@ -294,7 +317,10 @@ const handleKeydown = (e: KeyboardEvent) => {
             </div>
 
             <div v-else class="relative h-full w-full flex items-center justify-center">
-                <img :src="pageUrls.get(currentPage)" class="max-w-full max-h-full object-contain" alt="Comic page" />
+                <template v-for="page in renderedPages" :key="page">
+                    <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)" v-show="page === currentPage"
+                        class="max-w-full max-h-full object-contain" alt="Comic page" />
+                </template>
             </div>
         </div>
 

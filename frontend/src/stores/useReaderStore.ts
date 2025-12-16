@@ -127,6 +127,10 @@ export const useReaderStore = defineStore("reader", () => {
         );
 
         pageUrls.value.set(pageIndex, url);
+
+        // Preload image in background
+        const img = new Image();
+        img.src = url;
     };
 
     const loadChapter = async (contentId: number, chapterId: number) => {
