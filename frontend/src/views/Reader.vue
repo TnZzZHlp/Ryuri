@@ -287,21 +287,14 @@ const handleKeydown = (e: KeyboardEvent) => {
                     <Button v-if="prevChapter" variant="secondary" @click.stop="navigateToChapter(prevChapter)">
                         <ChevronLeft class="mr-2 h-4 w-4" /> Previous Chapter
                     </Button>
-                    <Button variant="outline" @click.stop="prevPage">
-                        Re-read Page
+                    <Button variant="outline" @click.stop="router.push(`/library/${libraryId}/content/${contentId}`)">
+                        Exit to Content
                     </Button>
                 </div>
             </div>
 
             <div v-else class="relative h-full w-full flex items-center justify-center">
-                <img v-if="pageUrls.has(currentPage)" :src="pageUrls.get(currentPage)"
-                    class="max-w-full max-h-full object-contain" alt="Comic page" />
-                <div v-else class="flex flex-col items-center gap-4">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-                    <p class="text-gray-400">Loading Page {{ currentPage + 1 }}...</p>
-                    <Button v-if="failedPages.has(currentPage)" variant="destructive"
-                        @click="readerStore.loadPage(currentPage)">Retry</Button>
-                </div>
+                <img :src="pageUrls.get(currentPage)" class="max-w-full max-h-full object-contain" alt="Comic page" />
             </div>
         </div>
 
