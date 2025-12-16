@@ -15,7 +15,7 @@ use tracing::Level;
 #[cfg(feature = "dev")]
 use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
-use crate::handlers::{auth, bangumi, content, library, progress, scan_queue, static_files};
+use crate::handlers::{auth, bangumi, content, library, progress, scan_queue, static_files, komga};
 use crate::middlewares::auth_middleware;
 use crate::state::AppState;
 
@@ -38,6 +38,18 @@ use crate::state::AppState;
 pub fn create_router(state: AppState) -> Router {
     // Public routes - no authentication required
     let public_routes = Router::new().route("/api/auth/login", post(auth::login));
+
+    // Komga compatibility routes - no authentication for now
+    let komga_routes = Router::new()
+        .route("/komga/api/v1/series", get(komga::get_series_list))
+        .route("/komga/api/v1/series/{seriesId}", get(komga::get_series))
+        .route("/komga/api/v1/series/{seriesId}/thumbnail", get(komga::get_series_thumbnail))
+        .route("/komga/api/v1/series/{seriesId}/books", get(komga::get_books))
+        .route("/komga/api/v1/books/{bookId}", get(komga::get_book))
+        .route("/komga/api/v1/books/{bookId}/thumbnail", get(komga::get_book_thumbnail))
+        .route("/komga/api/v1/books/{bookId}/pages", get(komga::get_page_list))
+        .route("/komga/api/v1/books/{bookId}/pages/{pageNumber}", get(komga::get_page))
+        .route("/komga/api/v1/libraries", get(komga::get_libraries));
 
     // Protected routes - authentication required
     let protected_routes = Router::new()
@@ -105,7 +117,10 @@ pub fn create_router(state: AppState) -> Router {
         ));
 
     // Merge public and protected routers
-    let api_router = Router::new().merge(public_routes).merge(protected_routes);
+    let api_router = Router::new()
+        .merge(public_routes)
+        .merge(komga_routes)
+        .merge(protected_routes);
 
     let router = Router::new()
         .merge(api_router)
