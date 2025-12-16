@@ -112,51 +112,21 @@ export const useReaderStore = defineStore("reader", () => {
         }
     }, 1000);
 
-    const loadPage = async (pageIndex: number) => {
+    const loadPage = (pageIndex: number) => {
         if (!currentContentId.value || !currentChapter.value) return;
 
-        // Skip if already loaded, failed, or loading
-        if (
-            pageUrls.value.has(pageIndex) ||
-            failedPages.value.has(pageIndex) ||
-            loadingPages.value.has(pageIndex)
-        )
-            return;
+        // Skip if already loaded
+        if (pageUrls.value.has(pageIndex)) return;
 
         if (pageIndex >= currentChapter.value.page_count) return;
 
-        loadingPages.value.add(pageIndex);
-        const targetChapterId = currentChapterId.value;
+        const url = readerApi.getPageImage(
+            currentContentId.value,
+            currentChapter.value.sort_order,
+            pageIndex
+        );
 
-        try {
-            const blob = await readerApi.getPageImage(
-                currentContentId.value,
-                currentChapter.value.sort_order,
-                pageIndex
-            );
-
-            // Check if we are still on the same chapter
-            if (currentChapterId.value !== targetChapterId) return;
-
-            const url = URL.createObjectURL(blob);
-            pageUrls.value.set(pageIndex, url);
-        } catch (e) {
-            if (currentChapterId.value === targetChapterId) {
-                failedPages.value.add(pageIndex);
-
-                // Handle end of chapter inference
-                if (readerMode.value === "scroll") {
-                    endOfChapter.value = true;
-                    pages.value = pages.value.filter((p) => p < pageIndex);
-                } else if (pageIndex === currentPage.value) {
-                    endOfChapter.value = true;
-                }
-            }
-        } finally {
-            if (currentChapterId.value === targetChapterId) {
-                loadingPages.value.delete(pageIndex);
-            }
-        }
+        pageUrls.value.set(pageIndex, url);
     };
 
     const loadChapter = async (contentId: number, chapterId: number) => {
@@ -166,7 +136,6 @@ export const useReaderStore = defineStore("reader", () => {
             currentContentId.value !== contentId
         ) {
             // Cleanup old URLs
-            pageUrls.value.forEach((url) => URL.revokeObjectURL(url));
             pageUrls.value.clear();
 
             failedPages.value.clear();
