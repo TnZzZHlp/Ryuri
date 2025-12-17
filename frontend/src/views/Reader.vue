@@ -23,7 +23,6 @@ import { toast } from 'vue-sonner'
 import { Progress } from '@/components/ui/progress'
 import type { Chapter } from '@/api/types'
 import { storeToRefs } from 'pinia'
-import { fa } from 'zod/locales'
 
 const route = useRoute()
 const router = useRouter()

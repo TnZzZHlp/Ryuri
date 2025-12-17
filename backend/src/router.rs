@@ -15,7 +15,9 @@ use tracing::Level;
 #[cfg(feature = "dev")]
 use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
-use crate::handlers::{auth, apikey, bangumi, content, komga, library, progress, scan_queue, static_files};
+use crate::handlers::{
+    apikey, auth, bangumi, content, komga, library, progress, scan_queue, static_files,
+};
 use crate::middlewares::auth_middleware;
 use crate::state::AppState;
 
@@ -64,7 +66,11 @@ pub fn create_router(state: AppState) -> Router {
             "/komga/api/v1/books/{bookId}/pages/{pageNumber}",
             get(komga::get_page),
         )
-        .route("/komga/api/v1/libraries", get(komga::get_libraries));
+        .route("/komga/api/v1/libraries", get(komga::get_libraries))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ));
 
     // Protected routes - authentication required
     let protected_routes = Router::new()

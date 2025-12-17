@@ -46,6 +46,9 @@ export {
     type SubmitScanResponse,
     // Bangumi types
     type BangumiSearchResult,
+    // ApiKey types
+    type ApiKeyResponse,
+    type CreateApiKeyRequest,
 } from "./types";
 
 // ============================================================================
@@ -77,6 +80,7 @@ export { createContentApi, type ContentApi } from "./content";
 export { createReaderApi, type ReaderApi } from "./reader";
 export { createProgressApi, type ProgressApi } from "./progress";
 export { createBangumiApi, type BangumiApi } from "./bangumi";
+export { createApiKeyApi, type ApiKeyApi } from "./apikey";
 
 // ============================================================================
 // Unified API Interface
@@ -89,6 +93,7 @@ import { createContentApi, type ContentApi } from "./content";
 import { createReaderApi, type ReaderApi } from "./reader";
 import { createProgressApi, type ProgressApi } from "./progress";
 import { createBangumiApi, type BangumiApi } from "./bangumi";
+import { createApiKeyApi, type ApiKeyApi } from "./apikey";
 
 /**
  * Unified API interface containing all API modules.
@@ -108,6 +113,8 @@ export interface Api {
     progress: ProgressApi;
     /** Bangumi metadata search API */
     bangumi: BangumiApi;
+    /** API Key management API */
+    apiKey: ApiKeyApi;
 }
 
 /**
@@ -139,6 +146,7 @@ export function createApi(config: ApiClientConfig): Api {
         reader: createReaderApi(client),
         progress: createProgressApi(client),
         bangumi: createBangumiApi(client),
+        apiKey: createApiKeyApi(client),
     };
 }
 

@@ -124,21 +124,18 @@ export interface UpdatePasswordRequest {
 }
 
 /**
- * Response for API key generation.
+ * Request to create a new API key.
  */
-export interface ApiKeyResponse {
-    id: number;
-    user_id: number;
-    api_key: string;
-    created_at: string;
+export interface CreateApiKeyRequest {
+    name: string;
 }
 
 /**
- * Response for API key generation.
+ * Response for API key generation and listing.
  */
 export interface ApiKeyResponse {
     id: number;
-    user_id: number;
+    name: string;
     api_key: string;
     created_at: string;
 }
