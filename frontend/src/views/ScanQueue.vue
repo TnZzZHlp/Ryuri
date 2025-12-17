@@ -106,9 +106,9 @@ async function handleCancel(taskId: string) {
 </script>
 
 <template>
-    <div class="p-6 space-y-8">
+    <div class="flex flex-col h-[calc(100vh-7rem)] p-6 gap-8">
         <!-- Page Title -->
-        <h1 class="text-2xl font-bold">Scan Queue</h1>
+        <h1 class="text-2xl font-bold shrink-0">Scan Queue</h1>
 
         <!-- Loading State -->
         <template v-if="loading">
@@ -124,14 +124,14 @@ async function handleCancel(taskId: string) {
         <template v-else>
             <!-- Empty State - No tasks at all -->
             <div v-if="pendingTasks.length === 0 && historyTasks.length === 0 && processingTasks.length === 0"
-                class="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                class="flex flex-col items-center justify-center flex-1 py-20 text-muted-foreground">
                 <p class="text-lg">No scan tasks available</p>
                 <p class="text-sm">Trigger a scan in library settings to add tasks</p>
             </div>
 
             <template v-else>
                 <!-- Pending Tasks Section -->
-                <section class="space-y-4">
+                <section class="space-y-4 shrink-0">
                     <!-- Empty pending state -->
                     <div v-if="pendingTasks.length === 0 && processingTasks.length === 0"
                         class="text-muted-foreground py-4 text-center border rounded-lg">
@@ -204,12 +204,12 @@ async function handleCancel(taskId: string) {
                 </section>
 
                 <!-- History Tasks Section -->
-                <section v-if="historyTasks.length > 0" class="space-y-4">
-                    <h2 class="text-lg font-semibold">History</h2>
+                <section v-if="historyTasks.length > 0" class="flex flex-col flex-1 min-h-0 gap-4">
+                    <h2 class="text-lg font-semibold shrink-0">History</h2>
 
-                    <div class="rounded-md border">
-                        <Table>
-                            <TableHeader>
+                    <div class="rounded-md border flex-1 overflow-auto relative">
+                        <table class="w-full caption-bottom text-sm">
+                            <TableHeader class="sticky top-0 z-10 bg-background shadow-sm">
                                 <TableRow>
                                     <TableHead class="w-[150px]">
                                         Status
@@ -264,7 +264,7 @@ async function handleCancel(taskId: string) {
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
-                        </Table>
+                        </table>
                     </div>
                 </section>
             </template>
