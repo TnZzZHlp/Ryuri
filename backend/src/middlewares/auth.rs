@@ -75,13 +75,12 @@ pub async fn auth_middleware(
         .get("X-API-Key")
         .and_then(|value| value.to_str().ok())
     {
-        if let Some(api_key) = ApiKeyRepository::get_by_key(&state.pool, api_key_header).await? {
-            if let Some(user) = UserRepository::find_by_id(&state.pool, api_key.user_id).await? {
+        if let Some(api_key) = ApiKeyRepository::get_by_key(&state.pool, api_key_header).await?
+            && let Some(user) = UserRepository::find_by_id(&state.pool, api_key.user_id).await? {
                 let auth_user = AuthUser::from(user);
                 req.extensions_mut().insert(auth_user);
                 return Ok(next.run(req).await);
             }
-        }
         // If API key is invalid, we don't return error immediately, we fall back to JWT check
         // or maybe we should return error? Usually if explicit auth method is provided and fails, we fail.
         // But for now let's strict fail if header is present but invalid.
