@@ -62,17 +62,17 @@ pub async fn search(
 /// Returns a content by its ID.
 pub async fn get(
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(content_id): Path<i64>,
 ) -> Result<Json<ContentResponse>> {
-    let content = ContentService::get_content(&state.pool, id).await?;
+    let content = ContentService::get_content(&state.pool, content_id).await?;
     Ok(Json(ContentResponse::from(content)))
 }
 
 /// DELETE /api/contents/{id}
 ///
 /// Deletes a content and all associated chapters.
-pub async fn delete(State(state): State<AppState>, Path(id): Path<i64>) -> Result<Json<()>> {
-    ContentService::delete_content(&state.pool, id).await?;
+pub async fn delete(State(state): State<AppState>, Path(content_id): Path<i64>) -> Result<Json<()>> {
+    ContentService::delete_content(&state.pool, content_id).await?;
     Ok(Json(()))
 }
 
@@ -181,10 +181,10 @@ pub struct UpdateMetadataRequest {
 /// Updates the metadata for a content item.
 pub async fn update_metadata(
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(content_id): Path<i64>,
     Json(request): Json<UpdateMetadataRequest>,
 ) -> Result<Json<ContentResponse>> {
-    let content = ContentService::update_metadata(&state.pool, id, request.metadata).await?;
+    let content = ContentService::update_metadata(&state.pool, content_id, request.metadata).await?;
     Ok(Json(ContentResponse::from(content)))
 }
 
@@ -193,10 +193,9 @@ pub async fn update_metadata(
 /// Returns the thumbnail image for a content.
 pub async fn get_thumbnail(
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(content_id): Path<i64>,
 ) -> Result<impl IntoResponse> {
-    let thumbnail_data = ContentService::get_thumbnail(&state.pool, id).await?;
-
+    let thumbnail_data = ContentService::get_thumbnail(&state.pool, content_id).await?;
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "image/jpeg")

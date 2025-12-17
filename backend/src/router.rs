@@ -80,38 +80,38 @@ pub fn create_router(state: AppState) -> Router {
         // Library routes
         .route("/api/libraries", get(library::list).post(library::create))
         .route(
-            "/api/libraries/{id}",
+            "/api/libraries/{library_id}",
             get(library::get)
                 .put(library::update)
                 .delete(library::delete),
         )
         .route(
-            "/api/libraries/{id}/paths",
+            "/api/libraries/{library_id}/paths",
             get(library::list_paths).post(library::add_path),
         )
         .route(
-            "/api/libraries/{id}/paths/{path_id}",
+            "/api/libraries/{library_id}/paths/{path_id}",
             delete(library::remove_path),
         )
-        .route("/api/libraries/{id}/contents", get(content::list))
-        .route("/api/libraries/{id}/scan", post(scan_queue::submit_scan))
-        .route("/api/libraries/{id}/search", get(content::search))
+        .route("/api/libraries/{library_id}/contents", get(content::list))
+        .route("/api/libraries/{library_id}/scan", post(scan_queue::submit_scan))
+        .route("/api/libraries/{library_id}/search", get(content::search))
         // Scan queue routes
         .route("/api/scan-tasks", get(scan_queue::list_tasks))
         .route(
-            "/api/scan-tasks/{id}",
+            "/api/scan-tasks/{task_id}",
             get(scan_queue::get_task).delete(scan_queue::cancel_task),
         )
         // Content routes
         .route(
-            "/api/contents/{id}",
+            "/api/contents/{content_id}",
             get(content::get).delete(content::delete),
         )
-        .route("/api/contents/{id}/metadata", put(content::update_metadata))
-        .route("/api/contents/{id}/thumbnail", get(content::get_thumbnail))
-        .route("/api/contents/{id}/chapters", get(content::list_chapters))
+        .route("/api/contents/{content_id}/metadata", put(content::update_metadata))
+        .route("/api/contents/{content_id}/thumbnail", get(content::get_thumbnail))
+        .route("/api/contents/{content_id}/chapters", get(content::list_chapters))
         .route(
-            "/api/contents/{id}/progress",
+            "/api/contents/{content_id}/progress",
             get(progress::get_content_progress),
         )
         .route(
@@ -126,7 +126,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/progress/recent", get(progress::get_recent_progress))
         // Chapter progress routes
         .route(
-            "/api/chapters/{id}/progress",
+            "/api/chapters/{chapter_id}/progress",
             get(progress::get_chapter_progress).put(progress::update_chapter_progress),
         )
         // API Key routes

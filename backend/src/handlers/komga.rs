@@ -39,7 +39,7 @@ pub struct PageWrapperDto<T> {
 impl<T> PageWrapperDto<T> {
     pub fn new(items: Vec<T>, page: usize, size: usize, total_elements: usize) -> Self {
         let total_pages = if size > 0 {
-            (total_elements + size - 1) / size
+            total_elements.div_ceil(size)
         } else {
             0
         };
