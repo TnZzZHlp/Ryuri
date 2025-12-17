@@ -1,6 +1,6 @@
-# Wyuri
+# Ryuri
 
-Wyuri is a self-hosted comic and manga reader server designed for simplicity and compatibility. It allows you to manage your digital collection, read directly in the browser, and sync with external clients.
+Ryuri is a self-hosted comic and manga reader server designed for simplicity and compatibility. It allows you to manage your digital collection, read directly in the browser, and sync with external clients.
 
 ## Features
 
@@ -37,8 +37,8 @@ Wyuri is a self-hosted comic and manga reader server designed for simplicity and
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/yourusername/wyuri.git
-    cd wyuri
+    git clone https://github.com/yourusername/Ryuri.git
+    cd Ryuri
     ```
 
 2.  **Setup Backend:**
@@ -59,7 +59,7 @@ Wyuri is a self-hosted comic and manga reader server designed for simplicity and
 
 ## API Documentation
 
-Wyuri provides a REST API for all frontend operations. Additionally, it exposes a Komga-compatible API layer under `/komga`.
+Ryuri provides a REST API for all frontend operations. Additionally, it exposes a Komga-compatible API layer under `/komga`.
 
 - **Standard API**: Used by the web frontend for library management, reading, and settings.
 - **Komga API**: See [KOMGA_API.md](backend/KOMGA_API.md) for details on supported endpoints for third-party clients.

@@ -45,8 +45,6 @@ pub struct AppState {
 pub struct AppConfig {
     /// Authentication configuration.
     pub auth: AuthConfig,
-    /// Optional Bangumi API key for metadata scraping.
-    pub bangumi_api_key: Option<String>,
 }
 
 impl AppState {
@@ -63,7 +61,7 @@ impl AppState {
         let library_service = Arc::new(LibraryService::new(pool.clone()));
 
         // Create Bangumi service
-        let bangumi_service = Arc::new(BangumiService::new(config.bangumi_api_key));
+        let bangumi_service = Arc::new(BangumiService::new(None));
 
         // Create scan service with Bangumi integration
         let scan_service = Arc::new(ScanService::with_bangumi(

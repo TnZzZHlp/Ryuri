@@ -6,15 +6,30 @@
 use std::env;
 use std::net::SocketAddr;
 
+use argon2::password_hash::rand_core::{OsRng, RngCore};
 use backend::db::{DbConfig, init_db};
 use backend::error::AppError;
 use backend::router::create_router_with_layers;
 use backend::services::auth::AuthConfig;
 use backend::state::{AppConfig, AppState};
 use tokio::signal;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+
+fn generate_random_secret_hex(byte_len: usize) -> String {
+    // Use OS CSPRNG. This is suitable for secrets.
+    let mut bytes = vec![0u8; byte_len];
+    OsRng.fill_bytes(&mut bytes);
+
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
 
 /// Server configuration loaded from environment variables.
 struct ServerConfig {
@@ -35,15 +50,22 @@ impl ServerConfig {
         let database_url =
             env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:wyuri.db?mode=rwc".to_string());
 
-        let jwt_secret = env::var("JWT_SECRET")
-            .unwrap_or_else(|_| "default-secret-change-in-production".to_string());
+        let jwt_secret = match env::var("JWT_SECRET") {
+            Ok(v) if !v.trim().is_empty() => v,
+            _ => {
+                let secret = generate_random_secret_hex(32);
+                warn!(
+                    "JWT_SECRET is not set (or is empty); using a random secret from OS RNG. \
+                    Tokens will be invalid after restart. Set JWT_SECRET to make it persistent."
+                );
+                secret
+            }
+        };
 
         let jwt_expiration_hours = env::var("JWT_EXPIRATION_HOURS")
             .ok()
             .and_then(|h| h.parse().ok())
             .unwrap_or(24);
-
-        let bangumi_api_key = env::var("BANGUMI_API_KEY").ok();
 
         Self {
             host,
@@ -57,7 +79,6 @@ impl ServerConfig {
                     jwt_secret,
                     jwt_expiration_hours,
                 },
-                bangumi_api_key,
             },
         }
     }
