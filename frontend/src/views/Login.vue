@@ -28,8 +28,8 @@ const authStore = useAuthStore()
 
 const formSchema = toTypedSchema(
     z.object({
-        username: z.string().min(1, '请输入用户名'),
-        password: z.string().min(1, '请输入密码'),
+        username: z.string().min(1, 'Please enter your username'),
+        password: z.string().min(1, 'Please enter your password'),
     }),
 )
 
@@ -52,14 +52,14 @@ function onSubmit(values: Record<string, unknown>) {
             <!-- Login Card -->
             <Card class="border-border/40 bg-card">
                 <CardHeader class="text-center">
-                    <CardTitle class="text-xl">欢迎回来</CardTitle>
+                    <CardTitle class="text-xl">Ryuri</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Form :validation-schema="formSchema" class="space-y-4" @submit="onSubmit">
                         <!-- Username Field -->
                         <FormField v-slot="{ componentField }" name="username">
                             <FormItem>
-                                <FormLabel>用户名</FormLabel>
+                                <FormLabel>Username</FormLabel>
                                 <FormControl>
                                     <Input type="text" v-bind="componentField" autocomplete="username" />
                                 </FormControl>
@@ -71,11 +71,7 @@ function onSubmit(values: Record<string, unknown>) {
                         <FormField v-slot="{ componentField }" name="password">
                             <FormItem>
                                 <div class="flex items-center justify-between">
-                                    <FormLabel>密码</FormLabel>
-                                    <a href="#"
-                                        class="text-sm text-muted-foreground underline-offset-4 hover:underline">
-                                        忘记了密码?
-                                    </a>
+                                    <FormLabel>Password</FormLabel>
                                 </div>
                                 <FormControl>
                                     <Input type="password" v-bind="componentField" autocomplete="current-password" />
@@ -86,19 +82,11 @@ function onSubmit(values: Record<string, unknown>) {
 
                         <!-- Login Button -->
                         <Button type="submit" class="w-full mt-4" :disable="authStore.loading">
-                            <Spinner v-if="authStore.loading" />登录
+                            <Spinner v-if="authStore.loading" />Login
                         </Button>
                     </Form>
                 </CardContent>
             </Card>
-
-            <!-- Terms -->
-            <p class="text-center text-xs text-muted-foreground">
-                By clicking continue, you agree to our
-                <a href="#" class="underline underline-offset-4 hover:text-foreground">Terms of Service</a>
-                and
-                <a href="#" class="underline underline-offset-4 hover:text-foreground">Privacy Policy</a>.
-            </p>
         </div>
     </div>
 </template>
