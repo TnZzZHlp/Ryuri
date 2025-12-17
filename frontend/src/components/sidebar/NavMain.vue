@@ -13,10 +13,12 @@ const router = useRouter()
 
 <template>
     <SidebarGroup>
-        <SidebarMenuButton @click="router.push('/dashboard')">
+        <SidebarMenuButton @click="router.push({ name: 'Dashboard' })"
+            :is-active="router.currentRoute.value.name === 'Dashboard'">
             <LayoutDashboard /> Dashboard
         </SidebarMenuButton>
-        <SidebarMenuButton @click="router.push('/scan-tasks')">
+        <SidebarMenuButton @click="router.push({ name: 'ScanTasks' })"
+            :is-active="router.currentRoute.value.name === 'ScanTasks'">
             <ListTodo /> Scan Queue
         </SidebarMenuButton>
         <NavLibraries />

@@ -4,6 +4,7 @@ import { useContentStore } from '@/stores/useContentStore';
 import { computed, ref, onBeforeMount } from 'vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import {
     BookOpen,
     User,
@@ -15,10 +16,11 @@ import {
     List,
     ChevronRight
 } from 'lucide-vue-next';
-import type { Chapter } from '@/api/types';
+import type { Chapter, ContentProgressResponse } from '@/api/types';
 import { toast } from 'vue-sonner';
 
 const router = useRouter();
+const libraryId = Number(router.currentRoute.value.params.libraryId);
 const contentId = Number(router.currentRoute.value.params.contentId);
 const contentStore = useContentStore();
 const { getThumbnailUrl, isThumbnailLoading, loadThumbnail } = contentStore;
@@ -27,11 +29,14 @@ const content = ref<typeof contentStore.currentContent>(null);
 const chapters = ref<Chapter[]>([]);
 const contentLoading = ref(true);
 const chaptersLoading = ref(false);
+const lastReadChapterId = ref<number | null>(null);
+const progress = ref<ContentProgressResponse | null>(null);
 
 onBeforeMount(async () => {
     try {
-        // 获取内容详情
+        // Fetch content details and progress in parallel
         const api = await import('@/api/content');
+        const progressApiModule = await import('@/api/progress');
         const { ApiClient } = await import('@/api/client');
         const { useAuthStore } = await import('@/stores/useAuthStore');
         const authStore = useAuthStore();
@@ -41,15 +46,25 @@ onBeforeMount(async () => {
             getToken: () => authStore.token,
         });
         const contentApi = api.createContentApi(client);
-        const data = await contentApi.get(contentId);
-        content.value = data;
+        const progressApi = progressApiModule.createProgressApi(client);
 
-        // 加载缩略图
-        if (data.has_thumbnail) {
-            loadThumbnail(data.id);
+        const [contentData, progressData] = await Promise.all([
+            contentApi.get(contentId),
+            progressApi.getContentProgress(contentId).catch(() => null)
+        ]);
+
+        content.value = contentData;
+        progress.value = progressData;
+        if (progressData?.current_chapter_id) {
+            lastReadChapterId.value = progressData.current_chapter_id;
         }
 
-        // 加载章节列表
+        // Load thumbnail
+        if (contentData.has_thumbnail) {
+            loadThumbnail(contentData.id);
+        }
+
+        // Load chapters list
         chaptersLoading.value = true;
         const chapterList = await contentApi.listChapters(contentId);
         chapters.value = chapterList.sort((a, b) => a.sort_order - b.sort_order);
@@ -61,7 +76,7 @@ onBeforeMount(async () => {
     }
 });
 
-// 从 metadata 中提取信息
+// Extract information from metadata
 const getMetaValue = (key: string): any => {
     const meta = content.value?.metadata;
     if (meta && typeof meta === 'object' && key in meta) {
@@ -72,8 +87,8 @@ const getMetaValue = (key: string): any => {
 
 const author = computed(() => {
     const infobox = getMetaValue('infobox')
-    // 找到 key 为 '作者' 的字段
-    return infobox?.find((item: any) => item.key === '作者')?.value || '未知作者';
+    // Find the field with key '作者'
+    return infobox?.find((item: any) => item.key === '作者')?.value || 'Unknown Author';
 });
 const publisher = computed(() => getMetaValue('publisher'));
 const publishDate = computed(() => getMetaValue('publish_date') || getMetaValue('date'));
@@ -95,7 +110,7 @@ const tags = computed(() => {
     }[];
 });
 
-// 渲染星级评分
+// Render star rating
 const renderStars = (score: number) => {
     const fullStars = Math.floor(score);
     const hasHalf = score - fullStars >= 0.5;
@@ -104,12 +119,14 @@ const renderStars = (score: number) => {
 
 const handleStartReading = (chapterId?: number) => {
     if (chapterId) {
-        router.push(`/read/${contentId}/${chapterId}`);
+        router.push(`/read/${libraryId}/${contentId}/${chapterId}`);
+    } else if (lastReadChapterId.value) {
+        router.push(`/read/${libraryId}/${contentId}/${lastReadChapterId.value}`);
     } else if (chapters.value.length > 0) {
         // Default to first chapter
-        router.push(`/read/${contentId}/${chapters.value[0]!.id}`);
+        router.push(`/read/${libraryId}/${contentId}/${chapters.value[0]!.id}`);
     } else {
-        toast.error('暂无章节');
+        toast.error('No chapters available to read');
     }
 };
 </script>
@@ -156,8 +173,20 @@ const handleStartReading = (chapterId?: number) => {
                 <!-- Start Reading Button -->
                 <Button @click="() => handleStartReading()" class="w-full mt-4 h-12 text-base" size="lg">
                     <BookOpen class="size-5" />
-                    开始阅读
+                    {{ lastReadChapterId ? 'Continue Reading' : 'Start Reading' }}
                 </Button>
+
+                <!-- Reading Progress -->
+                <div v-if="progress" class="mt-4 space-y-2">
+                    <div class="flex justify-between text-sm text-muted-foreground">
+                        <span>Reading Progress</span>
+                        <span>{{ progress.overall_percentage.toFixed(0) }}%</span>
+                    </div>
+                    <Progress :model-value="progress.overall_percentage" class="h-2" />
+                    <div class="text-xs text-muted-foreground text-center">
+                        Read {{ progress.completed_chapters }} / {{ progress.total_chapters }} chapters
+                    </div>
+                </div>
             </div>
 
             <!-- Right: Content Info -->
@@ -202,7 +231,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="publisher" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Building2 class="size-4" />
-                            <span>出版社</span>
+                            <span>Publisher</span>
                         </div>
                         <span class="font-medium">{{ publisher }}</span>
                     </div>
@@ -211,7 +240,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="publishDate" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Calendar class="size-4" />
-                            <span>出版时间</span>
+                            <span>Publish Date</span>
                         </div>
                         <span class="font-medium">{{ publishDate }}</span>
                     </div>
@@ -229,18 +258,18 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="pageCount" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <FileText class="size-4" />
-                            <span>页数</span>
+                            <span>Page Count</span>
                         </div>
-                        <span class="font-medium">{{ pageCount }} 页</span>
+                        <span class="font-medium">{{ pageCount }} pages</span>
                     </div>
 
                     <!-- Chapter Count (fallback) -->
                     <div v-if="!pageCount" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <FileText class="size-4" />
-                            <span>章节数</span>
+                            <span>Chapter Count</span>
                         </div>
-                        <span class="font-medium">{{ content.chapter_count }} 章</span>
+                        <span class="font-medium">{{ content.chapter_count }} chapters</span>
                     </div>
                 </div>
 
@@ -256,8 +285,8 @@ const handleStartReading = (chapterId?: number) => {
                 <div class="mt-6">
                     <div class="flex items-center gap-2 mb-4">
                         <List class="size-5" />
-                        <h2 class="text-xl font-semibold">章节目录</h2>
-                        <span class="text-sm text-muted-foreground">({{ chapters.length }} 章)</span>
+                        <h2 class="text-xl font-semibold">Chapters</h2>
+                        <span class="text-sm text-muted-foreground">({{ chapters.length }} chapters)</span>
                     </div>
 
                     <!-- Chapters Loading -->
@@ -268,22 +297,33 @@ const handleStartReading = (chapterId?: number) => {
                     <!-- Chapters List -->
                     <div v-else-if="chapters.length > 0" class="space-y-2 overflow-y-auto pr-2">
                         <div v-for="chapter in chapters" :key="chapter.id"
-                            class="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer group"
+                            class="flex items-center justify-between p-3 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer group"
+                            :class="lastReadChapterId === chapter.id ? 'bg-primary/10 hover:bg-primary/20' : 'bg-muted/30'"
                             @click="handleStartReading(chapter.id)">
                             <div class="flex items-center gap-3 min-w-0">
-                                <span class="text-sm text-muted-foreground w-8 shrink-0">
+                                <span class="text-sm w-8 shrink-0"
+                                    :class="lastReadChapterId === chapter.id ? 'text-primary font-medium' : 'text-muted-foreground'">
                                     {{ chapter.sort_order + 1 }}
                                 </span>
-                                <span class="truncate">{{ chapter.title }}</span>
+                                <span class="truncate"
+                                    :class="lastReadChapterId === chapter.id ? 'text-primary font-medium' : ''">
+                                    {{ chapter.title }}
+                                </span>
                             </div>
-                            <ChevronRight
-                                class="size-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                            <div class="flex items-center gap-2">
+                                <span v-if="lastReadChapterId === chapter.id"
+                                    class="text-xs text-primary font-medium px-2 py-0.5 rounded-full bg-primary/10">
+                                    Last Read
+                                </span>
+                                <ChevronRight
+                                    class="size-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                            </div>
                         </div>
                     </div>
 
                     <!-- No Chapters -->
                     <div v-else class="text-center py-8 text-muted-foreground">
-                        <p>暂无章节</p>
+                        <p>No chapters available</p>
                     </div>
                 </div>
             </div>
@@ -291,9 +331,9 @@ const handleStartReading = (chapterId?: number) => {
 
         <!-- Error State -->
         <div v-else class="flex flex-col items-center justify-center py-20 text-muted-foreground">
-            <p class="text-lg">内容不存在或加载失败</p>
+            <p class="text-lg">Content doesn't exist or failed to load</p>
             <Button variant="outline" class="mt-4" @click="router.back()">
-                返回上一页
+                Go Back
             </Button>
         </div>
     </div>

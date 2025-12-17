@@ -66,14 +66,14 @@ pub async fn create(
 /// Returns a library by its ID with statistics.
 pub async fn get(
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(library_id): Path<i64>,
 ) -> Result<Json<LibraryWithStats>> {
     let library = state
         .library_service
-        .get_with_stats(id)
+        .get_with_stats(library_id)
         .await?
         .ok_or_else(|| {
-            crate::error::AppError::NotFound(format!("Library with id {} not found", id))
+            crate::error::AppError::NotFound(format!("Library with library_id {} not found", library_id))
         })?;
     Ok(Json(library))
 }
@@ -83,33 +83,33 @@ pub async fn get(
 /// Updates an existing library.
 pub async fn update(
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(library_id): Path<i64>,
     Json(req): Json<UpdateLibraryRequest>,
 ) -> Result<Json<Library>> {
     let new_scan_interval = req.scan_interval;
     let new_watch_mode = req.watch_mode;
 
-    let library = state.library_service.update(id, req).await?;
+    let library = state.library_service.update(library_id, req).await?;
 
     // Update scheduler if scan_interval changed
     if let Some(interval) = new_scan_interval {
         if interval > 0 {
-            if let Err(e) = state.scheduler_service.schedule_scan(id, interval).await {
-                warn!(library_id = id, error = %e, "Failed to update scan schedule for library");
+            if let Err(e) = state.scheduler_service.schedule_scan(library_id, interval).await {
+                warn!(library_id = library_id, error = %e, "Failed to update scan schedule for library");
             }
-        } else if let Err(e) = state.scheduler_service.cancel_scan(id).await {
-            warn!(library_id = id, error = %e, "Failed to cancel scan schedule for library");
+        } else if let Err(e) = state.scheduler_service.cancel_scan(library_id).await {
+            warn!(library_id = library_id, error = %e, "Failed to cancel scan schedule for library");
         }
     }
 
     // Update watch service if watch_mode changed
     if let Some(watch_mode) = new_watch_mode {
         if watch_mode {
-            if let Err(e) = state.watch_service.start_watching(id).await {
-                warn!(library_id = id, error = %e, "Failed to start watching library");
+            if let Err(e) = state.watch_service.start_watching(library_id).await {
+                warn!(library_id = library_id, error = %e, "Failed to start watching library");
             }
-        } else if let Err(e) = state.watch_service.stop_watching(id).await {
-            warn!(library_id = id, error = %e, "Failed to stop watching library");
+        } else if let Err(e) = state.watch_service.stop_watching(library_id).await {
+            warn!(library_id = library_id, error = %e, "Failed to stop watching library");
         }
     }
 
@@ -119,18 +119,18 @@ pub async fn update(
 /// DELETE /api/libraries/{id}
 ///
 /// Deletes a library and all associated scan paths and contents.
-pub async fn delete(State(state): State<AppState>, Path(id): Path<i64>) -> Result<Json<()>> {
+pub async fn delete(State(state): State<AppState>, Path(library_id): Path<i64>) -> Result<Json<()>> {
     // Stop scheduler before deleting
-    if let Err(e) = state.scheduler_service.cancel_scan(id).await {
-        warn!(library_id = id, error = %e, "Failed to cancel scan schedule for library");
+    if let Err(e) = state.scheduler_service.cancel_scan(library_id).await {
+        warn!(library_id, error = %e, "Failed to cancel scan schedule for library");
     }
 
     // Stop watch service before deleting
-    if let Err(e) = state.watch_service.stop_watching(id).await {
-        warn!(library_id = id, error = %e, "Failed to stop watching library");
+    if let Err(e) = state.watch_service.stop_watching(library_id).await {
+        warn!(library_id, error = %e, "Failed to stop watching library");
     }
 
-    state.library_service.delete(id).await?;
+    state.library_service.delete(library_id).await?;
     Ok(Json(()))
 }
 
@@ -179,7 +179,7 @@ pub async fn add_path(
 #[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ScanPathParams {
     /// The library ID.
-    pub id: i64,
+    pub library_id: i64,
     /// The scan path ID.
     pub path_id: i64,
 }
@@ -193,12 +193,12 @@ pub async fn remove_path(
 ) -> Result<Json<()>> {
     state
         .library_service
-        .remove_scan_path(params.id, params.path_id)
+        .remove_scan_path(params.library_id, params.path_id)
         .await?;
 
     // Refresh watch service to remove the path
-    if let Err(e) = state.watch_service.refresh_watching(params.id).await {
-        warn!(library_id = params.id, error = %e, "Failed to refresh watching for library");
+    if let Err(e) = state.watch_service.refresh_watching(params.library_id).await {
+        warn!(library_id = params.library_id, error = %e, "Failed to refresh watching for library");
     }
 
     Ok(Json(()))

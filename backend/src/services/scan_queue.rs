@@ -75,7 +75,7 @@ impl ScanService {
     /// Scan all paths in a library and import/update content.
     ///
     /// Requirements: 2.1
-    #[instrument(skip(self), fields(library_id = library_id))]
+    #[instrument(skip(self), fields(library_id))]
     pub async fn scan_library(&self, library_id: i64) -> Result<ScanResult> {
         let scan_paths = ScanPathRepository::list_by_library(&self.pool, library_id).await?;
 
@@ -241,7 +241,7 @@ impl ScanService {
             folder_path: folder_path.to_string_lossy().to_string(),
             chapter_count: chapters.len() as i32,
             thumbnail: None,
-            metadata,
+            metadata: metadata.clone(),
         };
 
         let content = ContentRepository::create(&self.pool, new_content).await?;
@@ -254,7 +254,7 @@ impl ScanService {
                 content_id: content.id,
                 title: chapter_title,
                 file_path,
-                sort_order: idx as i32,
+                sort_order: (idx + 1) as i32,
                 page_count,
             })
             .collect();
@@ -262,8 +262,22 @@ impl ScanService {
         ChapterRepository::create_batch(&self.pool, new_chapters).await?;
 
         // Generate thumbnail
-        let thumbnail = self.generate_thumbnail(&content, folder_path).await;
-        if let Ok(Some(thumb_data)) = thumbnail {
+        let thumbnail = if let Some(metadata) = metadata.clone() {
+            // If we have metadata with cover image, use it
+            if let Some(cover_data) = metadata
+                .get("images")
+                .and_then(|v| v.get("common"))
+                .and_then(|s| s.as_str())
+            {
+                crate::utils::download_image(cover_data).await.ok()
+            } else {
+                self.generate_thumbnail(&content, folder_path).await?
+            }
+        } else {
+            self.generate_thumbnail(&content, folder_path).await?
+        };
+
+        if let Some(thumb_data) = thumbnail {
             ContentRepository::update_thumbnail(&self.pool, content.id, Some(thumb_data)).await?;
         }
 
@@ -356,7 +370,7 @@ impl ScanService {
         // Create chapter entries (title derived from filename without extension)
         // And calculate page count
         let mut chapters: Vec<(String, String, i32)> = Vec::with_capacity(files.len());
-        
+
         for path in files {
             let title = path
                 .file_stem()
@@ -364,18 +378,25 @@ impl ScanService {
                 .unwrap_or("Unknown")
                 .to_string();
             let file_path = path.to_string_lossy().to_string();
-            
+
             // Calculate page count based on content type
             let page_count = match content_type {
-                ContentType::Comic => {
-                    // Start a best effort to get page count, default to 0 on error (will be calculated on demand later)
-                    ComicArchiveExtractor::page_count(&path).unwrap_or(0) as i32
+                ContentType::Comic => match ComicArchiveExtractor::page_count(&path) {
+                    Ok(count) => count as i32,
+                    Err(e) => {
+                        warn!(path = ?path, error = %e, "Failed to calculate comic page count");
+                        0
+                    }
                 },
-                ContentType::Novel => {
-                    NovelArchiveExtractor::chapter_count(&path).unwrap_or(0) as i32
-                }
+                ContentType::Novel => match NovelArchiveExtractor::chapter_count(&path) {
+                    Ok(count) => count as i32,
+                    Err(e) => {
+                        warn!(path = ?path, error = %e, "Failed to calculate novel chapter count");
+                        0
+                    }
+                },
             };
-            
+
             chapters.push((title, file_path, page_count));
         }
 
@@ -880,15 +901,31 @@ impl ScanQueueService {
         }
     }
 
+    /// Lists all processing tasks.
+    pub async fn list_processing(&self) -> Vec<ScanTask> {
+        let tasks = self.tasks.read().await;
+
+        let mut result: Vec<ScanTask> = tasks
+            .values()
+            .filter(|t| t.status == TaskStatus::Running)
+            .cloned()
+            .collect();
+
+        // Sort by created_at (asc)
+        result.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+
+        result
+    }
+
     /// Lists all pending tasks in priority order.
     pub async fn list_pending(&self) -> Vec<ScanTask> {
         let tasks = self.tasks.read().await;
-        let pending_queue = self.pending_queue.read().await;
 
-        // Get tasks in priority order by iterating the heap
-        let mut result: Vec<ScanTask> = pending_queue
-            .iter()
-            .filter_map(|qt| tasks.get(&qt.task_id).cloned())
+        // Get Pending and Running tasks from the tasks map
+        let mut result: Vec<ScanTask> = tasks
+            .values()
+            .filter(|t| t.status == TaskStatus::Pending)
+            .cloned()
             .collect();
 
         // Sort by priority (desc) then created_at (asc)
@@ -1102,5 +1139,24 @@ mod tests {
 
         let result = service.cancel_task(task_id).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_pending_includes_running_tasks() {
+        let service = ScanQueueService::new();
+        let task_id = service.submit_task(1, TaskPriority::Normal).await;
+
+        // Manually set task to Running
+        {
+            let mut tasks = service.tasks.write().await;
+            if let Some(task) = tasks.get_mut(&task_id) {
+                task.status = TaskStatus::Running;
+            }
+        }
+
+        let pending = service.list_pending().await;
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].id, task_id);
+        assert_eq!(pending[0].status, TaskStatus::Running);
     }
 }

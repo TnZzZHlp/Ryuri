@@ -29,7 +29,7 @@ const loading = ref(false)
 
 async function handleCreate() {
     if (!name.value.trim()) {
-        toast.error('库名称不能为空')
+        toast.error('Library name cannot be empty')
         return
     }
 
@@ -40,10 +40,10 @@ async function handleCreate() {
             scan_interval: scanInterval.value,
             watch_mode: watchMode.value,
         })
-        toast.success('库创建成功')
+        toast.success('Library created successfully')
         emit('close')
     } catch (e) {
-        toast.error('创建失败')
+        toast.error('Creation failed')
     } finally {
         loading.value = false
     }
@@ -53,32 +53,32 @@ async function handleCreate() {
 <template>
     <DialogContent class="sm:max-w-[500px]">
         <DialogHeader>
-            <DialogTitle>创建新库</DialogTitle>
+            <DialogTitle>Create New Library</DialogTitle>
             <DialogDescription>
-                输入新库的名称和设置
+                Enter the name and settings for the new library.
             </DialogDescription>
         </DialogHeader>
 
         <div class="grid gap-6 py-4">
             <!-- Library Name -->
             <div class="grid gap-2">
-                <Label for="library-name">库名称</Label>
-                <Input id="library-name" v-model="name" placeholder="输入库名称" @keyup.enter="handleCreate" />
+                <Label for="library-name">Library Name</Label>
+                <Input id="library-name" v-model="name" placeholder="Enter library name" @keyup.enter="handleCreate" />
             </div>
 
             <!-- Scan Interval -->
             <div class="grid gap-2">
-                <Label for="scan-interval">自动扫描间隔（分钟）</Label>
+                <Label for="scan-interval">Auto Scan Interval (minutes)</Label>
                 <Input id="scan-interval" v-model.number="scanInterval" type="number" min="0"
-                    placeholder="0 表示禁用自动扫描" />
-                <p class="text-xs text-muted-foreground">设置为 0 禁用自动扫描</p>
+                    placeholder="0 to disable auto scan" />
+                <p class="text-xs text-muted-foreground">Set to 0 to disable auto scan</p>
             </div>
 
             <!-- Watch Mode -->
             <div class="flex items-center justify-between">
                 <div class="space-y-0.5">
-                    <Label for="watch-mode">文件监视模式</Label>
-                    <p class="text-xs text-muted-foreground">启用后将实时监视文件变化</p>
+                    <Label for="watch-mode">Watch Mode</Label>
+                    <p class="text-xs text-muted-foreground">Enable to monitor file changes in real-time</p>
                 </div>
                 <Switch id="watch-mode" v-model:checked="watchMode" />
             </div>
@@ -87,11 +87,11 @@ async function handleCreate() {
         <DialogFooter>
             <DialogClose as-child>
                 <Button variant="outline">
-                    取消
+                    Cancel
                 </Button>
             </DialogClose>
             <Button @click="handleCreate" :disabled="loading">
-                {{ loading ? '创建中...' : '创建' }}
+                {{ loading ? 'Creating...' : 'Create' }}
             </Button>
         </DialogFooter>
     </DialogContent>

@@ -32,7 +32,7 @@ onMounted(async () => {
 
 // Poll tasks every 3 seconds
 useIntervalFn(() => {
-    scanTaskStore.fetchTasks()
+    scanTaskStore.fetchTasks(50, true)
 }, 3000)
 
 // Computed properties
@@ -45,12 +45,13 @@ const libraryNameMap = computed(() => {
 })
 
 const pendingTasks = computed(() => scanTaskStore.pendingTasks)
+const processingTasks = computed(() => scanTaskStore.processingTasks)
 const historyTasks = computed(() => scanTaskStore.historyTasks)
 const loading = computed(() => scanTaskStore.loading)
 
 // Helper functions
 function getLibraryName(libraryId: number): string {
-    return libraryNameMap.value.get(libraryId) || '未知库'
+    return libraryNameMap.value.get(libraryId) || 'Unknown Library'
 }
 
 function formatTime(dateString: string): string {
@@ -81,17 +82,6 @@ function getStatusBadgeClass(status: string): string {
     }
 }
 
-function getStatusText(status: string): string {
-    switch (status) {
-        case 'Pending': return '等待中'
-        case 'Running': return '运行中'
-        case 'Completed': return '已完成'
-        case 'Failed': return '失败'
-        case 'Cancelled': return '已取消'
-        default: return status
-    }
-}
-
 function calculateProgress(task: ScanTask): number {
     if (!task.progress || task.progress.total_paths === 0) return 0
     return Math.round((task.progress.scanned_paths / task.progress.total_paths) * 100)
@@ -106,8 +96,8 @@ async function handleCancel(taskId: string) {
     try {
         await scanTaskStore.cancelTask(taskId)
     } catch (e) {
-        toast.error('取消任务失败', {
-            description: e instanceof Error ? e.message : '未知错误'
+        toast.error('Cancel task failed', {
+            description: e instanceof Error ? e.message : 'Unknown error'
         })
     } finally {
         cancellingTaskId.value = null
@@ -116,9 +106,9 @@ async function handleCancel(taskId: string) {
 </script>
 
 <template>
-    <div class="p-6 space-y-8">
+    <div class="flex flex-col h-[calc(100vh-7rem)] p-6 gap-8">
         <!-- Page Title -->
-        <h1 class="text-2xl font-bold">扫描队列</h1>
+        <h1 class="text-2xl font-bold shrink-0">Scan Queue</h1>
 
         <!-- Loading State -->
         <template v-if="loading">
@@ -133,21 +123,19 @@ async function handleCancel(taskId: string) {
         <!-- Content -->
         <template v-else>
             <!-- Empty State - No tasks at all -->
-            <div v-if="pendingTasks.length === 0 && historyTasks.length === 0"
-                class="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                <p class="text-lg">暂无扫描任务</p>
-                <p class="text-sm">在库设置中触发扫描以添加任务</p>
+            <div v-if="pendingTasks.length === 0 && historyTasks.length === 0 && processingTasks.length === 0"
+                class="flex flex-col items-center justify-center flex-1 py-20 text-muted-foreground">
+                <p class="text-lg">No scan tasks available</p>
+                <p class="text-sm">Trigger a scan in library settings to add tasks</p>
             </div>
 
             <template v-else>
                 <!-- Pending Tasks Section -->
-                <section class="space-y-4">
-                    <h2 class="text-lg font-semibold">待处理任务</h2>
-
+                <section class="space-y-4 shrink-0">
                     <!-- Empty pending state -->
-                    <div v-if="pendingTasks.length === 0"
+                    <div v-if="pendingTasks.length === 0 && processingTasks.length === 0"
                         class="text-muted-foreground py-4 text-center border rounded-lg">
-                        当前没有活动任务
+                        There are no active tasks at the moment.
                     </div>
 
                     <!-- Pending task table -->
@@ -156,28 +144,28 @@ async function handleCancel(taskId: string) {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead class="w-[150px]">
-                                        状态
+                                        Status
                                     </TableHead>
                                     <TableHead>
-                                        库
+                                        Library
                                     </TableHead>
                                     <TableHead>
-                                        创建时间
+                                        Created At
                                     </TableHead>
                                     <TableHead>
-                                        进度
+                                        Progress
                                     </TableHead>
                                     <TableHead class="text-right">
-                                        操作
+                                        Actions
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                <TableRow v-for="task in pendingTasks" :key="task.id">
+                                <TableRow v-for="task in [...pendingTasks, ...processingTasks]" :key="task.id">
                                     <TableCell>
                                         <span
                                             :class="['px-2 py-1 rounded-full text-xs font-medium', getStatusBadgeClass(task.status)]">
-                                            {{ getStatusText(task.status) }}
+                                            {{ task.status }}
                                         </span>
                                     </TableCell>
                                     <TableCell>
@@ -189,7 +177,7 @@ async function handleCancel(taskId: string) {
                                     <TableCell>
                                         <div v-if="task.status === 'Running' && task.progress" class="w-48">
                                             <div class="flex items-center justify-between text-sm mb-1">
-                                                <span>扫描进度</span>
+                                                <span>Scan Progress</span>
                                                 <span>{{ calculateProgress(task) }}%</span>
                                             </div>
                                             <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
@@ -198,7 +186,7 @@ async function handleCancel(taskId: string) {
                                             </div>
                                             <div class="text-xs text-muted-foreground mt-1">
                                                 {{ task.progress.scanned_paths }} / {{ task.progress.total_paths }}
-                                                路径
+                                                Paths
                                             </div>
                                         </div>
                                         <span v-else class="text-muted-foreground text-sm">-</span>
@@ -206,7 +194,7 @@ async function handleCancel(taskId: string) {
                                     <TableCell class="text-right">
                                         <Button v-if="canCancel(task)" variant="outline" size="sm"
                                             :disabled="cancellingTaskId === task.id" @click="handleCancel(task.id)">
-                                            {{ cancellingTaskId === task.id ? '取消中...' : '取消' }}
+                                            {{ cancellingTaskId === task.id ? 'Cancelling...' : 'Cancel' }}
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -216,24 +204,24 @@ async function handleCancel(taskId: string) {
                 </section>
 
                 <!-- History Tasks Section -->
-                <section v-if="historyTasks.length > 0" class="space-y-4">
-                    <h2 class="text-lg font-semibold">历史记录</h2>
+                <section v-if="historyTasks.length > 0" class="flex flex-col flex-1 min-h-0 gap-4">
+                    <h2 class="text-lg font-semibold shrink-0">History</h2>
 
-                    <div class="rounded-md border">
-                        <Table>
-                            <TableHeader>
+                    <div class="rounded-md border flex-1 overflow-auto relative">
+                        <table class="w-full caption-bottom text-sm">
+                            <TableHeader class="sticky top-0 z-10 bg-background shadow-sm">
                                 <TableRow>
                                     <TableHead class="w-[150px]">
-                                        状态
+                                        Status
                                     </TableHead>
                                     <TableHead>
-                                        库
+                                        Library
                                     </TableHead>
                                     <TableHead>
-                                        创建时间
+                                        Created At
                                     </TableHead>
                                     <TableHead>
-                                        结果/错误
+                                        Result/Error
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -242,7 +230,7 @@ async function handleCancel(taskId: string) {
                                     <TableCell>
                                         <span
                                             :class="['px-2 py-1 rounded-full text-xs font-medium', getStatusBadgeClass(task.status)]">
-                                            {{ getStatusText(task.status) }}
+                                            {{ task.status }}
                                         </span>
                                     </TableCell>
                                     <TableCell>
@@ -256,31 +244,30 @@ async function handleCancel(taskId: string) {
                                         <div v-if="task.status === 'Completed' && task.result"
                                             class="flex flex-col gap-1 text-sm">
                                             <span class="text-green-600 dark:text-green-400">
-                                                新增: {{ task.result.added_count }}
+                                                Added: {{ task.result.added_count }}
                                             </span>
                                             <span class="text-red-600 dark:text-red-400">
-                                                删除: {{ task.result.removed_count }}
+                                                Removed: {{ task.result.removed_count }}
                                             </span>
                                             <span v-if="task.result.failed_scrape_count > 0"
                                                 class="text-yellow-600 dark:text-yellow-400">
-                                                抓取失败: {{ task.result.failed_scrape_count }}
+                                                Failed Scrapes: {{ task.result.failed_scrape_count }}
                                             </span>
                                         </div>
 
                                         <!-- Error for failed tasks -->
                                         <div v-else-if="task.status === 'Failed' && task.error"
                                             class="text-sm text-red-600 dark:text-red-400">
-                                            错误: {{ task.error }}
+                                            Error: {{ task.error }}
                                         </div>
                                         <span v-else class="text-muted-foreground text-sm">-</span>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
-                        </Table>
+                        </table>
                     </div>
                 </section>
             </template>
         </template>
     </div>
 </template>
-

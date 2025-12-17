@@ -136,6 +136,22 @@ export class ApiClient {
     }
 
     /**
+     * Builds a full URL with authentication token as a query parameter.
+     * Useful for direct resource access (e.g. <img> tags).
+     */
+    buildAuthenticatedUrl(path: string, params?: Record<string, string | number | boolean | undefined>): string {
+        let url = buildUrl(this._baseUrl, path);
+
+        const queryParams = { ...params };
+        const token = this.getToken();
+        if (token) {
+            queryParams['token'] = token;
+        }
+
+        return appendQueryParams(url, queryParams);
+    }
+
+    /**
      * Performs a GET request.
      */
     async get<T>(path: string, options?: RequestOptions): Promise<T> {

@@ -62,17 +62,17 @@ pub async fn search(
 /// Returns a content by its ID.
 pub async fn get(
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(content_id): Path<i64>,
 ) -> Result<Json<ContentResponse>> {
-    let content = ContentService::get_content(&state.pool, id).await?;
+    let content = ContentService::get_content(&state.pool, content_id).await?;
     Ok(Json(ContentResponse::from(content)))
 }
 
 /// DELETE /api/contents/{id}
 ///
 /// Deletes a content and all associated chapters.
-pub async fn delete(State(state): State<AppState>, Path(id): Path<i64>) -> Result<Json<()>> {
-    ContentService::delete_content(&state.pool, id).await?;
+pub async fn delete(State(state): State<AppState>, Path(content_id): Path<i64>) -> Result<Json<()>> {
+    ContentService::delete_content(&state.pool, content_id).await?;
     Ok(Json(()))
 }
 
@@ -92,11 +92,11 @@ pub async fn list_chapters(
 #[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct PageParams {
     /// The content ID.
-    pub id: i64,
+    pub content_id: i64,
     /// The chapter index (0-based).
-    pub chapter: i32,
+    pub chapter_id: i64,
     /// The page index (0-based).
-    pub page: i32,
+    pub page: i64,
 }
 
 /// GET /api/contents/{id}/chapters/{chapter}/pages/{page}
@@ -106,8 +106,13 @@ pub async fn get_page(
     State(state): State<AppState>,
     Path(params): Path<PageParams>,
 ) -> Result<impl IntoResponse> {
-    let image_data =
-        ContentService::get_page(&state.pool, params.id, params.chapter, params.page).await?;
+    let image_data = ContentService::get_page(
+        &state.pool,
+        params.content_id,
+        params.chapter_id,
+        params.page,
+    )
+    .await?;
 
     // Detect image type from magic bytes
     let content_type = detect_image_type(&image_data);
@@ -115,9 +120,7 @@ pub async fn get_page(
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type)
-        .header(header::CACHE_CONTROL, "public, max-age=86400")
-        .body(Body::from(image_data))
-        .unwrap())
+        .body(Body::from(image_data).into_data_stream())?)
 }
 
 /// Detect image type from magic bytes.
@@ -178,10 +181,10 @@ pub struct UpdateMetadataRequest {
 /// Updates the metadata for a content item.
 pub async fn update_metadata(
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(content_id): Path<i64>,
     Json(request): Json<UpdateMetadataRequest>,
 ) -> Result<Json<ContentResponse>> {
-    let content = ContentService::update_metadata(&state.pool, id, request.metadata).await?;
+    let content = ContentService::update_metadata(&state.pool, content_id, request.metadata).await?;
     Ok(Json(ContentResponse::from(content)))
 }
 
@@ -190,10 +193,9 @@ pub async fn update_metadata(
 /// Returns the thumbnail image for a content.
 pub async fn get_thumbnail(
     State(state): State<AppState>,
-    Path(id): Path<i64>,
+    Path(content_id): Path<i64>,
 ) -> Result<impl IntoResponse> {
-    let thumbnail_data = ContentService::get_thumbnail(&state.pool, id).await?;
-
+    let thumbnail_data = ContentService::get_thumbnail(&state.pool, content_id).await?;
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "image/jpeg")

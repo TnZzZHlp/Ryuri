@@ -19,7 +19,7 @@ export interface ReaderApi {
         contentId: number,
         chapter: number
     ): Promise<ChapterTextResponse>;
-    getPageImage(contentId: number, chapter: number, page: number): Promise<Blob>;
+    getPageImage(contentId: number, chapterId: number, page: number): string;
 }
 
 /**
@@ -66,8 +66,14 @@ export function createReaderApi(client: ApiClient): ReaderApi {
             );
         },
 
-        async getPageImage(contentId: number, chapter: number, page: number): Promise<Blob> {
-            return client.getBlob(`/api/contents/${contentId}/chapters/${chapter}/pages/${page}`);
-        }
+        getPageImage(
+            contentId: number,
+            chapterId: number,
+            page: number
+        ): string {
+            return client.buildAuthenticatedUrl(
+                `/api/contents/${contentId}/chapters/${chapterId}/pages/${page}`
+            );
+        },
     };
 }

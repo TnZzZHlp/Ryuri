@@ -123,6 +123,23 @@ export interface UpdatePasswordRequest {
     new_password: string;
 }
 
+/**
+ * Request to create a new API key.
+ */
+export interface CreateApiKeyRequest {
+    name: string;
+}
+
+/**
+ * Response for API key generation and listing.
+ */
+export interface ApiKeyResponse {
+    id: number;
+    name: string;
+    api_key: string;
+    created_at: string;
+}
+
 // ============================================================================
 // Library Types
 // ============================================================================

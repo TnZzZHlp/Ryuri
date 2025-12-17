@@ -4,8 +4,10 @@
 //! and return appropriate responses.
 
 pub mod auth;
+pub mod apikey;
 pub mod bangumi;
 pub mod content;
+pub mod komga;
 pub mod library;
 pub mod progress;
 pub mod scan_queue;

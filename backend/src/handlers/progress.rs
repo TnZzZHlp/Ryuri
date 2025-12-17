@@ -7,13 +7,26 @@
 
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
 };
+use serde::Deserialize;
 
 use crate::error::Result;
 use crate::middlewares::auth::AuthUser;
-use crate::models::{ContentProgressResponse, ProgressResponse};
+use crate::models::{ContentProgressResponse, ContentResponse, ProgressResponse};
 use crate::state::AppState;
+
+/// Query parameters for recent progress.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
+pub struct RecentProgressQuery {
+    #[serde(default = "default_recent_limit")]
+    pub limit: i64,
+}
+
+fn default_recent_limit() -> i64 {
+    10
+}
 
 /// GET /api/contents/{id}/progress
 ///
@@ -28,6 +41,21 @@ pub async fn get_content_progress(
         .get_aggregated_content_progress(auth_user.user_id, content_id)
         .await?;
     Ok(Json(progress))
+}
+
+/// GET /api/progress/recent
+///
+/// Returns the most recently read contents.
+pub async fn get_recent_progress(
+    State(state): State<AppState>,
+    auth_user: AuthUser,
+    Query(query): Query<RecentProgressQuery>,
+) -> Result<Json<Vec<ContentResponse>>> {
+    let contents = state
+        .progress_service
+        .get_recent_contents(auth_user.user_id, query.limit)
+        .await?;
+    Ok(Json(contents))
 }
 
 /// GET /api/chapters/{id}/progress

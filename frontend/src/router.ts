@@ -16,7 +16,7 @@ const routes = [
         meta: { requiresAuth: false },
     },
     {
-        path: "/read/:contentId/:chapterId",
+        path: "/read/:libraryId/:contentId/:chapterId",
         name: "Reader",
         component: () => import("@/views/Reader.vue"),
         meta: { requiresAuth: true },
@@ -34,18 +34,18 @@ const routes = [
             {
                 path: "library/:libraryId",
                 name: "Library",
-                component: () => import("@/views/Library.vue")
+                component: () => import("@/views/Library.vue"),
             },
             {
-                path: "content/:contentId",
+                path: "library/:libraryId/content/:contentId",
                 name: "Content",
-                component: () => import("@/views/Content.vue")
+                component: () => import("@/views/Content.vue"),
             },
             {
                 path: "scan-tasks",
                 name: "ScanTasks",
-                component: () => import("@/views/ScanQueue.vue")
-            }
+                component: () => import("@/views/ScanQueue.vue"),
+            },
         ],
     },
 ];
@@ -55,17 +55,25 @@ export const router = createRouter({
     routes,
 });
 
-// 导航守卫
+// Route guard
 router.beforeEach((to) => {
     const { isAuthenticated } = useAuthStore();
 
-    // 需要登录但未登录 -> 跳转登录页
+    // Requires authentication but not authenticated -> redirect to login
     if (to.meta.requiresAuth && !isAuthenticated) {
         return { name: "Login", query: { redirect: to.fullPath } };
     }
 
-    // 已登录访问登录页 -> 跳转dashboard
+    // Authenticated user accessing login page -> redirect to dashboard
     if (to.name === "Login" && isAuthenticated) {
         return { name: "Dashboard" };
+    }
+
+    // Change html title
+    if (to.name) {
+        document.title = `Ryuri - ${to.name
+            .toString()
+            .replace(/([A-Z])/g, " $1")
+            .trim()}`;
     }
 });

@@ -6,3 +6,4 @@ pub mod content;
 pub mod library;
 pub mod progress;
 pub mod user;
+pub mod apikey;

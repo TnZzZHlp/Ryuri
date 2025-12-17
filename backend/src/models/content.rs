@@ -31,7 +31,7 @@ impl ContentType {
     pub fn supported_extensions(&self) -> &'static [&'static str] {
         match self {
             ContentType::Comic => &["zip", "cbz", "cbr", "rar"],
-            ContentType::Novel => &["zip", "epub", "txt"],
+            ContentType::Novel => &["epub"],
         }
     }
 }
@@ -230,8 +230,8 @@ mod tests {
         assert!(comic_exts.contains(&"rar"));
 
         let novel_exts = ContentType::Novel.supported_extensions();
-        assert!(novel_exts.contains(&"zip"));
         assert!(novel_exts.contains(&"epub"));
-        assert!(novel_exts.contains(&"txt"));
+        assert!(!novel_exts.contains(&"zip"));
+        assert!(!novel_exts.contains(&"txt"));
     }
 }

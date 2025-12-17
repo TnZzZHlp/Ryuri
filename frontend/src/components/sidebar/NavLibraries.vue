@@ -73,10 +73,10 @@ const handleConfirmDelete = async () => {
 
     try {
         await libraryStore.deleteLibrary(libraryToDelete.value.id)
-        toast.success('库已删除')
+        toast.success('Library deleted successfully')
     } catch (e) {
-        toast.error('删除库失败', {
-            description: e instanceof Error ? e.message : '未知错误'
+        toast.error('Failed to delete library', {
+            description: e instanceof Error ? e.message : 'Unknown error'
         })
     } finally {
         deleteDialogOpen.value = false
@@ -87,10 +87,10 @@ const handleConfirmDelete = async () => {
 const handleScanLibrary = async (libraryId: number) => {
     try {
         await scanTaskStore.triggerScan(libraryId)
-        toast.success('已触发扫描任务')
+        toast.success('Scan task triggered successfully')
     } catch (e) {
-        toast.error('触发扫描失败', {
-            description: e instanceof Error ? e.message : '未知错误'
+        toast.error('Failed to trigger scan task', {
+            description: e instanceof Error ? e.message : 'Unknown error'
         })
     }
 }
@@ -169,17 +169,18 @@ onBeforeMount(() => {
     <AlertDialog v-model:open="deleteDialogOpen">
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>确认删除库？</AlertDialogTitle>
+                <AlertDialogTitle>Confirm Delete Library?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    此操作将永久删除库 "{{ libraryToDelete?.name }}" 及其所有关联数据（包括扫描历史、进度等）。
-                    文件系统中的文件不会被删除。
+                    This action will permanently delete the library "{{ libraryToDelete?.name }}" and all its associated
+                    data (including scan history, progress, etc.).
+                    Files in the file system will not be deleted.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction @click="handleConfirmDelete"
                     class="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    删除
+                    Delete
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

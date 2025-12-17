@@ -25,9 +25,12 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from "@/components/ui/sidebar"
+import { Dialog } from "@/components/ui/dialog"
 import type { UserResponse } from "@/api/types"
 import { useAuthStore } from "@/stores/useAuthStore"
 import { useRouter } from "vue-router"
+import { ref } from "vue"
+import UserSettingsDialog from "./UserSettingsDialog.vue"
 
 defineProps<{
     user: UserResponse
@@ -36,6 +39,7 @@ defineProps<{
 const { isMobile } = useSidebar()
 const authStore = useAuthStore()
 const router = useRouter()
+const showSettings = ref(false)
 
 function handleLogout() {
     authStore.logout()
@@ -90,7 +94,7 @@ function getUserInitials(username: string): string {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem @click="showSettings = true">
                             <IconSettings />
                             Settings
                         </DropdownMenuItem>
@@ -102,6 +106,9 @@ function getUserInitials(username: string): string {
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+            <Dialog v-model:open="showSettings">
+                <UserSettingsDialog :user="user" @close="showSettings = false" />
+            </Dialog>
         </SidebarMenuItem>
     </SidebarMenu>
 </template>

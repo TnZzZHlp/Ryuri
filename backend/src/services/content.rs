@@ -49,23 +49,9 @@ impl ContentService {
     /// List all chapters for a content.
     pub async fn list_chapters(pool: &Pool<Sqlite>, content_id: i64) -> Result<Vec<Chapter>> {
         // First verify the content exists
-        let content = Self::get_content(pool, content_id).await?;
+        let _content = Self::get_content(pool, content_id).await?;
 
-        let mut chapters = ChapterRepository::list_by_content(pool, content_id).await?;
-
-        // Calculate page_count for each chapter if it's zero
-        for chapter in &mut chapters {
-            if chapter.page_count == 0 {
-                let archive_path = Path::new(&chapter.file_path);
-                let count = match content.content_type {
-                    ContentType::Comic => ComicArchiveExtractor::page_count(archive_path)? as i32,
-                    ContentType::Novel => {
-                        NovelArchiveExtractor::chapter_count(archive_path)? as i32
-                    }
-                };
-                chapter.page_count = count;
-            }
-        }
+        let chapters = ChapterRepository::list_by_content(pool, content_id).await?;
 
         Ok(chapters)
     }
@@ -83,8 +69,8 @@ impl ContentService {
     pub async fn get_page(
         pool: &Pool<Sqlite>,
         content_id: i64,
-        chapter_index: i32,
-        page_index: i32,
+        chapter_id: i64,
+        page_index: i64,
     ) -> Result<Vec<u8>> {
         // Get the content and verify it's a comic
         let content = Self::get_content(pool, content_id).await?;
@@ -98,15 +84,15 @@ impl ContentService {
         // Get the chapters
         let chapters = ChapterRepository::list_by_content(pool, content_id).await?;
 
-        // Validate chapter index
-        if chapter_index < 0 || chapter_index as usize >= chapters.len() {
+        // Validate chapter id
+        if !chapters.iter().any(|chapter| chapter.id == chapter_id) {
             return Err(AppError::NotFound(format!(
                 "Chapter {} not found for content {}",
-                chapter_index, content_id
+                chapter_id, content_id
             )));
         }
 
-        let chapter = &chapters[chapter_index as usize];
+        let chapter = &chapters.iter().find(|c| c.id == chapter_id).unwrap();
         let archive_path = Path::new(&chapter.file_path);
 
         // List images in the archive
@@ -116,7 +102,7 @@ impl ContentService {
         if page_index < 0 || page_index as usize >= images.len() {
             return Err(AppError::NotFound(format!(
                 "Page {} not found in chapter {}",
-                page_index, chapter_index
+                page_index, chapter_id
             )));
         }
 

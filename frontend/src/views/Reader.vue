@@ -1,11 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onUnmounted, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useContentStore } from '@/stores/useContentStore'
-import { createContentApi } from '@/api/content'
-import { createReaderApi } from '@/api/reader'
-import { ApiClient } from '@/api/client'
-import { useAuthStore } from '@/stores/useAuthStore'
+import { useReaderStore } from '@/stores/useReaderStore'
 import { Button } from '@/components/ui/button'
 import {
     DropdownMenu,
@@ -26,162 +22,174 @@ import {
 import { toast } from 'vue-sonner'
 import { Progress } from '@/components/ui/progress'
 import type { Chapter } from '@/api/types'
-
-// Initialize APIs
-const authStore = useAuthStore()
-const apiClient = new ApiClient({
-    baseUrl: import.meta.env.VITE_API_BASE_URL || '',
-    getToken: () => authStore.token,
-})
-const contentApi = createContentApi(apiClient)
-const readerApi = createReaderApi(apiClient)
+import { storeToRefs } from 'pinia'
 
 const route = useRoute()
 const router = useRouter()
-const contentStore = useContentStore()
+const readerStore = useReaderStore()
+const {
+    chapters,
+    loading,
+    pageUrls,
+    failedPages,
+    endOfChapter,
+    pages,
+    readerMode,
+    currentPage,
+    currentChapter,
+    currentChapterIndex,
+    prevChapter,
+    nextChapter
+} = storeToRefs(readerStore)
 
 // State
+const libraryId = computed(() => Number(route.params.libraryId))
 const contentId = computed(() => Number(route.params.contentId))
 const chapterId = computed(() => Number(route.params.chapterId))
-const chapters = ref<Chapter[]>([])
-const loading = ref(true)
-const pages = ref<number[]>([0, 1, 2]) // Buffer for scroll mode
-const pageUrls = ref<Map<number, string>>(new Map())
-const failedPages = ref<Set<number>>(new Set())
-const endOfChapter = ref(false)
+
 const showControls = ref(true)
 const readingProgress = ref(0)
+const containerRef = ref<HTMLElement | null>(null)
 
-// Reader Settings
-type ReaderMode = 'scroll' | 'paged'
-const readerMode = ref<ReaderMode>(localStorage.getItem('reader_mode') as ReaderMode || 'scroll')
-const currentPage = ref(0) // For paged mode
+// Intersection Observer State
+const pageRefs = new Map<number, HTMLElement>()
+const visibilityMap = new Map<number, number>()
+let observer: IntersectionObserver | null = null
 
-// Computed
-const currentChapter = computed(() =>
-    chapters.value.find(c => c.id === chapterId.value)
-)
+const renderedPages = computed(() => {
+    const pagesList: number[] = []
+    if (!currentChapter.value) return pagesList
 
-const currentChapterIndex = computed(() =>
-    chapters.value.findIndex(c => c.id === chapterId.value)
-)
-
-const prevChapter = computed(() => {
-    if (currentChapterIndex.value > 0) {
-        return chapters.value[currentChapterIndex.value - 1]
+    // Previous page
+    if (currentPage.value > 0) {
+        pagesList.push(currentPage.value - 1)
     }
-    return null
-})
 
-const nextChapter = computed(() => {
-    if (currentChapterIndex.value < chapters.value.length - 1) {
-        return chapters.value[currentChapterIndex.value + 1]
-    }
-    return null
-})
-// Methods
-const setMode = (mode: ReaderMode) => {
-    readerMode.value = mode
-    localStorage.setItem('reader_mode', mode)
-    // If switching to paged, ensure current page is loaded
-    if (mode === 'paged') {
-        loadPage(currentPage.value)
-        // Preload next
-        loadPage(currentPage.value + 1)
-        readingProgress.value = 0
-    } else {
-        // If switching to scroll, ensure we have a buffer
-        if (pages.value.length < 3) {
-            pages.value = [0, 1, 2]
-            pages.value.forEach(p => loadPage(p))
+    // Current page
+    pagesList.push(currentPage.value)
+
+    // Next pages (buffer)
+    for (let i = 1; i <= readerStore.PRELOAD_BUFFER; i++) {
+        const p = currentPage.value + i
+        if (p < currentChapter.value.page_count) {
+            pagesList.push(p)
         }
-        updateProgress()
+    }
+
+    return pagesList
+})
+
+// Methods
+const scrollToPage = (pageIndex: number) => {
+    if (!containerRef.value) return
+
+    // We need to wait for render
+    nextTick(() => {
+        const el = pageRefs.get(pageIndex)
+        if (el) {
+            el.scrollIntoView({ block: 'start' })
+        }
+    })
+}
+
+const initObserver = () => {
+    if (observer) observer.disconnect()
+
+    if (readerMode.value !== 'scroll') return
+
+    observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const el = entry.target as HTMLElement
+            const index = Number(el.dataset.pageIndex)
+
+            if (entry.isIntersecting) {
+                visibilityMap.set(index, entry.intersectionRatio)
+                // Lazy load image if visible
+                readerStore.loadPage(index)
+            } else {
+                visibilityMap.delete(index)
+            }
+
+            if (entry.isIntersecting) {
+                const maxPage = Math.max(...pages.value)
+                if (index >= maxPage - readerStore.PRELOAD_BUFFER && !endOfChapter.value) {
+                    loadMorePages()
+                }
+            }
+        })
+
+        let bestPage = -1
+        let maxRatio = 0
+        for (const [page, ratio] of visibilityMap.entries()) {
+            if (ratio > maxRatio) {
+                maxRatio = ratio
+                bestPage = page
+            }
+        }
+
+        if (bestPage !== -1 && bestPage !== currentPage.value) {
+            currentPage.value = bestPage
+            readerStore.saveProgress(bestPage)
+        }
+    }, {
+        threshold: [0, 0.1, 0.5, 0.8, 1.0],
+        rootMargin: '200px'
+    })
+
+    pageRefs.forEach(el => observer?.observe(el))
+}
+
+const setPageRef = (el: any, page: number) => {
+    if (el) {
+        const htmlEl = el as HTMLElement
+        if (pageRefs.get(page) !== htmlEl) {
+            pageRefs.set(page, htmlEl)
+            observer?.observe(htmlEl)
+        }
+    } else {
+        const oldEl = pageRefs.get(page)
+        if (oldEl) {
+            observer?.unobserve(oldEl)
+            pageRefs.delete(page)
+            visibilityMap.delete(page)
+        }
+    }
+}
+
+const loadMorePages = () => {
+    const maxPage = Math.max(...pages.value)
+    const nextPage = maxPage + 1
+
+    if (currentChapter.value && nextPage < currentChapter.value.page_count && !pages.value.includes(nextPage) && !failedPages.value.has(nextPage)) {
+        pages.value.push(nextPage)
+        readerStore.loadPage(nextPage)
     }
 }
 
 const updateProgress = () => {
-    if (readerMode.value === 'scroll') {
-        const scrollTop = window.scrollY
-        const docHeight = document.documentElement.scrollHeight
-        const winHeight = window.innerHeight
+    if (readerMode.value === 'scroll' && containerRef.value) {
+        const scrollTop = containerRef.value.scrollTop
+        const docHeight = containerRef.value.scrollHeight
+        const winHeight = containerRef.value.clientHeight
         const total = docHeight - winHeight
         readingProgress.value = total > 0 ? (scrollTop / total) * 100 : 0
     }
 }
 
-const loadPage = async (pageIndex: number) => {
-    if (pageUrls.value.has(pageIndex) || failedPages.value.has(pageIndex) || !currentChapter.value) return
-
-    try {
-        const blob = await readerApi.getPageImage(contentId.value, currentChapter.value.sort_order, pageIndex)
-        const url = URL.createObjectURL(blob)
-        pageUrls.value.set(pageIndex, url)
-    } catch (e) {
-        handleImageError(pageIndex)
-    }
-}
-
-const handleImageLoad = (pageIndex: number) => {
-    if (readerMode.value === 'scroll') {
-        // Update progress when new images load as dimensions change
-        updateProgress()
-    }
-
-    if (readerMode.value !== 'scroll') return
-
-    // Extend buffer if we are close to the end
-    const maxPage = Math.max(...pages.value)
-
-    if (pageIndex >= maxPage - 2 && !endOfChapter.value) {
-        const nextPage = maxPage + 1
-        if (!pages.value.includes(nextPage) && !failedPages.value.has(nextPage)) {
-            pages.value.push(nextPage)
-            loadPage(nextPage)
-        }
-    }
-}
-
-const handleImageError = (pageIndex: number) => {
-    failedPages.value.add(pageIndex)
-
-    // Assume 404/Error means end of chapter
-    // Only mark end if it's a "reasonable" error (e.g. sequential)
-
-    if (readerMode.value === 'scroll') {
-        endOfChapter.value = true
-        pages.value = pages.value.filter(p => p < pageIndex)
-    } else {
-        // In paged mode, if current page fails, try to handle end
-        if (pageIndex === currentPage.value) {
-            endOfChapter.value = true
-        }
-    }
-}
-
 const loadData = async () => {
-    loading.value = true
     try {
-        // Check store first
-        if (contentStore.chapters.get(contentId.value)) {
-            chapters.value = contentStore.chapters.get(contentId.value)!
-        } else {
-            chapters.value = await contentApi.listChapters(contentId.value)
-            chapters.value.sort((a, b) => a.sort_order - b.sort_order)
-        }
-
-        // Start loading initial pages
+        await readerStore.loadChapter(contentId.value, chapterId.value)
         if (readerMode.value === 'scroll') {
-            pages.value.forEach(p => loadPage(p))
-        } else {
-            loadPage(currentPage.value)
-            loadPage(currentPage.value + 1)
+            nextTick(() => {
+                initObserver()
+                // If we have progress, scroll to it
+                if (currentPage.value > 0) {
+                    scrollToPage(currentPage.value)
+                }
+            })
         }
-
     } catch (e) {
         toast.error('Failed to load chapter')
-        console.error(e)
-    } finally {
-        loading.value = false
     }
 }
 
@@ -208,22 +216,33 @@ const nextPage = () => {
 
     const next = currentPage.value + 1
 
-    // Check if next page failed
+    if (currentChapter.value && next >= currentChapter.value.page_count) {
+        endOfChapter.value = true
+        return
+    }
+
     if (failedPages.value.has(next)) {
         endOfChapter.value = true
         return
     }
 
     currentPage.value = next
-    loadPage(next)
-    loadPage(next + 1) // Preload
-    window.scrollTo(0, 0)
+    readerStore.loadPage(next)
+    for (let i = 1; i <= readerStore.PRELOAD_BUFFER; i++) {
+        readerStore.loadPage(next + i)
+    }
+    containerRef.value?.scrollTo(0, 0)
+    readerStore.saveProgress(currentPage.value)
 }
 
 const prevPage = () => {
-    if (currentPage.value > 0) {
+    if (currentPage.value > 0 && !endOfChapter.value) {
         currentPage.value--
-        window.scrollTo(0, 0)
+        readerStore.loadPage(currentPage.value)
+        containerRef.value?.scrollTo(0, 0)
+        readerStore.saveProgress(currentPage.value)
+    } else if (endOfChapter.value) {
+        endOfChapter.value = false
     } else {
         if (prevChapter.value) navigateToChapter(prevChapter.value)
     }
@@ -231,7 +250,6 @@ const prevPage = () => {
 }
 
 const handlePageClick = (e: MouseEvent) => {
-    // Click left 30% -> prev, right 30% -> next, center -> toggle controls
     const width = window.innerWidth
     const x = e.clientX
 
@@ -246,37 +264,38 @@ const handlePageClick = (e: MouseEvent) => {
 
 // Watchers
 watch(() => route.params.chapterId, () => {
-    // Reset state for new chapter
-    // Cleanup old URLs
-    pageUrls.value.forEach(url => URL.revokeObjectURL(url))
-    pageUrls.value.clear()
-
-    pages.value = [0, 1, 2]
-    currentPage.value = 0
-    failedPages.value.clear()
-    endOfChapter.value = false
     readingProgress.value = 0
-    window.scrollTo(0, 0)
+    containerRef.value?.scrollTo(0, 0)
+    loadData()
+})
 
-    // Load new pages
-    if (readerMode.value === 'scroll') {
-        pages.value.forEach(p => loadPage(p))
-    } else {
-        loadPage(0)
-        loadPage(1)
+watch(currentPage, (newPage) => {
+    if (readerMode.value === 'paged' && currentChapter.value && currentChapter.value.page_count > 0) {
+        readingProgress.value = ((newPage + 1) / currentChapter.value.page_count) * 100
     }
 })
+
+watch(readerMode, (newMode) => {
+    if (newMode === 'scroll') {
+        nextTick(initObserver)
+    } else {
+        observer?.disconnect()
+        observer = null
+    }
+})
+
+const preventSelection = (e: Event) => e.preventDefault()
 
 onMounted(() => {
     loadData()
     window.addEventListener('keydown', handleKeydown)
-    window.addEventListener('scroll', updateProgress)
+    document.addEventListener('selectstart', preventSelection)
 })
 
 onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown)
-    window.removeEventListener('scroll', updateProgress)
-    pageUrls.value.forEach(url => URL.revokeObjectURL(url))
+    document.removeEventListener('selectstart', preventSelection)
+    observer?.disconnect()
 })
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -286,6 +305,7 @@ const handleKeydown = (e: KeyboardEvent) => {
         } else {
             if (prevChapter.value) navigateToChapter(prevChapter.value)
         }
+
     } else if (e.key === 'ArrowRight') {
         if (readerMode.value === 'paged') {
             nextPage()
@@ -294,17 +314,20 @@ const handleKeydown = (e: KeyboardEvent) => {
         }
     } else if (e.key === 'Escape') {
         router.push(`/content/${contentId.value}`)
-    } else if (e.key === ' ' || e.key === 'Space') { // Spacebar
+    } else if (e.key === ' ' || e.key === 'Space') {
         e.preventDefault()
         if (readerMode.value === 'paged') {
             nextPage()
         }
     }
+
+    showControls.value = false
 }
 </script>
 
 <template>
-    <div class="fixed inset-0 bg-black text-white overflow-auto">
+    <div ref="containerRef" class="fixed inset-0 bg-black text-white overflow-auto" @scroll="updateProgress">
+
         <!-- Reader Content -->
 
         <!-- Scroll Mode -->
@@ -315,10 +338,11 @@ const handleKeydown = (e: KeyboardEvent) => {
 
             <div v-else class="flex flex-col items-center pb-24">
                 <template v-for="page in pages" :key="page">
-                    <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)"
-                        class="w-full h-auto object-contain max-h-screen mb-1" @load="handleImageLoad(page)"
-                        alt="Comic page" />
-                    <div v-else class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
+                    <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)" :data-page-index="page"
+                        :ref="(el) => setPageRef(el, page)" class="w-full h-auto object-contain max-h-screen mb-1"
+                        @load="updateProgress" alt="Comic page" />
+                    <div v-else :data-page-index="page" :ref="(el) => setPageRef(el, page)"
+                        class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
                         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
                     </div>
                 </template>
@@ -355,28 +379,24 @@ const handleKeydown = (e: KeyboardEvent) => {
                     <Button v-if="prevChapter" variant="secondary" @click.stop="navigateToChapter(prevChapter)">
                         <ChevronLeft class="mr-2 h-4 w-4" /> Previous Chapter
                     </Button>
-                    <Button variant="outline" @click.stop="prevPage">
-                        Re-read Page
+                    <Button variant="outline" @click.stop="router.push(`/library/${libraryId}/content/${contentId}`)">
+                        Exit to Content
                     </Button>
                 </div>
             </div>
 
             <div v-else class="relative h-full w-full flex items-center justify-center">
-                <img v-if="pageUrls.has(currentPage)" :src="pageUrls.get(currentPage)"
-                    class="max-w-full max-h-full object-contain" alt="Comic page" />
-                <div v-else class="flex flex-col items-center gap-4">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-                    <p class="text-gray-400">Loading Page {{ currentPage + 1 }}...</p>
-                    <Button v-if="failedPages.has(currentPage)" variant="destructive"
-                        @click="loadPage(currentPage)">Retry</Button>
-                </div>
+                <template v-for="page in renderedPages" :key="page">
+                    <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)" v-show="page === currentPage"
+                        class="max-w-full max-h-full object-contain" alt="Comic page" />
+                </template>
             </div>
         </div>
 
         <!-- Top Bar -->
         <div class="fixed top-0 left-0 right-0 h-16 bg-black/80 backdrop-blur-sm border-b border-white/10 flex items-center px-4 transition-transform duration-300 z-50"
             :class="showControls ? 'translate-y-0' : '-translate-y-full'">
-            <Button variant="ghost" size="icon" @click="router.push(`/content/${contentId}`)">
+            <Button variant="ghost" size="icon" @click="router.push(`/library/${libraryId}/content/${contentId}`)">
                 <ArrowLeft class="h-5 w-5 text-white" />
             </Button>
             <div class="ml-4 flex-1 overflow-hidden">
@@ -395,12 +415,12 @@ const handleKeydown = (e: KeyboardEvent) => {
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Reading Mode</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem @click="setMode('scroll')">
+                    <DropdownMenuItem @click="readerStore.setMode('scroll')">
                         <AlignJustify class="mr-2 h-4 w-4" />
                         <span>Scroll (Webtoon)</span>
                         <span v-if="readerMode === 'scroll'" class="ml-auto text-xs">✓</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem @click="setMode('paged')">
+                    <DropdownMenuItem @click="readerStore.setMode('paged')">
                         <Columns class="mr-2 h-4 w-4" />
                         <span>Paged</span>
                         <span v-if="readerMode === 'paged'" class="ml-auto text-xs">✓</span>
@@ -412,7 +432,7 @@ const handleKeydown = (e: KeyboardEvent) => {
         <!-- Bottom Bar (Navigation) -->
         <div class="fixed bottom-0 left-0 right-0 h-16 bg-black/80 backdrop-blur-sm border-t border-white/10 flex items-center justify-between px-4 transition-transform duration-300 z-50"
             :class="showControls ? 'translate-y-0' : 'translate-y-full'">
-            <Progress v-if="readerMode === 'scroll'" :model-value="readingProgress"
+            <Progress :model-value="readingProgress"
                 class="absolute top-0 left-0 right-0 h-1 rounded-none bg-white/20" />
 
             <Button variant="ghost" size="sm" :disabled="!prevChapter"

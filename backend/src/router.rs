@@ -15,7 +15,9 @@ use tracing::Level;
 #[cfg(feature = "dev")]
 use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
-use crate::handlers::{auth, bangumi, content, library, progress, scan_queue, static_files};
+use crate::handlers::{
+    apikey, auth, bangumi, content, komga, library, progress, scan_queue, static_files,
+};
 use crate::middlewares::auth_middleware;
 use crate::state::AppState;
 
@@ -39,6 +41,37 @@ pub fn create_router(state: AppState) -> Router {
     // Public routes - no authentication required
     let public_routes = Router::new().route("/api/auth/login", post(auth::login));
 
+    // Komga compatibility routes - no authentication for now
+    let komga_routes = Router::new()
+        .route("/komga/api/v1/series", get(komga::get_series_list))
+        .route("/komga/api/v1/series/{seriesId}", get(komga::get_series))
+        .route(
+            "/komga/api/v1/series/{seriesId}/thumbnail",
+            get(komga::get_series_thumbnail),
+        )
+        .route(
+            "/komga/api/v1/series/{seriesId}/books",
+            get(komga::get_books),
+        )
+        .route("/komga/api/v1/books/{bookId}", get(komga::get_book))
+        .route(
+            "/komga/api/v1/books/{bookId}/thumbnail",
+            get(komga::get_book_thumbnail),
+        )
+        .route(
+            "/komga/api/v1/books/{bookId}/pages",
+            get(komga::get_page_list),
+        )
+        .route(
+            "/komga/api/v1/books/{bookId}/pages/{pageNumber}",
+            get(komga::get_page),
+        )
+        .route("/komga/api/v1/libraries", get(komga::get_libraries))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ));
+
     // Protected routes - authentication required
     let protected_routes = Router::new()
         // Auth routes (except login)
@@ -47,53 +80,61 @@ pub fn create_router(state: AppState) -> Router {
         // Library routes
         .route("/api/libraries", get(library::list).post(library::create))
         .route(
-            "/api/libraries/{id}",
+            "/api/libraries/{library_id}",
             get(library::get)
                 .put(library::update)
                 .delete(library::delete),
         )
         .route(
-            "/api/libraries/{id}/paths",
+            "/api/libraries/{library_id}/paths",
             get(library::list_paths).post(library::add_path),
         )
         .route(
-            "/api/libraries/{id}/paths/{path_id}",
+            "/api/libraries/{library_id}/paths/{path_id}",
             delete(library::remove_path),
         )
-        .route("/api/libraries/{id}/contents", get(content::list))
-        .route("/api/libraries/{id}/scan", post(scan_queue::submit_scan))
-        .route("/api/libraries/{id}/search", get(content::search))
+        .route("/api/libraries/{library_id}/contents", get(content::list))
+        .route("/api/libraries/{library_id}/scan", post(scan_queue::submit_scan))
+        .route("/api/libraries/{library_id}/search", get(content::search))
         // Scan queue routes
         .route("/api/scan-tasks", get(scan_queue::list_tasks))
         .route(
-            "/api/scan-tasks/{id}",
+            "/api/scan-tasks/{task_id}",
             get(scan_queue::get_task).delete(scan_queue::cancel_task),
         )
         // Content routes
         .route(
-            "/api/contents/{id}",
+            "/api/contents/{content_id}",
             get(content::get).delete(content::delete),
         )
-        .route("/api/contents/{id}/metadata", put(content::update_metadata))
-        .route("/api/contents/{id}/thumbnail", get(content::get_thumbnail))
-        .route("/api/contents/{id}/chapters", get(content::list_chapters))
+        .route("/api/contents/{content_id}/metadata", put(content::update_metadata))
+        .route("/api/contents/{content_id}/thumbnail", get(content::get_thumbnail))
+        .route("/api/contents/{content_id}/chapters", get(content::list_chapters))
         .route(
-            "/api/contents/{id}/progress",
+            "/api/contents/{content_id}/progress",
             get(progress::get_content_progress),
         )
         .route(
-            "/api/contents/{id}/chapters/{chapter}/pages/{page}",
+            "/api/contents/{content_id}/chapters/{chapter_id}/pages/{page}",
             get(content::get_page),
         )
         .route(
-            "/api/contents/{id}/chapters/{chapter}/text",
+            "/api/contents/{content_id}/chapters/{chapter_id}/text",
             get(content::get_chapter_text),
         )
+        // Progress routes
+        .route("/api/progress/recent", get(progress::get_recent_progress))
         // Chapter progress routes
         .route(
-            "/api/chapters/{id}/progress",
+            "/api/chapters/{chapter_id}/progress",
             get(progress::get_chapter_progress).put(progress::update_chapter_progress),
         )
+        // API Key routes
+        .route(
+            "/api/api-keys",
+            get(apikey::list_api_keys).post(apikey::create_api_key),
+        )
+        .route("/api/api-keys/{id}", delete(apikey::delete_api_key))
         // Bangumi routes
         .route("/api/bangumi/search", get(bangumi::search))
         // Apply authentication middleware to all protected routes
@@ -103,7 +144,10 @@ pub fn create_router(state: AppState) -> Router {
         ));
 
     // Merge public and protected routers
-    let api_router = Router::new().merge(public_routes).merge(protected_routes);
+    let api_router = Router::new()
+        .merge(public_routes)
+        .merge(komga_routes)
+        .merge(protected_routes);
 
     let router = Router::new()
         .merge(api_router)
@@ -168,7 +212,7 @@ fn add_tracing_layer(router: Router) -> Router {
         .on_response(
             DefaultOnResponse::new()
                 .level(Level::INFO)
-                .latency_unit(LatencyUnit::Micros),
+                .latency_unit(LatencyUnit::Millis),
         );
 
     router.layer(tracing)
@@ -184,7 +228,7 @@ fn add_tracing_layer(router: Router) -> Router {
         .on_failure(
             DefaultOnFailure::new()
                 .level(Level::WARN)
-                .latency_unit(LatencyUnit::Micros),
+                .latency_unit(LatencyUnit::Millis),
         )
         .make_span_with(
             DefaultMakeSpan::new()

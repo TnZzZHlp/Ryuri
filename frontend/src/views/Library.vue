@@ -41,7 +41,8 @@ const getAuthor = (metadata: unknown): string => {
 
             <!-- Book Card -->
             <template v-else>
-                <router-link v-for="book in books" :key="book.id" :to="`/content/${book.id}`" class="group block">
+                <router-link v-for="book in books" :key="book.id" :to="`/library/${library_id}/content/${book.id}`"
+                    class="group block">
                     <!-- Cover Image Container -->
                     <div
                         class="relative aspect-3/4 w-full overflow-hidden rounded-lg bg-muted hover:shadow-sm duration-300">
