@@ -1,4 +1,4 @@
-# Wyuri
+# Ryuri
 
 Wyuri is a self-hosted comic and manga reader server designed for simplicity and compatibility. It allows you to manage your digital collection, read directly in the browser, and sync with external clients.
 
