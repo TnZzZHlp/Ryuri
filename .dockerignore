@@ -1,0 +1,29 @@
+# Ignore git files
+.git
+.gitignore
+.github
+
+# Ignore build artifacts
+target/
+dist/
+node_modules/
+
+# Ignore IDE settings
+.vscode/
+.idea/
+
+# Ignore local env files
+.env
+*.local
+
+# Ignore logs
+*.log
+
+# Backend specific
+backend/target/
+backend/.env
+
+# Frontend specific
+frontend/node_modules/
+frontend/dist/
+frontend/.env
