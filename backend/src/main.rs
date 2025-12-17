@@ -48,7 +48,7 @@ impl ServerConfig {
             .unwrap_or(3000);
 
         let database_url =
-            env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:wyuri.db?mode=rwc".to_string());
+            env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:ryuri.db?mode=rwc".to_string());
 
         let jwt_secret = match env::var("JWT_SECRET") {
             Ok(v) if !v.trim().is_empty() => v,
@@ -110,7 +110,7 @@ async fn main() -> Result<(), AppError> {
 
     let config = ServerConfig::from_env();
 
-    info!("Wyuri starting...");
+    info!("Ryuri starting...");
     debug!(host = %config.host, port = %config.port, database = %config.db.database_url, "Server configuration loaded");
 
     info!("Initializing database...");

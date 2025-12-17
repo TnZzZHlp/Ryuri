@@ -32,7 +32,7 @@ onBeforeMount(() => {
                     <SidebarMenuButton as-child class="data-[slot=sidebar-menu-button]:p-1.5!">
                         <router-link to="/">
                             <IconInnerShadowTop class="size-5!" />
-                            <span class="text-base font-semibold">Wyuri</span>
+                            <span class="text-base font-semibold">Ryuri</span>
                         </router-link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
