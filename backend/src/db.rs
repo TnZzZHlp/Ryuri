@@ -55,6 +55,12 @@ async fn run_migrations(pool: &Pool<Sqlite>) -> Result<()> {
         .await
         .ok(); // Ignore error if column already exists
 
+    // Migration: Add name column to api_keys table if it doesn't exist
+    sqlx::query("ALTER TABLE api_keys ADD COLUMN name TEXT NOT NULL DEFAULT 'My API Key'")
+        .execute(pool)
+        .await
+        .ok(); // Ignore error if column already exists
+
     Ok(())
 }
 
@@ -127,6 +133,16 @@ CREATE TABLE IF NOT EXISTS reading_progress (
     UNIQUE(user_id, chapter_id)
 );
 
+-- API key tables
+CREATE TABLE IF NOT EXISTS api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT 'My API Key',
+    api_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_scan_paths_library ON scan_paths(library_id);
 CREATE INDEX IF NOT EXISTS idx_contents_library ON contents(library_id);
@@ -136,6 +152,8 @@ CREATE INDEX IF NOT EXISTS idx_chapters_content ON chapters(content_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_reading_progress_user ON reading_progress(user_id);
 CREATE INDEX IF NOT EXISTS idx_reading_progress_chapter ON reading_progress(chapter_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_api_key ON api_keys(api_key);
 
 INSERT INTO users (username, password_hash) VALUES ('admin', '$argon2id$v=19$m=16,t=2,p=1$dGVzdHRlc3Q$e1JfAUgszO1txSZmW/Eu7w') ON CONFLICT DO NOTHING;
 "#;

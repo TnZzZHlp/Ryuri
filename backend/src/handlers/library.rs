@@ -119,18 +119,18 @@ pub async fn update(
 /// DELETE /api/libraries/{id}
 ///
 /// Deletes a library and all associated scan paths and contents.
-pub async fn delete(State(state): State<AppState>, Path(id): Path<i64>) -> Result<Json<()>> {
+pub async fn delete(State(state): State<AppState>, Path(library_id): Path<i64>) -> Result<Json<()>> {
     // Stop scheduler before deleting
-    if let Err(e) = state.scheduler_service.cancel_scan(id).await {
-        warn!(library_id = id, error = %e, "Failed to cancel scan schedule for library");
+    if let Err(e) = state.scheduler_service.cancel_scan(library_id).await {
+        warn!(library_id, error = %e, "Failed to cancel scan schedule for library");
     }
 
     // Stop watch service before deleting
-    if let Err(e) = state.watch_service.stop_watching(id).await {
-        warn!(library_id = id, error = %e, "Failed to stop watching library");
+    if let Err(e) = state.watch_service.stop_watching(library_id).await {
+        warn!(library_id, error = %e, "Failed to stop watching library");
     }
 
-    state.library_service.delete(id).await?;
+    state.library_service.delete(library_id).await?;
     Ok(Json(()))
 }
 

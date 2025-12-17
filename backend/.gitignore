@@ -3,3 +3,4 @@ wyuri.db
 wyuri.db-journal
 wyuri.db-shm
 wyuri.db-wal
+proptest-regressions
