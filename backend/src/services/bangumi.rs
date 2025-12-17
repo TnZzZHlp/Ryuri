@@ -12,7 +12,7 @@ use crate::error::{AppError, Result};
 const BANGUMI_API_BASE: &str = "https://api.bgm.tv";
 
 /// User agent for API requests.
-const USER_AGENT: &str = "comic-reader/1.0 (https://github.com/comic-reader)";
+const USER_AGENT: &str = "ryuri/0.1.0 (https://github.com/tnzzzhlp/ryuri)";
 
 /// Search result from Bangumi API.
 #[derive(Debug, Clone, Serialize, Deserialize)]

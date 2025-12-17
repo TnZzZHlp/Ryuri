@@ -75,7 +75,7 @@ impl ScanService {
     /// Scan all paths in a library and import/update content.
     ///
     /// Requirements: 2.1
-    #[instrument(skip(self), fields(library_id = library_id))]
+    #[instrument(skip(self), fields(library_id))]
     pub async fn scan_library(&self, library_id: i64) -> Result<ScanResult> {
         let scan_paths = ScanPathRepository::list_by_library(&self.pool, library_id).await?;
 
@@ -241,7 +241,7 @@ impl ScanService {
             folder_path: folder_path.to_string_lossy().to_string(),
             chapter_count: chapters.len() as i32,
             thumbnail: None,
-            metadata,
+            metadata: metadata.clone(),
         };
 
         let content = ContentRepository::create(&self.pool, new_content).await?;
@@ -262,8 +262,22 @@ impl ScanService {
         ChapterRepository::create_batch(&self.pool, new_chapters).await?;
 
         // Generate thumbnail
-        let thumbnail = self.generate_thumbnail(&content, folder_path).await;
-        if let Ok(Some(thumb_data)) = thumbnail {
+        let thumbnail = if let Some(metadata) = metadata.clone() {
+            // If we have metadata with cover image, use it
+            if let Some(cover_data) = metadata
+                .get("images")
+                .and_then(|v| v.get("common"))
+                .and_then(|s| s.as_str())
+            {
+                crate::utils::download_image(cover_data).await.ok()
+            } else {
+                self.generate_thumbnail(&content, folder_path).await?
+            }
+        } else {
+            self.generate_thumbnail(&content, folder_path).await?
+        };
+
+        if let Some(thumb_data) = thumbnail {
             ContentRepository::update_thumbnail(&self.pool, content.id, Some(thumb_data)).await?;
         }
 
