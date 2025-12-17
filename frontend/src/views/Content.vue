@@ -331,9 +331,9 @@ const handleStartReading = (chapterId?: number) => {
 
         <!-- Error State -->
         <div v-else class="flex flex-col items-center justify-center py-20 text-muted-foreground">
-            <p class="text-lg">内容不存在或加载失败</p>
+            <p class="text-lg">Content doesn't exist or failed to load</p>
             <Button variant="outline" class="mt-4" @click="router.back()">
-                返回上一页
+                Go Back
             </Button>
         </div>
     </div>
