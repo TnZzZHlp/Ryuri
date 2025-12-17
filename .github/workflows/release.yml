@@ -56,11 +56,11 @@ jobs:
 
       - name: Rename Binary
         run: |
-          mv backend/target/release/backend wyuri-linux-amd64
+          mv backend/target/release/backend ryuri-linux-amd64
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: wyuri-linux-amd64
+          files: ryuri-linux-amd64
           generate_release_notes: true
