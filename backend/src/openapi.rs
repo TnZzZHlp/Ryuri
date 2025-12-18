@@ -11,6 +11,7 @@ use crate::handlers::bangumi::BangumiSearchQuery;
 use crate::handlers::content::{
     ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
 };
+use crate::handlers::filesystem::DirectoryEntry;
 use crate::handlers::library::{AddScanPathRequest, ScanPathParams};
 use crate::handlers::progress::{RecentProgressQuery, UpdateProgressWithPercentageRequest};
 use crate::handlers::scan_queue::{ListTasksResponse, SubmitScanResponse};
@@ -40,7 +41,8 @@ use crate::services::bangumi::BangumiSearchResult;
         (name = "chapters", description = "Chapter and reading endpoints"),
         (name = "progress", description = "Reading progress endpoints"),
         (name = "scan-tasks", description = "Scan queue management endpoints"),
-        (name = "bangumi", description = "Bangumi metadata endpoints")
+        (name = "bangumi", description = "Bangumi metadata endpoints"),
+        (name = "filesystem", description = "Filesystem navigation endpoints")
     ),
     paths(
         // Auth endpoints
@@ -79,6 +81,8 @@ use crate::services::bangumi::BangumiSearchResult;
         crate::openapi::paths::cancel_task,
         // Bangumi endpoints
         crate::openapi::paths::search_bangumi,
+        // Filesystem endpoints
+        crate::handlers::filesystem::list_directories,
     ),
     components(
         schemas(
@@ -118,6 +122,8 @@ use crate::services::bangumi::BangumiSearchResult;
             // Bangumi schemas
             BangumiSearchQuery,
             BangumiSearchResult,
+            // Filesystem schemas
+            DirectoryEntry,
         )
     )
 )]

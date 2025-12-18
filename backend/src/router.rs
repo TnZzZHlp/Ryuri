@@ -16,7 +16,7 @@ use tracing::Level;
 use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
 use crate::handlers::{
-    apikey, auth, bangumi, content, komga, library, progress, scan_queue, static_files,
+    apikey, auth, bangumi, content, filesystem, komga, library, progress, scan_queue, static_files,
 };
 use crate::middlewares::auth_middleware;
 use crate::state::AppState;
@@ -137,6 +137,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/api-keys/{id}", delete(apikey::delete_api_key))
         // Bangumi routes
         .route("/api/bangumi/search", get(bangumi::search))
+        // Filesystem routes
+        .route("/api/filesystem", get(filesystem::list_directories))
         // Apply authentication middleware to all protected routes
         .layer(middleware::from_fn_with_state(
             state.clone(),
