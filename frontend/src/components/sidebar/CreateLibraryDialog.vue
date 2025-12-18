@@ -14,6 +14,8 @@ import { Switch } from '@/components/ui/switch'
 import { useLibraryStore } from '@/stores/useLibraryStore'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
+import { FolderOpen } from 'lucide-vue-next'
+import PathSelector from '@/components/ui/path-selector/PathSelector.vue'
 
 const emit = defineEmits<{
     (e: 'close'): void
@@ -25,6 +27,8 @@ const libraryStore = useLibraryStore()
 const name = ref('')
 const scanInterval = ref(0)
 const watchMode = ref(false)
+const path = ref('')
+const showPathSelector = ref(false)
 const loading = ref(false)
 
 async function handleCreate() {
@@ -35,11 +39,20 @@ async function handleCreate() {
 
     loading.value = true
     try {
-        await libraryStore.createLibrary({
+        const newLib = await libraryStore.createLibrary({
             name: name.value.trim(),
             scan_interval: scanInterval.value,
             watch_mode: watchMode.value,
         })
+
+        if (path.value.trim()) {
+            try {
+                await libraryStore.addScanPath(newLib.id, path.value.trim())
+            } catch (e) {
+                toast.error('Library created, but failed to add scan path')
+            }
+        }
+
         toast.success('Library created successfully')
         emit('close')
     } catch (e) {
@@ -47,6 +60,10 @@ async function handleCreate() {
     } finally {
         loading.value = false
     }
+}
+
+function handlePathSelect(selectedPath: string) {
+    path.value = selectedPath
 }
 </script>
 
@@ -64,6 +81,17 @@ async function handleCreate() {
             <div class="grid gap-2">
                 <Label for="library-name">Library Name</Label>
                 <Input id="library-name" v-model="name" placeholder="Enter library name" @keyup.enter="handleCreate" />
+            </div>
+
+            <!-- Initial Scan Path -->
+            <div class="grid gap-2">
+                <Label for="library-path">Folder Path (Optional)</Label>
+                <div class="flex gap-2">
+                    <Input id="library-path" v-model="path" placeholder="Enter path to your comics/novels" class="flex-1" />
+                    <Button variant="outline" size="icon" @click="showPathSelector = true" title="Select folder">
+                        <FolderOpen class="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
 
             <!-- Scan Interval -->
@@ -95,4 +123,10 @@ async function handleCreate() {
             </Button>
         </DialogFooter>
     </DialogContent>
+
+    <PathSelector
+        v-model:open="showPathSelector"
+        :initial-path="path"
+        @select="handlePathSelect"
+    />
 </template>

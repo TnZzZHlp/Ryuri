@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { useLibraryStore } from '@/stores/useLibraryStore';
 import { onMounted, ref, watch } from 'vue';
 import { Trash2, Plus, FolderOpen } from 'lucide-vue-next';
+import PathSelector from '@/components/ui/path-selector/PathSelector.vue';
 import { toast } from 'vue-sonner';
 
 const props = defineProps<{
@@ -35,6 +36,7 @@ const scanPaths = ref<ScanPath[]>([])
 const newPath = ref('')
 const loading = ref(false)
 const pathsLoading = ref(false)
+const showPathSelector = ref(false)
 
 // Reset form when library changes
 watch(() => props.library, (newLib) => {
@@ -108,6 +110,10 @@ async function handleRemovePath(pathId: number) {
         toast.error('Removing scan path failed')
     }
 }
+
+function handlePathSelect(path: string) {
+    newPath.value = path
+}
 </script>
 
 <template>
@@ -149,6 +155,9 @@ async function handleRemovePath(pathId: number) {
                 <div class="flex gap-2">
                     <Input v-model="newPath" placeholder="Enter scan path" class="flex-1"
                         @keyup.enter="handleAddPath" />
+                    <Button variant="outline" size="icon" @click="showPathSelector = true" title="Select folder">
+                        <FolderOpen class="h-4 w-4" />
+                    </Button>
                     <Button variant="outline" size="icon" @click="handleAddPath" :disabled="!newPath.trim()">
                         <Plus class="h-4 w-4" />
                     </Button>
@@ -188,4 +197,10 @@ async function handleRemovePath(pathId: number) {
             </Button>
         </DialogFooter>
     </DialogContent>
+
+    <PathSelector
+        v-model:open="showPathSelector"
+        :initial-path="newPath"
+        @select="handlePathSelect"
+    />
 </template>

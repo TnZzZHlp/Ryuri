@@ -79,19 +79,16 @@ pub async fn list_directories(
 
     match fs::read_dir(path) {
         Ok(entries) => {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    if let Ok(file_type) = entry.file_type() {
-                        if file_type.is_dir() {
-                            let name = entry.file_name().to_string_lossy().to_string();
-                            dirs.push(DirectoryEntry {
-                                name,
-                                path: entry.path().to_string_lossy().to_string(),
-                                parent: parent.clone(),
-                            });
-                        }
+            for entry in entries.flatten() {
+                if let Ok(file_type) = entry.file_type()
+                    && file_type.is_dir() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        dirs.push(DirectoryEntry {
+                            name,
+                            path: entry.path().to_string_lossy().to_string(),
+                            parent: parent.clone(),
+                        });
                     }
-                }
             }
         }
         Err(e) => {
