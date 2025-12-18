@@ -191,7 +191,22 @@ impl ContentService {
         // First verify the content exists
         let _content = Self::get_content(pool, content_id).await?;
 
-        ContentRepository::update_metadata(pool, content_id, metadata).await
+        let thumbnail = if let Some(metadata) = metadata.clone() {
+            // If we have metadata with cover image, use it
+            if let Some(cover_data) = metadata
+                .get("images")
+                .and_then(|v| v.get("common"))
+                .and_then(|s| s.as_str())
+            {
+                crate::utils::download_image(cover_data).await.ok()
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        ContentRepository::update_metadata(pool, content_id, metadata, thumbnail).await
     }
 
     /// Get thumbnail for a content.
