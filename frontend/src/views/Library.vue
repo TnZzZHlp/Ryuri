@@ -77,11 +77,11 @@ const getAuthor = (metadata: unknown): string => {
                 </router-link>
             </template>
 
-            <!-- 空状态 -->
+            <!-- Empty state -->
             <div v-if="!loading && books.length === 0"
                 class="col-span-full flex flex-col items-center justify-center py-20 text-muted-foreground">
-                <p class="text-lg">暂无书籍</p>
-                <p class="text-sm">扫描书库以添加内容</p>
+                <p class="text-lg">There is no content in this library yet.</p>
+                <p class="text-sm">Scan the library to add content.</p>
             </div>
         </div>
     </div>
