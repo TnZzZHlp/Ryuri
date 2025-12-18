@@ -64,3 +64,10 @@ jobs:
         with:
           files: ryuri-linux-amd64
           generate_release_notes: true
+
+  docker-publish:
+    name: Docker Publish
+    uses: ./.github/workflows/docker-publish.yml
+    permissions:
+      contents: read
+      packages: write
