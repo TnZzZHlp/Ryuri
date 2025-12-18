@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Sun, ArrowLeft, MoreVertical, Search, Loader2 } from "lucide-vue-next";
+import { Sun, ArrowLeft, MoreVertical, Search, Loader2, Pencil, Save } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
@@ -17,6 +17,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'vue-sonner';
 import type { BangumiApi } from '@/api/bangumi';
 import type { ContentApi } from '@/api/content';
@@ -36,8 +37,12 @@ const is_mobile = computed(() => {
     return window.innerWidth < 768
 })
 
-// Match Bangumi Feature
-const showSearchDialog = ref(false);
+// Modify Content Feature
+const showModifyDialog = ref(false);
+const activeTab = ref<'general' | 'bangumi'>('general');
+const currentTitle = ref('');
+const isSaving = ref(false);
+
 const searchQuery = ref('');
 const searchResults = ref<any[]>([]);
 const searching = ref(false);
@@ -62,9 +67,44 @@ const initApis = async () => {
     bangumiApi = bangumiApiModule.createBangumiApi(client);
 };
 
-const openSearchDialog = async () => {
+const openModifyDialog = async () => {
     await initApis();
-    showSearchDialog.value = true;
+    const contentId = Number(router.currentRoute.value.params.contentId);
+    if (!contentId || !contentApi) return;
+
+    try {
+        const content = await contentApi.get(contentId);
+        currentTitle.value = content.title;
+        showModifyDialog.value = true;
+        // Reset search state
+        searchQuery.value = '';
+        searchResults.value = [];
+        searchFinished.value = false;
+        activeTab.value = 'general';
+    } catch (e) {
+        toast.error('Failed to load content details');
+        console.error(e);
+    }
+};
+
+const saveTitle = async () => {
+    if (!contentApi || !currentTitle.value.trim()) return;
+    const contentId = Number(router.currentRoute.value.params.contentId);
+    
+    isSaving.value = true;
+    try {
+        await contentApi.update(contentId, { title: currentTitle.value });
+        toast.success('Title updated successfully');
+        
+        // Refresh content
+        // Force reload to reflect changes
+        window.location.reload();
+    } catch (e) {
+        toast.error('Failed to update title');
+        console.error(e);
+    } finally {
+        isSaving.value = false;
+    }
 };
 
 const performSearch = async () => {
@@ -95,8 +135,9 @@ const handleSelectResult = async (item: any) => {
     if (!contentId) return;
 
     try {
-        await contentApi.updateMetadata(contentId, item);
-        showSearchDialog.value = false;
+        // Update local metadata
+        await contentApi.update(contentId, { metadata: item });
+
         toast.success('Metadata updated successfully');
 
         // Refresh content
@@ -130,9 +171,9 @@ const handleSelectResult = async (item: any) => {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem @click="openSearchDialog">
-                            <Search class="mr-2 size-4" />
-                            <span>Match Bangumi</span>
+                        <DropdownMenuItem @click="openModifyDialog">
+                            <Pencil class="mr-2 size-4" />
+                            <span>Modify Content</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -144,38 +185,81 @@ const handleSelectResult = async (item: any) => {
         </div>
     </header>
 
-    <Dialog v-model:open="showSearchDialog">
+    <Dialog v-model:open="showModifyDialog">
         <DialogContent class="sm:max-w-[600px]">
             <DialogHeader>
-                <DialogTitle>Match Bangumi Subject</DialogTitle>
+                <DialogTitle>Modify Content</DialogTitle>
             </DialogHeader>
-            <div class="flex gap-2 my-4">
-                <Input v-model="searchQuery" placeholder="Search Bangumi..." @keyup.enter="performSearch" />
-                <Button @click="performSearch" :disabled="searching">
-                    <Loader2 v-if="searching" class="animate-spin" />
-                    <Search v-else />
-                </Button>
+
+            <!-- Custom Tabs -->
+            <div class="flex space-x-1 rounded-lg bg-muted p-1">
+                <button
+                    @click="activeTab = 'general'"
+                    :class="[
+                        'flex-1 flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                        activeTab === 'general' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+                    ]"
+                >
+                    <Pencil class="mr-2 size-4" />
+                    General
+                </button>
+                <button
+                    @click="activeTab = 'bangumi'"
+                    :class="[
+                        'flex-1 flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                        activeTab === 'bangumi' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+                    ]"
+                >
+                    <Search class="mr-2 size-4" />
+                    Match Bangumi
+                </button>
             </div>
 
-            <div class="max-h-[60vh] overflow-y-auto space-y-2">
-                <div v-for="item in searchResults" :key="item.id"
-                    class="flex gap-4 p-3 rounded-lg border hover:bg-muted cursor-pointer transition-colors"
-                    @click="handleSelectResult(item)">
-                    <img v-if="item.images?.common || item.images?.medium"
-                        :src="item.images.common || item.images.medium"
-                        class="w-16 h-24 object-cover rounded shadow-sm" />
-                    <div v-else class="w-16 h-24 bg-muted rounded flex items-center justify-center">
-                        <span class="text-xs text-muted-foreground">No Img</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="font-bold truncate">{{ item.name_cn || item.name }}</div>
-                        <div class="text-sm text-muted-foreground">{{ item.date }}</div>
-                        <div class="text-xs text-muted-foreground mt-1 line-clamp-2">{{ item.summary }}</div>
-                    </div>
+            <!-- General Tab Content -->
+            <div v-if="activeTab === 'general'" class="py-4 space-y-4">
+                <div class="space-y-2">
+                    <Label for="title">Title</Label>
+                    <Input id="title" v-model="currentTitle" placeholder="Content title" />
                 </div>
-                <div v-if="searchResults.length === 0 && !searching && searchQuery.length !== 0 && searchFinished"
-                    class="text-center text-muted-foreground py-4">
-                    No results found
+                <div class="flex justify-end">
+                    <Button @click="saveTitle" :disabled="isSaving">
+                        <Loader2 v-if="isSaving" class="mr-2 size-4 animate-spin" />
+                        <Save v-else class="mr-2 size-4" />
+                        Save Changes
+                    </Button>
+                </div>
+            </div>
+
+            <!-- Bangumi Tab Content -->
+            <div v-else class="space-y-4">
+                <div class="flex gap-2 mt-2">
+                    <Input v-model="searchQuery" placeholder="Search Bangumi..." @keyup.enter="performSearch" />
+                    <Button @click="performSearch" :disabled="searching">
+                        <Loader2 v-if="searching" class="animate-spin" />
+                        <Search v-else />
+                    </Button>
+                </div>
+
+                <div class="max-h-[50vh] overflow-y-auto space-y-2">
+                    <div v-for="item in searchResults" :key="item.id"
+                        class="flex gap-4 p-3 rounded-lg border hover:bg-muted cursor-pointer transition-colors"
+                        @click="handleSelectResult(item)">
+                        <img v-if="item.images?.common || item.images?.medium"
+                            :src="item.images.common || item.images.medium"
+                            class="w-16 h-24 object-cover rounded shadow-sm" />
+                        <div v-else class="w-16 h-24 bg-muted rounded flex items-center justify-center">
+                            <span class="text-xs text-muted-foreground">No Img</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold truncate">{{ item.name_cn || item.name }}</div>
+                            <div class="text-sm text-muted-foreground">{{ item.date }}</div>
+                            <div class="text-xs text-muted-foreground mt-1 line-clamp-2">{{ item.summary }}</div>
+                        </div>
+                    </div>
+                    <div v-if="searchResults.length === 0 && !searching && searchQuery.length !== 0 && searchFinished"
+                        class="text-center text-muted-foreground py-4">
+                        No results found
+                    </div>
                 </div>
             </div>
         </DialogContent>

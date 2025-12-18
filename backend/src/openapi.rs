@@ -8,7 +8,7 @@
 use utoipa::OpenApi;
 
 use crate::handlers::content::{
-    ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
+    ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateContentRequest,
 };
 use crate::handlers::filesystem::DirectoryEntry;
 use crate::handlers::library::{AddScanPathRequest, ScanPathParams};
@@ -61,7 +61,7 @@ use crate::models::{
         crate::openapi::paths::search_contents,
         crate::openapi::paths::get_content,
         crate::openapi::paths::delete_content,
-        crate::openapi::paths::update_metadata,
+        crate::openapi::paths::update,
         crate::openapi::paths::get_thumbnail,
         crate::openapi::paths::list_chapters,
         crate::openapi::paths::get_page,
@@ -103,7 +103,7 @@ use crate::models::{
             ChapterTextResponse,
             ChapterTextParams,
             PageParams,
-            UpdateMetadataRequest,
+            UpdateContentRequest,
             // Progress schemas
             ProgressResponse,
             ContentProgressResponse,
@@ -129,7 +129,7 @@ pub mod paths {
     #![allow(unused_imports)]
 
     use crate::handlers::content::{
-        ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
+        ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateContentRequest,
     };
     use crate::handlers::library::AddScanPathRequest;
     use crate::handlers::progress::{RecentProgressQuery, UpdateProgressWithPercentageRequest};
@@ -380,21 +380,21 @@ pub mod paths {
     )]
     pub async fn delete_content() {}
 
-    /// Update content metadata
+    /// Update content information
     #[utoipa::path(
         put,
-        path = "/api/contents/{id}/metadata",
+        path = "/api/contents/{id}",
         tag = "contents",
         params(
             ("id" = i64, Path, description = "Content ID")
         ),
-        request_body = UpdateMetadataRequest,
+        request_body = UpdateContentRequest,
         responses(
-            (status = 200, description = "Metadata updated", body = ContentResponse),
+            (status = 200, description = "Content updated", body = ContentResponse),
             (status = 404, description = "Content not found")
         )
     )]
-    pub async fn update_metadata() {}
+    pub async fn update() {}
 
     /// Get content thumbnail
     #[utoipa::path(
