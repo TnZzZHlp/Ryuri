@@ -71,3 +71,5 @@ jobs:
     permissions:
       contents: read
       packages: write
+    with:
+      tag: ${{ github.ref_name }}
