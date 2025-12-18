@@ -950,7 +950,6 @@ impl ScanQueueService {
     /// Requirements: 2.3, 6.3
     pub async fn list_history(&self, limit: usize) -> Vec<ScanTask> {
         let tasks = self.tasks.read().await;
-        let cutoff = chrono::Utc::now() - chrono::Duration::hours(24);
 
         let mut history: Vec<ScanTask> = tasks
             .values()
@@ -958,7 +957,7 @@ impl ScanQueueService {
                 matches!(
                     t.status,
                     TaskStatus::Completed | TaskStatus::Failed | TaskStatus::Cancelled
-                ) && t.created_at >= cutoff
+                )
             })
             .cloned()
             .collect();
