@@ -125,6 +125,9 @@ async fn main() -> Result<(), AppError> {
     info!("Starting scan queue worker...");
     state.scan_queue_service.start_worker().await;
 
+    // Restore scheduled scans
+    state.scheduler_service.restore_schedules(&state.pool).await;
+
     let app = create_router_with_layers(state);
 
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
