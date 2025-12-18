@@ -25,6 +25,10 @@ use crate::repository::content::{ChapterRepository, ContentRepository};
 use crate::repository::library::ScanPathRepository;
 use crate::services::bangumi::BangumiService;
 
+
+type ChapterEntry = (String, String, i32);
+type DetectContentResult = Result<(ContentType, Vec<ChapterEntry>)>;
+
 // ============================================================================
 // ScanResult
 // ============================================================================
@@ -323,13 +327,14 @@ impl ScanService {
         }
     }
 
+
     /// Detect content type based on archive files and return sorted chapters.
     ///
     /// Requirements: 2.2, 2.3
     fn detect_content_type_and_chapters(
         &self,
         folder_path: &Path,
-    ) -> Result<(ContentType, Vec<(String, String, i32)>)> {
+    ) -> DetectContentResult {
         let mut comic_files = Vec::new();
         let mut novel_files = Vec::new();
 
