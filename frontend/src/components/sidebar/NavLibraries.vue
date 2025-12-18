@@ -179,7 +179,7 @@ onBeforeMount(() => {
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction @click="handleConfirmDelete"
-                    class="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    class="bg-destructive hover:bg-destructive/90">
                     Delete
                 </AlertDialogAction>
             </AlertDialogFooter>
