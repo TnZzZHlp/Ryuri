@@ -16,7 +16,7 @@ use tracing::Level;
 use tower_http::{LatencyUnit, trace::DefaultOnResponse};
 
 use crate::handlers::{
-    apikey, auth, bangumi, content, filesystem, komga, library, progress, scan_queue, static_files,
+    apikey, auth, content, filesystem, komga, library, progress, scan_queue, static_files,
 };
 use crate::middlewares::auth_middleware;
 use crate::state::AppState;
@@ -94,7 +94,10 @@ pub fn create_router(state: AppState) -> Router {
             delete(library::remove_path),
         )
         .route("/api/libraries/{library_id}/contents", get(content::list))
-        .route("/api/libraries/{library_id}/scan", post(scan_queue::submit_scan))
+        .route(
+            "/api/libraries/{library_id}/scan",
+            post(scan_queue::submit_scan),
+        )
         .route("/api/libraries/{library_id}/search", get(content::search))
         // Scan queue routes
         .route("/api/scan-tasks", get(scan_queue::list_tasks))
@@ -107,9 +110,18 @@ pub fn create_router(state: AppState) -> Router {
             "/api/contents/{content_id}",
             get(content::get).delete(content::delete),
         )
-        .route("/api/contents/{content_id}/metadata", put(content::update_metadata))
-        .route("/api/contents/{content_id}/thumbnail", get(content::get_thumbnail))
-        .route("/api/contents/{content_id}/chapters", get(content::list_chapters))
+        .route(
+            "/api/contents/{content_id}/metadata",
+            put(content::update_metadata),
+        )
+        .route(
+            "/api/contents/{content_id}/thumbnail",
+            get(content::get_thumbnail),
+        )
+        .route(
+            "/api/contents/{content_id}/chapters",
+            get(content::list_chapters),
+        )
         .route(
             "/api/contents/{content_id}/progress",
             get(progress::get_content_progress),
@@ -135,8 +147,6 @@ pub fn create_router(state: AppState) -> Router {
             get(apikey::list_api_keys).post(apikey::create_api_key),
         )
         .route("/api/api-keys/{id}", delete(apikey::delete_api_key))
-        // Bangumi routes
-        .route("/api/bangumi/search", get(bangumi::search))
         // Filesystem routes
         .route("/api/filesystem", get(filesystem::list_directories))
         // Apply authentication middleware to all protected routes

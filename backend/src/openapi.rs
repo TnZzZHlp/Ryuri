@@ -7,7 +7,6 @@
 
 use utoipa::OpenApi;
 
-use crate::handlers::bangumi::BangumiSearchQuery;
 use crate::handlers::content::{
     ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
 };
@@ -21,7 +20,6 @@ use crate::models::{
     UpdateLibraryRequest, UpdatePasswordRequest, UpdateProgressRequest, UpdateUserRequest,
     UserResponse,
 };
-use crate::services::bangumi::BangumiSearchResult;
 
 /// OpenAPI documentation for the Comic Reader API.
 ///
@@ -41,7 +39,6 @@ use crate::services::bangumi::BangumiSearchResult;
         (name = "chapters", description = "Chapter and reading endpoints"),
         (name = "progress", description = "Reading progress endpoints"),
         (name = "scan-tasks", description = "Scan queue management endpoints"),
-        (name = "bangumi", description = "Bangumi metadata endpoints"),
         (name = "filesystem", description = "Filesystem navigation endpoints")
     ),
     paths(
@@ -79,8 +76,6 @@ use crate::services::bangumi::BangumiSearchResult;
         crate::openapi::paths::get_task,
         crate::openapi::paths::list_tasks,
         crate::openapi::paths::cancel_task,
-        // Bangumi endpoints
-        crate::openapi::paths::search_bangumi,
         // Filesystem endpoints
         crate::handlers::filesystem::list_directories,
     ),
@@ -119,9 +114,6 @@ use crate::services::bangumi::BangumiSearchResult;
             ScanTask,
             SubmitScanResponse,
             ListTasksResponse,
-            // Bangumi schemas
-            BangumiSearchQuery,
-            BangumiSearchResult,
             // Filesystem schemas
             DirectoryEntry,
         )
@@ -136,7 +128,6 @@ pub struct ApiDoc;
 pub mod paths {
     #![allow(unused_imports)]
 
-    use crate::handlers::bangumi::BangumiSearchQuery;
     use crate::handlers::content::{
         ChapterTextParams, ChapterTextResponse, PageParams, SearchQuery, UpdateMetadataRequest,
     };
@@ -148,7 +139,6 @@ pub mod paths {
         LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath, ScanTask,
         UpdateLibraryRequest, UpdatePasswordRequest, UpdateUserRequest, UserResponse,
     };
-    use crate::services::bangumi::BangumiSearchResult;
 
     // ========================================================================
     // Auth endpoints
@@ -538,24 +528,6 @@ pub mod paths {
         )
     )]
     pub async fn update_chapter_progress() {}
-
-    // ========================================================================
-    // Bangumi endpoints
-    // ========================================================================
-
-    /// Search for content on Bangumi.tv
-    #[utoipa::path(
-        get,
-        path = "/api/bangumi/search",
-        tag = "bangumi",
-        params(
-            ("q" = String, Query, description = "Search query")
-        ),
-        responses(
-            (status = 200, description = "Search results", body = Vec<BangumiSearchResult>)
-        )
-    )]
-    pub async fn search_bangumi() {}
 
     // ========================================================================
     // Scan queue endpoints

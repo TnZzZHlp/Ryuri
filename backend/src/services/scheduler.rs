@@ -10,10 +10,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
-use tracing::{debug, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
+use sqlx::{Pool, Sqlite};
 
 use crate::error::Result;
 use crate::models::TaskPriority;
+use crate::repository::library::LibraryRepository;
 use crate::services::scan_queue::ScanQueueService;
 
 /// Information about a scheduled scan task.
@@ -181,6 +183,33 @@ impl SchedulerService {
     /// This cancels the existing schedule and creates a new one with the updated interval.
     pub async fn update_interval(&self, library_id: i64, interval_minutes: i32) -> Result<()> {
         self.schedule_scan(library_id, interval_minutes).await
+    }
+
+    /// Restore scheduled scans from the database.
+    pub async fn restore_schedules(&self, pool: &Pool<Sqlite>) {
+        info!("Restoring scheduled scans...");
+        match LibraryRepository::list(pool).await {
+            Ok(libraries) => {
+                let mut count = 0;
+                for lib in libraries {
+                    if lib.scan_interval > 0 {
+                        if let Err(e) = self.schedule_scan(lib.id, lib.scan_interval).await {
+                            warn!(
+                                library_id = lib.id,
+                                error = %e,
+                                "Failed to restore schedule for library"
+                            );
+                        } else {
+                            count += 1;
+                        }
+                    }
+                }
+                info!(count = count, "Scheduled scans restored");
+            }
+            Err(e) => {
+                error!(error = %e, "Failed to load libraries for schedule restoration");
+            }
+        }
     }
 
     /// Cancel all scheduled scans (for shutdown).

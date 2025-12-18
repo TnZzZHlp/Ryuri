@@ -1,8 +1,6 @@
 name: Create and publish a Docker image
 
 on:
-  push:
-    branches: ['main', 'dev']
   workflow_dispatch:
     inputs:
       tag:
@@ -30,6 +28,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_call.inputs.tag || github.event.inputs.tag || github.ref_name }}
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3

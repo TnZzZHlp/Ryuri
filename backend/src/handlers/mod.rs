@@ -5,7 +5,6 @@
 
 pub mod auth;
 pub mod apikey;
-pub mod bangumi;
 pub mod content;
 pub mod filesystem;
 pub mod komga;

@@ -7,35 +7,43 @@
  */
 
 import { ApiClient } from "./client";
-import type { BangumiSearchResult } from "./types";
 
 /**
  * Bangumi API interface.
  */
 export interface BangumiApi {
-    search(query: string): Promise<BangumiSearchResult[]>;
+    searchSubjects(options: Record<string, any>): Promise<any[]>;
 }
 
 /**
  * Creates a Bangumi API instance using the provided API client.
  *
- * @param client - The API client to use for HTTP requests
+ * @param _client - The API client (unused in new implementation but kept for signature compatibility)
  * @returns A BangumiApi implementation
  */
-export function createBangumiApi(client: ApiClient): BangumiApi {
+export function createBangumiApi(_client: ApiClient): BangumiApi {
     return {
         /**
-         * Searches for content on Bangumi.tv by keyword.
+         * Searches for subjects using Bangumi v0 API.
          *
-         * **Implements: Requirement 7.1**
-         *
-         * @param query - The search query string
-         * @returns Array of matching BangumiSearchResult objects
+         * @param options - Search options
+         * @returns Array of raw subject data
          */
-        async search(query: string): Promise<BangumiSearchResult[]> {
-            return client.get<BangumiSearchResult[]>("/api/bangumi/search", {
-                params: { q: query },
+        async searchSubjects(options: Record<string, any>): Promise<any[]> {
+            const response = await fetch("https://api.bgm.tv/v0/search/subjects", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(options),
             });
+
+            if (!response.ok) {
+                throw new Error(`Bangumi API error: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.data;
         },
     };
 }

@@ -153,17 +153,19 @@ impl ContentRepository {
         pool: &Pool<Sqlite>,
         id: i64,
         metadata: Option<serde_json::Value>,
+        thumbnail: Option<Vec<u8>>,
     ) -> Result<Content> {
         let now = Utc::now().to_rfc3339();
 
         sqlx::query(
             r#"
             UPDATE contents
-            SET metadata = ?, updated_at = ?
+            SET metadata = ?, thumbnail = ?, updated_at = ?
             WHERE id = ?
             "#,
         )
         .bind(metadata.as_ref().map(|m| m.to_string()))
+        .bind(&thumbnail)
         .bind(&now)
         .bind(id)
         .execute(pool)
