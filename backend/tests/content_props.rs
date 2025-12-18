@@ -40,12 +40,6 @@ fn arb_content_title() -> impl Strategy<Value = String> {
         .prop_filter("Title must not be empty", |s| !s.is_empty())
 }
 
-/// Strategy to generate valid file paths.
-fn arb_path() -> impl Strategy<Value = String> {
-    "[a-zA-Z][a-zA-Z0-9_/\\-]{0,99}"
-        .prop_map(|s| s.trim().to_string())
-        .prop_filter("Path must not be empty", |s| !s.is_empty())
-}
 
 /// Helper function to create a test library.
 async fn create_test_library(pool: &Pool<Sqlite>, name: &str) -> i64 {
