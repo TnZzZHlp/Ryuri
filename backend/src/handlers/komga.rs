@@ -684,6 +684,24 @@ fn extract_bangumi_metadata(metadata: &Option<serde_json::Value>) -> BangumiMeta
     }
 }
 
+fn format_size(size: i64) -> String {
+    const KB: f64 = 1024.0;
+    const MB: f64 = KB * 1024.0;
+    const GB: f64 = MB * 1024.0;
+
+    let size = size as f64;
+
+    if size >= GB {
+        format!("{:.2} GB", size / GB)
+    } else if size >= MB {
+        format!("{:.2} MB", size / MB)
+    } else if size >= KB {
+        format!("{:.2} KB", size / KB)
+    } else {
+        format!("{} B", size)
+    }
+}
+
 fn chapter_to_book_dto(chapter: Chapter, content: &Content) -> BookDto {
     BookDto {
         id: chapter.id.to_string(),
@@ -694,8 +712,8 @@ fn chapter_to_book_dto(chapter: Chapter, content: &Content) -> BookDto {
         created: None,                     // Chapter doesn't have created_at in struct
         last_modified: None,
         file_last_modified: Utc::now(), // default
-        size_bytes: 0,                  // Not available
-        size: "0 B".to_string(),
+        size_bytes: chapter.size,
+        size: format_size(chapter.size),
         media: MediaDto {
             status: "READY".to_string(),
             media_type: match content.content_type {

@@ -25,7 +25,7 @@ use crate::repository::content::{ChapterRepository, ContentRepository};
 use crate::repository::library::ScanPathRepository;
 use crate::services::bangumi::BangumiService;
 
-type ChapterEntry = (String, String, i32);
+type ChapterEntry = (String, String, i32, i64);
 type DetectContentResult = Result<(ContentType, Vec<ChapterEntry>)>;
 
 // ============================================================================
@@ -264,12 +264,13 @@ impl ScanService {
         let new_chapters: Vec<NewChapter> = chapters
             .into_iter()
             .enumerate()
-            .map(|(idx, (chapter_title, file_path, page_count))| NewChapter {
+            .map(|(idx, (chapter_title, file_path, page_count, size))| NewChapter {
                 content_id: content.id,
                 title: chapter_title,
                 file_path,
                 sort_order: idx as i32,
                 page_count,
+                size,
             })
             .collect();
 
@@ -335,17 +336,19 @@ impl ScanService {
         let mut new_chapters = Vec::new();
 
         // Iterate over disk chapters
-        for (idx, (title, file_path, page_count)) in disk_chapters.into_iter().enumerate() {
+        for (idx, (title, file_path, page_count, size)) in disk_chapters.into_iter().enumerate() {
             let sort_order = idx as i32;
 
             if let Some(existing_chapter) = db_chapters_map.remove(&file_path) {
-                // Check if we need to update sort_order or page_count
+                // Check if we need to update sort_order or page_count or size
                 if existing_chapter.sort_order != sort_order
                     || existing_chapter.page_count != page_count
+                    || existing_chapter.size != size
                 {
-                    sqlx::query("UPDATE chapters SET sort_order = ?, page_count = ? WHERE id = ?")
+                    sqlx::query("UPDATE chapters SET sort_order = ?, page_count = ?, size = ? WHERE id = ?")
                         .bind(sort_order)
                         .bind(page_count)
+                        .bind(size)
                         .bind(existing_chapter.id)
                         .execute(&self.pool)
                         .await
@@ -359,6 +362,7 @@ impl ScanService {
                     file_path,
                     sort_order,
                     page_count,
+                    size,
                 });
             }
         }
@@ -462,7 +466,7 @@ impl ScanService {
 
         // Create chapter entries (title derived from filename without extension)
         // And calculate page count
-        let mut chapters: Vec<(String, String, i32)> = Vec::with_capacity(files.len());
+        let mut chapters: Vec<(String, String, i32, i64)> = Vec::with_capacity(files.len());
 
         for path in files {
             let title = path
@@ -489,8 +493,17 @@ impl ScanService {
                     }
                 },
             };
+            
+            // Calculate file size
+            let size = match std::fs::metadata(&path) {
+                Ok(metadata) => metadata.len() as i64,
+                Err(e) => {
+                    warn!(path = ?path, error = %e, "Failed to get file metadata");
+                    0
+                }
+            };
 
-            chapters.push((title, file_path, page_count));
+            chapters.push((title, file_path, page_count, size));
         }
 
         Ok((content_type, chapters))

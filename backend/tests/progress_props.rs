@@ -105,6 +105,7 @@ async fn create_test_content_with_chapters(
                 file_path: format!("/test/chapter_{}.cbz", i),
                 sort_order: i,
                 page_count: 10,
+                size: 1024,
             },
         )
         .await

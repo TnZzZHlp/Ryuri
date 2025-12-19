@@ -14,7 +14,12 @@ import {
     FileText,
     Star,
     List,
-    ChevronRight
+    ChevronRight,
+    Clapperboard,
+    Music,
+    Palette,
+    Tv,
+    Layers
 } from 'lucide-vue-next';
 import type { Chapter, ContentProgressResponse } from '@/api/types';
 import { toast } from 'vue-sonner';
@@ -61,7 +66,7 @@ onBeforeMount(async () => {
         // Update store with fetched content
         // This will update the computed 'content' property
         contentStore.selectContent(contentData);
-        
+
         progress.value = progressData;
         if (progressData?.current_chapter_id) {
             lastReadChapterId.value = progressData.current_chapter_id;
@@ -93,13 +98,21 @@ const getMetaValue = (key: string): any => {
     return null;
 };
 
+const getInfoboxValue = (key: string) => {
+    const infobox = getMetaValue('infobox');
+    if (Array.isArray(infobox)) {
+        return infobox.find((item: any) => item.key === key)?.value;
+    }
+    return null;
+};
+
 const author = computed(() => {
     const infobox = getMetaValue('infobox')
     // Find the field with key '作者'
     return infobox?.find((item: any) => item.key === '作者')?.value || 'Unknown Author';
 });
-const publisher = computed(() => getMetaValue('publisher'));
-const publishDate = computed(() => getMetaValue('publish_date') || getMetaValue('date'));
+const publisher = computed(() => getMetaValue('publisher') || getInfoboxValue('出版社'));
+const publishDate = computed(() => getMetaValue('publish_date') || getMetaValue('date') || getInfoboxValue('发售日'));
 const isbn = computed(() => getMetaValue('isbn'));
 const pageCount = computed(() => getMetaValue('page_count') || getMetaValue('pages'));
 const description = computed(() => getMetaValue('description') || getMetaValue('summary'));
@@ -108,6 +121,20 @@ const rating = computed(() => {
     return r?.score ?? null;
 });
 const originalName = computed(() => getMetaValue('name'));
+const nameCn = computed(() => getMetaValue('name_cn') || getInfoboxValue('中文名'));
+const platform = computed(() => getMetaValue('platform'));
+const serializedIn = computed(() => getInfoboxValue('连载杂志'));
+const director = computed(() => getInfoboxValue('导演'));
+const characterDesign = computed(() => getInfoboxValue('人物设定'));
+const music = computed(() => getInfoboxValue('音乐'));
+const totalEpisodes = computed(() => {
+    const eps = getMetaValue('eps');
+    return eps && eps > 0 ? eps : null;
+});
+const totalVolumes = computed(() => {
+    const vols = getMetaValue('volumes');
+    return vols && vols > 0 ? vols : null;
+});
 
 const tags = computed(() => {
     const t = getMetaValue('tags');
@@ -203,7 +230,11 @@ const handleStartReading = (chapterId?: number) => {
                 <h1 class="text-3xl font-bold text-foreground mb-3">
                     {{ content.title }}
                 </h1>
-                <h2 v-if="originalName" class="text-lg text-muted-foreground mb-3">
+                <h2 v-if="nameCn && nameCn !== content.title" class="text-xl text-foreground/80 mb-2">
+                    {{ nameCn }}
+                </h2>
+                <h2 v-if="originalName && originalName !== content.title && originalName !== nameCn"
+                    class="text-lg text-muted-foreground mb-3">
                     {{ originalName }}
                 </h2>
                 <!-- Author -->
@@ -235,6 +266,15 @@ const handleStartReading = (chapterId?: number) => {
 
                 <!-- Metadata Grid -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <!-- Platform -->
+                    <div v-if="platform" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
+                        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Tv class="size-4" />
+                            <span>Platform</span>
+                        </div>
+                        <span class="font-medium">{{ platform }}</span>
+                    </div>
+
                     <!-- Publisher -->
                     <div v-if="publisher" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
@@ -242,6 +282,42 @@ const handleStartReading = (chapterId?: number) => {
                             <span>Publisher</span>
                         </div>
                         <span class="font-medium">{{ publisher }}</span>
+                    </div>
+
+                    <!-- Serialized In -->
+                    <div v-if="serializedIn" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
+                        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                            <BookOpen class="size-4" />
+                            <span>Serialized In</span>
+                        </div>
+                        <span class="font-medium">{{ serializedIn }}</span>
+                    </div>
+
+                    <!-- Director -->
+                    <div v-if="director" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
+                        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Clapperboard class="size-4" />
+                            <span>Director</span>
+                        </div>
+                        <span class="font-medium">{{ director }}</span>
+                    </div>
+
+                    <!-- Character Design -->
+                    <div v-if="characterDesign" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
+                        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Palette class="size-4" />
+                            <span>Character Design</span>
+                        </div>
+                        <span class="font-medium">{{ characterDesign }}</span>
+                    </div>
+
+                    <!-- Music -->
+                    <div v-if="music" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
+                        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Music class="size-4" />
+                            <span>Music</span>
+                        </div>
+                        <span class="font-medium">{{ music }}</span>
                     </div>
 
                     <!-- Publish Date -->
@@ -271,8 +347,27 @@ const handleStartReading = (chapterId?: number) => {
                         <span class="font-medium">{{ pageCount }} pages</span>
                     </div>
 
+                    <!-- Episodes -->
+                    <div v-if="totalEpisodes" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
+                        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Tv class="size-4" />
+                            <span>Episodes</span>
+                        </div>
+                        <span class="font-medium">{{ totalEpisodes }} eps</span>
+                    </div>
+
+                    <!-- Volumes -->
+                    <div v-if="totalVolumes" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
+                        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Layers class="size-4" />
+                            <span>Volumes</span>
+                        </div>
+                        <span class="font-medium">{{ totalVolumes }} vols</span>
+                    </div>
+
                     <!-- Chapter Count (fallback) -->
-                    <div v-if="!pageCount" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
+                    <div v-if="!pageCount && !totalEpisodes && !totalVolumes"
+                        class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <FileText class="size-4" />
                             <span>Chapter Count</span>
