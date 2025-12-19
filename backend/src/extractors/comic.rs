@@ -253,10 +253,10 @@ pub fn natural_sort_key(s: &str) -> Vec<NaturalSortPart> {
 /// A part of a natural sort key - either text or a number.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NaturalSortPart {
-    /// Text portion (compared lexicographically, case-insensitive)
-    Text(String),
     /// Numeric portion (compared numerically)
     Number(u64),
+    /// Text portion (compared lexicographically, case-insensitive)
+    Text(String),
 }
 
 #[cfg(test)]
