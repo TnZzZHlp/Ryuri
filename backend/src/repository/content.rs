@@ -177,6 +177,49 @@ impl ContentRepository {
             .ok_or_else(|| AppError::NotFound(format!("Content with id {} not found", id)))
     }
 
+    /// Update content information (title, metadata, thumbnail).
+    /// Fields set to None will not be updated.
+    /// To clear metadata or thumbnail, pass Some(None).
+    pub async fn update_info(
+        pool: &Pool<Sqlite>,
+        id: i64,
+        title: Option<String>,
+        metadata: Option<Option<serde_json::Value>>,
+        thumbnail: Option<Option<Vec<u8>>>,
+    ) -> Result<Content> {
+        use sqlx::Arguments;
+        let mut query = "UPDATE contents SET updated_at = ?".to_string();
+        let mut args = sqlx::sqlite::SqliteArguments::default();
+        let _ = args.add(Utc::now().to_rfc3339());
+
+        if let Some(t) = title {
+            query.push_str(", title = ?");
+            let _ = args.add(t);
+        }
+
+        if let Some(m_opt) = metadata {
+            query.push_str(", metadata = ?");
+            let _ = args.add(m_opt.map(|v| v.to_string()));
+        }
+
+        if let Some(t_opt) = thumbnail {
+            query.push_str(", thumbnail = ?");
+            let _ = args.add(t_opt);
+        }
+
+        query.push_str(" WHERE id = ?");
+        let _ = args.add(id);
+
+        sqlx::query_with(&query, args)
+            .execute(pool)
+            .await
+            .map_err(AppError::Database)?;
+
+        Self::find_by_id(pool, id)
+            .await?
+            .ok_or_else(|| AppError::NotFound(format!("Content with id {} not found", id)))
+    }
+
     /// Update content thumbnail.
     pub async fn update_thumbnail(
         pool: &Pool<Sqlite>,

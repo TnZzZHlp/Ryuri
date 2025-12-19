@@ -182,31 +182,46 @@ impl ContentService {
         }
     }
 
-    /// Update content metadata.
-    pub async fn update_metadata(
+    /// Update content information.
+    pub async fn update_content(
         pool: &Pool<Sqlite>,
-        content_id: i64,
+        id: i64,
+        title: Option<String>,
         metadata: Option<serde_json::Value>,
     ) -> Result<Content> {
         // First verify the content exists
-        let _content = Self::get_content(pool, content_id).await?;
+        let _content = Self::get_content(pool, id).await?;
 
-        let thumbnail = if let Some(metadata) = metadata.clone() {
+        // Handle thumbnail logic if metadata is updated
+        let thumbnail_update = if let Some(meta) = &metadata {
             // If we have metadata with cover image, use it
-            if let Some(cover_data) = metadata
+            if let Some(cover_data) = meta
                 .get("images")
                 .and_then(|v| v.get("common"))
                 .and_then(|s| s.as_str())
             {
-                crate::utils::download_image(cover_data).await.ok()
+                // New thumbnail found
+                Some(crate::utils::download_image(cover_data).await.ok())
             } else {
-                None
+                // Metadata provided but no image -> Clear thumbnail?
+                // Or maybe we should keep the old one?
+                // Logic: If new metadata is provided, it replaces the old one.
+                // If it doesn't have an image, the content probably shouldn't have one either (from metadata source).
+                // So we set it to None.
+                Some(None)
             }
         } else {
+            // Metadata not updated -> Thumbnail not updated
             None
         };
 
-        ContentRepository::update_metadata(pool, content_id, metadata, thumbnail).await
+        // Convert metadata to Option<Option<Value>> for the repository
+        // Some(Some(v)) -> Update to v
+        // None -> Don't update
+        // We don't support "Clear" (Some(None)) via this API yet, as Option<Value> doesn't distinguish missing vs null easily.
+        let metadata_update = metadata.map(Some);
+
+        ContentRepository::update_info(pool, id, title, metadata_update, thumbnail_update).await
     }
 
     /// Get thumbnail for a content.

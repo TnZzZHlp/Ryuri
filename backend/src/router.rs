@@ -108,11 +108,9 @@ pub fn create_router(state: AppState) -> Router {
         // Content routes
         .route(
             "/api/contents/{content_id}",
-            get(content::get).delete(content::delete),
-        )
-        .route(
-            "/api/contents/{content_id}/metadata",
-            put(content::update_metadata),
+            get(content::get)
+                .put(content::update)
+                .delete(content::delete),
         )
         .route(
             "/api/contents/{content_id}/thumbnail",

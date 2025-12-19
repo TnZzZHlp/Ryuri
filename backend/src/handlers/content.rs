@@ -167,24 +167,33 @@ pub async fn get_chapter_text(
     Ok(Json(ChapterTextResponse { text }))
 }
 
-/// Request body for metadata update.
+/// Request body for content update.
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
-pub struct UpdateMetadataRequest {
+pub struct UpdateContentRequest {
+    /// The new title.
+    #[serde(default)]
+    pub title: Option<String>,
     /// The metadata JSON blob to store.
-    /// Pass null to clear metadata.
+    #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 }
 
-/// PUT /api/contents/{id}/metadata
+/// PUT /api/contents/{id}
 ///
-/// Updates the metadata for a content item.
-pub async fn update_metadata(
+/// Updates content information.
+pub async fn update(
     State(state): State<AppState>,
     Path(content_id): Path<i64>,
-    Json(request): Json<UpdateMetadataRequest>,
+    Json(request): Json<UpdateContentRequest>,
 ) -> Result<Json<ContentResponse>> {
-    let content = ContentService::update_metadata(&state.pool, content_id, request.metadata).await?;
+    let content = ContentService::update_content(
+        &state.pool,
+        content_id,
+        request.title,
+        request.metadata,
+    )
+    .await?;
     Ok(Json(ContentResponse::from(content)))
 }
 

@@ -230,10 +230,11 @@ export interface ChapterTextResponse {
 }
 
 /**
- * Request to update content metadata.
+ * Request to update content information.
  */
-export interface UpdateMetadataRequest {
-    metadata: unknown | null;
+export interface UpdateContentRequest {
+    title?: string;
+    metadata?: unknown | null;
 }
 
 // ============================================================================

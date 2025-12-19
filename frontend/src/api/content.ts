@@ -12,7 +12,7 @@ import type {
     ContentResponse,
     Chapter,
     SubmitScanResponse,
-    UpdateMetadataRequest,
+    UpdateContentRequest,
 } from "./types";
 
 /**
@@ -23,9 +23,9 @@ export interface ContentApi {
     search(libraryId: number, query: string): Promise<ContentResponse[]>;
     get(id: number): Promise<ContentResponse>;
     delete(id: number): Promise<void>;
-    updateMetadata(
+    update(
         id: number,
-        metadata: unknown | null
+        data: UpdateContentRequest
     ): Promise<ContentResponse>;
     listChapters(contentId: number): Promise<Chapter[]>;
     triggerScan(libraryId: number): Promise<SubmitScanResponse>;
@@ -99,22 +99,21 @@ export function createContentApi(client: ApiClient): ContentApi {
         },
 
         /**
-         * Updates the metadata for a content item.
+         * Updates content information.
          *
          * **Implements: Requirement 4.6**
          *
          * @param id - The content ID
-         * @param metadata - The metadata to set (or null to clear)
+         * @param data - The update data (title, metadata)
          * @returns The updated content
          */
-        async updateMetadata(
+        async update(
             id: number,
-            metadata: unknown | null
+            data: UpdateContentRequest
         ): Promise<ContentResponse> {
-            const request: UpdateMetadataRequest = { metadata };
             return client.put<ContentResponse>(
-                `/api/contents/${id}/metadata`,
-                request
+                `/api/contents/${id}`,
+                data
             );
         },
 
