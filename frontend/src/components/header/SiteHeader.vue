@@ -130,22 +130,22 @@ const saveContent = async () => {
     isSaving.value = true;
     try {
         // Update content
-        await contentApi.update(contentId, { 
+        await contentApi.update(contentId, {
             title: currentTitle.value,
-            metadata: metadata 
+            metadata: metadata
         });
         toast.success('Content updated successfully');
-                
+
         // Retrieve fresh content data
         const freshContent = await contentApi.get(contentId);
         contentStore.updateContentInStore(freshContent);
-        
+
         // Refresh library list (to ensure correct sort order if title changed)
         const libraryId = Number(router.currentRoute.value.params.libraryId);
         if (libraryId) {
             contentStore.fetchContents(libraryId, true);
         }
-        
+
         // Force refresh thumbnail if metadata changed
         if (metadata) {
             contentStore.invalidateThumbnailCache(contentId);
@@ -195,7 +195,7 @@ const handleSelectResult = async (item: any) => {
         // Retrieve fresh content data
         const freshContent = await contentApi.get(contentId);
         contentStore.updateContentInStore(freshContent);
-        
+
         // Refresh library list
         const libraryId = Number(router.currentRoute.value.params.libraryId);
         if (libraryId) {
@@ -203,7 +203,7 @@ const handleSelectResult = async (item: any) => {
         }
 
         contentStore.invalidateThumbnailCache(contentId);
-        
+
         showModifyDialog.value = false;
     } catch (e) {
         toast.error('Failed to update metadata');
@@ -217,7 +217,7 @@ const handleSelectResult = async (item: any) => {
     <header
         class="flex h-(--header-height) shrink-0 items-center gap-2 border-b text-foreground transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
         <div class="flex w-full items-center justify-between gap-1 px-4 lg:gap-2 lg:px-6">
-            <div class="flex items-center">
+            <div class="flex items-center gap-2">
                 <SidebarTrigger class="-ml-1" v-if="is_mobile" />
                 <ArrowLeft @click="router.push(`/library/${router.currentRoute.value.params.libraryId}`)"
                     v-if="router.currentRoute.value.name == 'Content'" class="cursor-pointer" :size=20 />
@@ -277,7 +277,8 @@ const handleSelectResult = async (item: any) => {
                 </div>
                 <div class="space-y-2">
                     <Label for="metadata">Metadata (JSON)</Label>
-                    <div class="border rounded-md overflow-hidden h-[300px]" :class="{'border-destructive': !!jsonError}">
+                    <div class="border rounded-md overflow-hidden h-[300px]"
+                        :class="{ 'border-destructive': !!jsonError }">
                         <Codemirror v-model="currentMetadata" placeholder="Enter JSON metadata..."
                             :style="{ height: '100%' }" :autofocus="true" :indent-with-tab="true" :tab-size="2"
                             :extensions="extensions" />
