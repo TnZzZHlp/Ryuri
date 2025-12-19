@@ -220,6 +220,7 @@ export interface Chapter {
     file_path: string;
     sort_order: number;
     page_count: number;
+    size: number;
 }
 
 /**

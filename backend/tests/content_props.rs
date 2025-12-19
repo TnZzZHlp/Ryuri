@@ -119,17 +119,19 @@ async fn insert_test_chapter(
     title: &str,
     file_path: &str,
     sort_order: i32,
+    size: i64,
 ) -> i64 {
     let result = sqlx::query(
         r#"
-        INSERT INTO chapters (content_id, title, file_path, sort_order)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO chapters (content_id, title, file_path, sort_order, size)
+        VALUES (?, ?, ?, ?, ?)
         "#,
     )
     .bind(content_id)
     .bind(title)
     .bind(file_path)
     .bind(sort_order)
+    .bind(size)
     .execute(pool)
     .await
     .expect("Should insert test chapter");
@@ -275,7 +277,7 @@ proptest! {
             for i in 0..num_chapters {
                 let chapter_title = format!("Chapter {}", i + 1);
                 let file_path = format!("/path/to/{}/chapter_{}.cbz", content_title, i + 1);
-                insert_test_chapter(&pool, content_id, &chapter_title, &file_path, i as i32).await;
+                insert_test_chapter(&pool, content_id, &chapter_title, &file_path, i as i32, 1024).await;
             }
 
             // Verify chapters exist before deletion
