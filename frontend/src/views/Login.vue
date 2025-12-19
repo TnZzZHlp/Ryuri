@@ -53,7 +53,8 @@ function onSubmit(values: Record<string, unknown>) {
         <div class="flex w-full max-w-sm flex-col gap-6">
             <!-- Login Card -->
             <Card class="border-border/40 bg-card">
-                <CardHeader class="text-center">
+                <CardHeader class="flex flex-col items-center gap-2 text-center">
+                    <img src="/ryuri.svg" alt="Logo" class="size-10" />
                     <CardTitle class="text-xl">Ryuri</CardTitle>
                 </CardHeader>
                 <CardContent>

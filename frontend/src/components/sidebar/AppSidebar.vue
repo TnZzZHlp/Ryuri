@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { IconInnerShadowTop } from "@tabler/icons-vue"
 import NavMain from "./NavMain.vue";
 import NavUser from "@/components/sidebar/NavUser.vue"
 import {
@@ -31,7 +30,7 @@ onBeforeMount(() => {
                 <SidebarMenuItem>
                     <SidebarMenuButton as-child class="data-[slot=sidebar-menu-button]:p-1.5!">
                         <router-link to="/">
-                            <IconInnerShadowTop class="size-5!" />
+                            <img src="/ryuri.svg" class="size-5!" alt="Ryuri Logo" />
                             <span class="text-base font-semibold">Ryuri</span>
                         </router-link>
                     </SidebarMenuButton>
