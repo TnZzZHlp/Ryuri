@@ -18,8 +18,8 @@ use uuid::Uuid;
 use crate::error::{AppError, Result};
 use crate::extractors::{ComicArchiveExtractor, NovelArchiveExtractor, natural_sort_key};
 use crate::models::{
-    Content, ContentType, NewChapter, NewContent, QueuedTask, ScanPath, ScanTask, TaskPriority,
-    TaskResult, TaskStatus,
+    Chapter, Content, ContentType, NewChapter, NewContent, QueuedTask, ScanPath, ScanTask,
+    TaskPriority, TaskResult, TaskStatus,
 };
 use crate::repository::content::{ChapterRepository, ContentRepository};
 use crate::repository::library::ScanPathRepository;
@@ -160,6 +160,18 @@ impl ScanService {
                         error!(folder_path = ?folder_path, error = %e, "Failed to import content");
                     }
                 }
+            } else {
+                // Existing content found, re-scan for chapter changes
+                if let Some(content) = ContentRepository::find_by_folder_path(
+                    &self.pool,
+                    scan_path.library_id,
+                    &folder_path_str,
+                )
+                .await?
+                    && let Err(e) = self.rescan_content_chapters(&content, &folder_path).await
+                {
+                    error!(folder_path = ?folder_path, error = %e, "Failed to rescan content");
+                }
             }
         }
 
@@ -289,6 +301,88 @@ impl ScanService {
             .ok_or_else(|| AppError::Internal("Failed to retrieve created content".to_string()))?;
 
         Ok((final_content, scrape_error))
+    }
+
+    /// Rescan existing content to detect added/removed chapters.
+    async fn rescan_content_chapters(&self, content: &Content, folder_path: &Path) -> Result<()> {
+        // Detect content type and find chapters
+        let (content_type, disk_chapters) = self.detect_content_type_and_chapters(folder_path)?;
+        let total_chapters = disk_chapters.len() as i32;
+
+        // Update content type if changed
+        if content.content_type != content_type {
+            let type_str = match content_type {
+                ContentType::Comic => "Comic",
+                ContentType::Novel => "Novel",
+            };
+            sqlx::query("UPDATE contents SET content_type = ? WHERE id = ?")
+                .bind(type_str)
+                .bind(content.id)
+                .execute(&self.pool)
+                .await
+                .map_err(AppError::Database)?;
+        }
+
+        // Get existing chapters from DB
+        let db_chapters = ChapterRepository::list_by_content(&self.pool, content.id).await?;
+
+        // Create a map of file_path -> Chapter for existing chapters
+        let mut db_chapters_map: HashMap<String, Chapter> = db_chapters
+            .into_iter()
+            .map(|c| (c.file_path.clone(), c))
+            .collect();
+
+        let mut new_chapters = Vec::new();
+
+        // Iterate over disk chapters
+        for (idx, (title, file_path, page_count)) in disk_chapters.into_iter().enumerate() {
+            let sort_order = idx as i32;
+
+            if let Some(existing_chapter) = db_chapters_map.remove(&file_path) {
+                // Check if we need to update sort_order or page_count
+                if existing_chapter.sort_order != sort_order
+                    || existing_chapter.page_count != page_count
+                {
+                    sqlx::query("UPDATE chapters SET sort_order = ?, page_count = ? WHERE id = ?")
+                        .bind(sort_order)
+                        .bind(page_count)
+                        .bind(existing_chapter.id)
+                        .execute(&self.pool)
+                        .await
+                        .map_err(AppError::Database)?;
+                }
+            } else {
+                // New chapter
+                new_chapters.push(NewChapter {
+                    content_id: content.id,
+                    title,
+                    file_path,
+                    sort_order,
+                    page_count,
+                });
+            }
+        }
+
+        // Any chapters remaining in db_chapters_map are deleted from disk
+        for chapter in db_chapters_map.values() {
+            sqlx::query("DELETE FROM chapters WHERE id = ?")
+                .bind(chapter.id)
+                .execute(&self.pool)
+                .await
+                .map_err(AppError::Database)?;
+        }
+
+        // Insert new chapters
+        if !new_chapters.is_empty() {
+            ChapterRepository::create_batch(&self.pool, new_chapters).await?;
+        }
+
+        // Update chapter count
+        if content.chapter_count != total_chapters {
+            ContentRepository::update_chapter_count(&self.pool, content.id, total_chapters).await?;
+        }
+
+        Ok(())
     }
 
     /// Auto-scrape metadata from Bangumi for a content title.
