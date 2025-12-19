@@ -9,6 +9,8 @@
         "preview": "vite preview"
     },
     "dependencies": {
+        "@codemirror/lang-json": "^6.0.2",
+        "@codemirror/view": "^6.39.4",
         "@tabler/icons-vue": "^3.35.0",
         "@tailwindcss/vite": "^4.1.18",
         "@tanstack/vue-table": "^8.21.3",
@@ -23,6 +25,7 @@
         "tailwindcss": "^4.1.18",
         "vee-validate": "^4.15.1",
         "vue": "^3.5.25",
+        "vue-codemirror": "^6.1.1",
         "vue-router": "^4.6.4",
         "vue-sonner": "^2.0.9",
         "zod": "4.1.13"

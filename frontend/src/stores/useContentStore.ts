@@ -328,6 +328,33 @@ export const useContentStore = defineStore("content", () => {
         }
     }
 
+    /**
+     * Updates a content item in the local store.
+     * Use this after a successful API update to reflect changes immediately.
+     *
+     * @param updatedContent - The updated content object
+     */
+    function updateContentInStore(updatedContent: ContentResponse): void {
+        // Update currentContent if it matches
+        if (currentContent.value?.id === updatedContent.id) {
+            currentContent.value = updatedContent;
+        }
+
+        // Update in contents list cache
+        if (contents.value.has(updatedContent.library_id)) {
+            const list = contents.value.get(updatedContent.library_id)!;
+            const index = list.findIndex((c) => c.id === updatedContent.id);
+            if (index !== -1) {
+                // Replace the item at the found index
+                list[index] = updatedContent;
+                // Trigger reactivity by creating a new array reference if needed, 
+                // but Vue 3 reactive arrays usually handle element replacement fine.
+                // However, to be safe and ensure deep watchers trigger:
+                contents.value.set(updatedContent.library_id, [...list]);
+            }
+        }
+    }
+
     return {
         // State
         contents,
@@ -352,5 +379,6 @@ export const useContentStore = defineStore("content", () => {
         loadThumbnail,
         preloadThumbnails,
         invalidateThumbnailCache,
+        updateContentInStore,
     };
 });

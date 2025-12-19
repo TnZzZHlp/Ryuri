@@ -25,7 +25,12 @@ const contentId = Number(router.currentRoute.value.params.contentId);
 const contentStore = useContentStore();
 const { getThumbnailUrl, isThumbnailLoading, loadThumbnail } = contentStore;
 
-const content = ref<typeof contentStore.currentContent>(null);
+const content = computed(() => {
+    if (contentStore.currentContent?.id === contentId) {
+        return contentStore.currentContent;
+    }
+    return null;
+});
 const chapters = ref<Chapter[]>([]);
 const contentLoading = ref(true);
 const chaptersLoading = ref(false);
@@ -53,7 +58,10 @@ onBeforeMount(async () => {
             progressApi.getContentProgress(contentId).catch(() => null)
         ]);
 
-        content.value = contentData;
+        // Update store with fetched content
+        // This will update the computed 'content' property
+        contentStore.selectContent(contentData);
+        
         progress.value = progressData;
         if (progressData?.current_chapter_id) {
             lastReadChapterId.value = progressData.current_chapter_id;

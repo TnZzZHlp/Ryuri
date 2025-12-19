@@ -22,8 +22,12 @@ import { toast } from 'vue-sonner';
 import type { BangumiApi } from '@/api/bangumi';
 import type { ContentApi } from '@/api/content';
 import { useContentStore } from '@/stores/useContentStore';
+import { Codemirror } from 'vue-codemirror';
+import { json } from '@codemirror/lang-json';
+import { EditorView } from "@codemirror/view";
 
 const router = useRouter();
+const contentStore = useContentStore();
 
 // change app theme
 const changeAppTheme = () => {
@@ -41,7 +45,29 @@ const is_mobile = computed(() => {
 const showModifyDialog = ref(false);
 const activeTab = ref<'general' | 'bangumi'>('general');
 const currentTitle = ref('');
+const currentMetadata = ref('');
 const isSaving = ref(false);
+
+const jsonError = computed(() => {
+    if (!currentMetadata.value.trim()) return null;
+    try {
+        JSON.parse(currentMetadata.value);
+        return null;
+    } catch (e) {
+        return e instanceof Error ? e.message : 'Invalid JSON';
+    }
+});
+
+const fontTheme = EditorView.theme({
+    "&": {
+        fontSize: "14px",
+    },
+    ".cm-content": {
+        fontFamily: "'JetBrains Mono', monospace",
+    }
+}, { dark: true });
+
+const extensions = [json(), EditorView.lineWrapping, fontTheme];
 
 const searchQuery = ref('');
 const searchResults = ref<any[]>([]);
@@ -75,6 +101,7 @@ const openModifyDialog = async () => {
     try {
         const content = await contentApi.get(contentId);
         currentTitle.value = content.title;
+        currentMetadata.value = content.metadata ? JSON.stringify(content.metadata, null, 2) : '{}';
         showModifyDialog.value = true;
         // Reset search state
         searchQuery.value = '';
@@ -87,23 +114,48 @@ const openModifyDialog = async () => {
     }
 };
 
-const saveTitle = async () => {
-    if (!contentApi || !currentTitle.value.trim()) return;
+const saveContent = async () => {
+    if (!contentApi) return;
+    if (jsonError.value) {
+        toast.error('Invalid JSON format in metadata');
+        return;
+    }
     const contentId = Number(router.currentRoute.value.params.contentId);
-    
+
+    let metadata: any = null;
+    if (currentMetadata.value.trim()) {
+        metadata = JSON.parse(currentMetadata.value);
+    }
+
     isSaving.value = true;
     try {
-        await contentApi.update(contentId, { title: currentTitle.value });
-        toast.success('Title updated successfully');
+        // Update content
+        await contentApi.update(contentId, { 
+            title: currentTitle.value,
+            metadata: metadata 
+        });
+        toast.success('Content updated successfully');
+                
+        // Retrieve fresh content data
+        const freshContent = await contentApi.get(contentId);
+        contentStore.updateContentInStore(freshContent);
         
-        // Refresh content
-        // Force reload to reflect changes
-        window.location.reload();
+        // Refresh library list (to ensure correct sort order if title changed)
+        const libraryId = Number(router.currentRoute.value.params.libraryId);
+        if (libraryId) {
+            contentStore.fetchContents(libraryId, true);
+        }
+        
+        // Force refresh thumbnail if metadata changed
+        if (metadata) {
+            contentStore.invalidateThumbnailCache(contentId);
+        }
     } catch (e) {
-        toast.error('Failed to update title');
+        toast.error('Failed to update content');
         console.error(e);
     } finally {
         isSaving.value = false;
+        showModifyDialog.value = false;
     }
 };
 
@@ -140,11 +192,19 @@ const handleSelectResult = async (item: any) => {
 
         toast.success('Metadata updated successfully');
 
-        // Refresh content
-        const contentStore = useContentStore();
+        // Retrieve fresh content data
+        const freshContent = await contentApi.get(contentId);
+        contentStore.updateContentInStore(freshContent);
+        
+        // Refresh library list
+        const libraryId = Number(router.currentRoute.value.params.libraryId);
+        if (libraryId) {
+            contentStore.fetchContents(libraryId, true);
+        }
+
         contentStore.invalidateThumbnailCache(contentId);
-        // Force reload to reflect changes
-        window.location.reload();
+        
+        showModifyDialog.value = false;
     } catch (e) {
         toast.error('Failed to update metadata');
         console.error(e);
@@ -186,30 +246,24 @@ const handleSelectResult = async (item: any) => {
     </header>
 
     <Dialog v-model:open="showModifyDialog">
-        <DialogContent class="sm:max-w-[600px]">
+        <DialogContent class="sm:max-w-[800px]">
             <DialogHeader>
                 <DialogTitle>Modify Content</DialogTitle>
             </DialogHeader>
 
             <!-- Custom Tabs -->
             <div class="flex space-x-1 rounded-lg bg-muted p-1">
-                <button
-                    @click="activeTab = 'general'"
-                    :class="[
-                        'flex-1 flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                        activeTab === 'general' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
-                    ]"
-                >
+                <button @click="activeTab = 'general'" :class="[
+                    'flex-1 flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                    activeTab === 'general' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+                ]">
                     <Pencil class="mr-2 size-4" />
                     General
                 </button>
-                <button
-                    @click="activeTab = 'bangumi'"
-                    :class="[
-                        'flex-1 flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                        activeTab === 'bangumi' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
-                    ]"
-                >
+                <button @click="activeTab = 'bangumi'" :class="[
+                    'flex-1 flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                    activeTab === 'bangumi' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+                ]">
                     <Search class="mr-2 size-4" />
                     Match Bangumi
                 </button>
@@ -221,8 +275,22 @@ const handleSelectResult = async (item: any) => {
                     <Label for="title">Title</Label>
                     <Input id="title" v-model="currentTitle" placeholder="Content title" />
                 </div>
+                <div class="space-y-2">
+                    <Label for="metadata">Metadata (JSON)</Label>
+                    <div class="border rounded-md overflow-hidden h-[300px]" :class="{'border-destructive': !!jsonError}">
+                        <Codemirror v-model="currentMetadata" placeholder="Enter JSON metadata..."
+                            :style="{ height: '100%' }" :autofocus="true" :indent-with-tab="true" :tab-size="2"
+                            :extensions="extensions" />
+                    </div>
+                    <p class="text-xs text-muted-foreground" v-if="!jsonError">
+                        Be careful when editing metadata directly. Invalid JSON will prevent saving.
+                    </p>
+                    <p class="text-xs text-destructive font-mono" v-else>
+                        {{ jsonError }}
+                    </p>
+                </div>
                 <div class="flex justify-end">
-                    <Button @click="saveTitle" :disabled="isSaving">
+                    <Button @click="saveContent" :disabled="isSaving || !!jsonError">
                         <Loader2 v-if="isSaving" class="mr-2 size-4 animate-spin" />
                         <Save v-else class="mr-2 size-4" />
                         Save Changes
