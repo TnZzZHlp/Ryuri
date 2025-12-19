@@ -536,6 +536,9 @@ pub async fn get_libraries(State(state): State<AppState>) -> Result<Json<Vec<Lib
 // Helpers
 
 fn content_to_series_dto(content: Content) -> SeriesDto {
+    // Extract metadata fields from Bangumi JSON if available
+    let meta = extract_bangumi_metadata(&content.metadata);
+
     SeriesDto {
         id: content.id.to_string(),
         library_id: content.library_id.to_string(),
@@ -550,31 +553,134 @@ fn content_to_series_dto(content: Content) -> SeriesDto {
             last_modified: content.updated_at,
             title: content.title.clone(),
             title_sort: content.title.clone(),
-            summary: "".to_string(),
+            summary: meta.summary.clone(),
             summary_lock: false,
-            reading_direction: "LEFT_TO_RIGHT".to_string(),
+            reading_direction: "RIGHT_TO_LEFT".to_string(), // Manga default
             reading_direction_lock: false,
-            publisher: "".to_string(),
+            publisher: meta.publisher.clone(),
             publisher_lock: false,
             age_rating: None,
             age_rating_lock: false,
-            language: "en".to_string(),
+            language: meta.language.clone(),
             language_lock: false,
             genres: vec![],
             genres_lock: false,
-            tags: vec![],
+            tags: meta.tags.clone(),
             tags_lock: false,
             total_book_count: Some(content.chapter_count),
         },
         books_metadata: SeriesBooksMetadataDto {
-            authors: vec![],
-            tags: vec![],
-            release_date: None,
-            summary: "".to_string(),
+            authors: meta.authors,
+            tags: meta.tags,
+            release_date: meta.release_date,
+            summary: meta.summary,
             summary_number: "".to_string(),
             created: content.created_at,
             last_modified: content.updated_at,
         },
+    }
+}
+
+/// Extracted metadata from Bangumi API JSON
+struct BangumiMetadata {
+    summary: String,
+    tags: Vec<String>,
+    authors: Vec<AuthorDto>,
+    publisher: String,
+    release_date: Option<String>,
+    language: String,
+}
+
+impl Default for BangumiMetadata {
+    fn default() -> Self {
+        Self {
+            summary: String::new(),
+            tags: vec![],
+            authors: vec![],
+            publisher: String::new(),
+            release_date: None,
+            language: "ja".to_string(),
+        }
+    }
+}
+
+/// Extract metadata from Bangumi API JSON blob
+fn extract_bangumi_metadata(metadata: &Option<serde_json::Value>) -> BangumiMetadata {
+    let Some(meta) = metadata else {
+        return BangumiMetadata::default();
+    };
+
+    // Extract summary
+    let summary = meta
+        .get("summary")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // Extract tags (top tags by count)
+    let tags: Vec<String> = meta
+        .get("tags")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|t| t.get("name").and_then(|n| n.as_str()))
+                .take(10) // Limit to top 10 tags
+                .map(String::from)
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Extract author from infobox
+    let authors: Vec<AuthorDto> = meta
+        .get("infobox")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter(|item| {
+                    item.get("key")
+                        .and_then(|k| k.as_str())
+                        .map(|k| k == "作者")
+                        .unwrap_or(false)
+                })
+                .filter_map(|item| item.get("value").and_then(|v| v.as_str()))
+                .map(|name| AuthorDto {
+                    name: name.to_string(),
+                    role: "writer".to_string(),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Extract publisher from infobox
+    let publisher = meta
+        .get("infobox")
+        .and_then(|v| v.as_array())
+        .and_then(|arr| {
+            arr.iter()
+                .find(|item| {
+                    item.get("key")
+                        .and_then(|k| k.as_str())
+                        .map(|k| k == "出版社")
+                        .unwrap_or(false)
+                })
+                .and_then(|item| item.get("value").and_then(|v| v.as_str()))
+        })
+        .unwrap_or("")
+        .to_string();
+
+    // Extract release date
+    let release_date = meta.get("date").and_then(|v| v.as_str()).map(String::from);
+
+    // Default to Japanese for Bangumi content
+    let language = "ja".to_string();
+
+    BangumiMetadata {
+        summary,
+        tags,
+        authors,
+        publisher,
+        release_date,
+        language,
     }
 }
 

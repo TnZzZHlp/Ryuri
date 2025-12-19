@@ -25,7 +25,6 @@ use crate::repository::content::{ChapterRepository, ContentRepository};
 use crate::repository::library::ScanPathRepository;
 use crate::services::bangumi::BangumiService;
 
-
 type ChapterEntry = (String, String, i32);
 type DetectContentResult = Result<(ContentType, Vec<ChapterEntry>)>;
 
@@ -217,7 +216,6 @@ impl ScanService {
     ///
     /// Returns the imported content and an optional error message if metadata scraping failed.
     ///
-    /// Requirements: 2.2, 2.3, 2.4, 8.1, 8.2, 8.3
     async fn import_content_folder(
         &self,
         scan_path: &ScanPath,
@@ -233,7 +231,7 @@ impl ScanService {
         // Detect content type and find chapters
         let (content_type, chapters) = self.detect_content_type_and_chapters(folder_path)?;
 
-        // Auto-scrape metadata from Bangumi if service is available (Requirements: 8.1, 8.2, 8.3)
+        // Auto-scrape metadata from Bangumi if service is available
         let (metadata, scrape_error) = self.auto_scrape_metadata(&title).await;
 
         // Create the content record
@@ -327,14 +325,10 @@ impl ScanService {
         }
     }
 
-
     /// Detect content type based on archive files and return sorted chapters.
     ///
     /// Requirements: 2.2, 2.3
-    fn detect_content_type_and_chapters(
-        &self,
-        folder_path: &Path,
-    ) -> DetectContentResult {
+    fn detect_content_type_and_chapters(&self, folder_path: &Path) -> DetectContentResult {
         let mut comic_files = Vec::new();
         let mut novel_files = Vec::new();
 
