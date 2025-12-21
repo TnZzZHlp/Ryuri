@@ -9,6 +9,10 @@ on:
             - ".github/workflows/deploy.yml"
     workflow_dispatch:
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
 env:
     CARGO_TERM_COLOR: always
 
