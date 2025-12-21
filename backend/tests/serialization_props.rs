@@ -125,7 +125,7 @@ fn arb_content() -> impl Strategy<Value = Content> {
                 folder_path,
                 chapter_count,
                 thumbnail: None, // Skip thumbnail for serialization tests
-                metadata,
+                metadata: metadata.and_then(|m| serde_json::to_vec(&m).ok()),
                 created_at,
                 updated_at,
             },

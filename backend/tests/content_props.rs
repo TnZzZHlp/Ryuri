@@ -5,6 +5,7 @@
 
 use backend::db::{DbConfig, init_db};
 use backend::models::ContentType;
+use backend::models::Content;
 use backend::services::content::ContentService;
 use chrono::Utc;
 use proptest::prelude::*;
@@ -14,6 +15,11 @@ use tokio::runtime::Runtime;
 // ============================================================================
 // Test Utilities
 // ============================================================================
+
+/// Helper to extract metadata as JSON from Content (which stores it as BLOB)
+fn get_metadata_json(content: &Content) -> Option<serde_json::Value> {
+    content.metadata.as_ref().and_then(|bytes| serde_json::from_slice(bytes).ok())
+}
 
 /// Create an in-memory database for testing.
 async fn create_test_db() -> Pool<Sqlite> {
@@ -720,10 +726,10 @@ proptest! {
             prop_assert_eq!(response.id, content.id, "id should be preserved");
             prop_assert_eq!(response.library_id, content.library_id, "library_id should be preserved");
             prop_assert_eq!(response.content_type, content.content_type, "content_type should be preserved");
-            prop_assert_eq!(response.title, content.title, "title should be preserved");
+            prop_assert_eq!(&response.title, &content.title, "title should be preserved");
             prop_assert_eq!(response.chapter_count, content.chapter_count, "chapter_count should be preserved");
             prop_assert_eq!(response.has_thumbnail, content.thumbnail.is_some(), "has_thumbnail should reflect thumbnail presence");
-            prop_assert_eq!(response.metadata, content.metadata, "metadata should be preserved");
+            prop_assert_eq!(response.metadata, get_metadata_json(&content), "metadata should be preserved");
             prop_assert_eq!(response.created_at, content.created_at, "created_at should be preserved");
 
             Ok(())
@@ -823,7 +829,7 @@ proptest! {
 
             // Verify the updated content has the correct metadata
             prop_assert_eq!(
-                updated.metadata,
+                get_metadata_json(&updated),
                 metadata.clone(),
                 "Updated content should have the metadata we set"
             );
@@ -834,7 +840,7 @@ proptest! {
 
             // Verify the retrieved metadata matches what we stored
             prop_assert_eq!(
-                retrieved.metadata,
+                get_metadata_json(&retrieved),
                 metadata,
                 "Retrieved metadata should match stored metadata"
             );
@@ -876,7 +882,7 @@ proptest! {
             }));
             let updated1 = ContentService::update_content(&pool, content_id, None, metadata1.clone()).await
                 .expect("Should update metadata first time");
-            prop_assert_eq!(updated1.metadata, metadata1, "First update should persist");
+            prop_assert_eq!(get_metadata_json(&updated1), metadata1, "First update should persist");
 
             // Second update: change metadata
             let metadata2 = Some(serde_json::json!({
@@ -886,7 +892,7 @@ proptest! {
             }));
             let updated2 = ContentService::update_content(&pool, content_id, None, metadata2.clone()).await
                 .expect("Should update metadata second time");
-            prop_assert_eq!(updated2.metadata, metadata2, "Second update should persist");
+            prop_assert_eq!(get_metadata_json(&updated2), metadata2, "Second update should persist");
 
             // Fourth update: set new metadata (skipping clear test as API uses partial update)
             let metadata4 = Some(serde_json::json!({
@@ -895,12 +901,12 @@ proptest! {
             }));
             let updated4 = ContentService::update_content(&pool, content_id, None, metadata4.clone()).await
                 .expect("Should update metadata");
-            prop_assert_eq!(updated4.metadata, metadata4.clone(), "Update should persist");
+            prop_assert_eq!(get_metadata_json(&updated4), metadata4.clone(), "Update should persist");
 
             // Final verification: retrieve and check
             let final_content = ContentService::get_content(&pool, content_id).await
                 .expect("Should retrieve content");
-            prop_assert_eq!(final_content.metadata, metadata4, "Final retrieval should match last update");
+            prop_assert_eq!(get_metadata_json(&final_content), metadata4, "Final retrieval should match last update");
 
             Ok(())
         })?;
@@ -956,7 +962,7 @@ proptest! {
                 .expect("Should retrieve content");
 
             // Verify each type is preserved
-            let retrieved_meta = retrieved.metadata.expect("Should have metadata");
+            let retrieved_meta = get_metadata_json(&retrieved).expect("Should have metadata");
 
             prop_assert_eq!(
                 retrieved_meta["integer"].as_i64(),

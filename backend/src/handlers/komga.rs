@@ -605,8 +605,12 @@ impl Default for BangumiMetadata {
 }
 
 /// Extract metadata from Bangumi API JSON blob
-fn extract_bangumi_metadata(metadata: &Option<serde_json::Value>) -> BangumiMetadata {
-    let Some(meta) = metadata else {
+fn extract_bangumi_metadata(metadata: &Option<Vec<u8>>) -> BangumiMetadata {
+    let Some(bytes) = metadata else {
+        return BangumiMetadata::default();
+    };
+
+    let Ok(meta) = serde_json::from_slice::<serde_json::Value>(bytes) else {
         return BangumiMetadata::default();
     };
 
