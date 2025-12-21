@@ -33,7 +33,7 @@ impl ContentRepository {
         .bind(&new_content.folder_path)
         .bind(new_content.chapter_count)
         .bind(&new_content.thumbnail)
-        .bind(new_content.metadata.as_ref().map(|m| m.to_string()))
+        .bind(new_content.metadata.as_ref().and_then(|m| serde_json::to_vec(m).ok()))
         .bind(&now)
         .bind(&now)
         .execute(pool)
@@ -164,7 +164,7 @@ impl ContentRepository {
             WHERE id = ?
             "#,
         )
-        .bind(metadata.as_ref().map(|m| m.to_string()))
+        .bind(metadata.as_ref().and_then(|m| serde_json::to_vec(m).ok()))
         .bind(&thumbnail)
         .bind(&now)
         .bind(id)
@@ -199,7 +199,7 @@ impl ContentRepository {
 
         if let Some(m_opt) = metadata {
             query.push_str(", metadata = ?");
-            let _ = args.add(m_opt.map(|v| v.to_string()));
+            let _ = args.add(m_opt.and_then(|v| serde_json::to_vec(&v).ok()));
         }
 
         if let Some(t_opt) = thumbnail {

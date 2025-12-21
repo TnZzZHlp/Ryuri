@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS contents (
     folder_path TEXT NOT NULL,
     chapter_count INTEGER NOT NULL DEFAULT 0,
     thumbnail BLOB,
-    metadata TEXT,
+    metadata BLOB,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(library_id, folder_path)

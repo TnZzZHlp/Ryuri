@@ -61,7 +61,7 @@ pub struct Content {
     pub thumbnail: Option<Vec<u8>>,
     /// Metadata from Bangumi API (stored as JSON blob).
     #[sqlx(default)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<Vec<u8>>,
     /// Timestamp when the content was imported.
     pub created_at: DateTime<Utc>,
     /// Timestamp when the content was last updated.
@@ -183,7 +183,7 @@ impl From<Content> for ContentResponse {
             title: content.title,
             chapter_count: content.chapter_count,
             has_thumbnail: content.thumbnail.is_some(),
-            metadata: content.metadata,
+            metadata: content.metadata.and_then(|bytes| serde_json::from_slice(&bytes).ok()),
             created_at: content.created_at,
         }
     }
