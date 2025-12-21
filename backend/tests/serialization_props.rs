@@ -134,16 +134,25 @@ fn arb_content() -> impl Strategy<Value = Content> {
 
 /// Strategy to generate arbitrary Chapter instances.
 fn arb_chapter() -> impl Strategy<Value = Chapter> {
-    (1i64..10000, 1i64..10000, arb_name(), arb_path(), 0i32..1000).prop_map(
-        |(id, content_id, title, file_path, sort_order)| Chapter {
-            id,
-            content_id,
-            title,
-            file_path,
-            sort_order,
-            page_count: 0, // Skip page_count for serialization tests
-        },
+    (
+        1i64..10000,
+        1i64..10000,
+        arb_name(),
+        arb_path(),
+        0i32..1000,
+        0i64..1000000,
     )
+        .prop_map(
+            |(id, content_id, title, file_path, sort_order, size)| Chapter {
+                id,
+                content_id,
+                title,
+                file_path,
+                sort_order,
+                size,
+                page_count: 0, // Skip page_count for serialization tests
+            },
+        )
 }
 
 /// Strategy to generate arbitrary User instances.
