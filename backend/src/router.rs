@@ -4,7 +4,7 @@
 
 use axum::{
     Router, middleware,
-    routing::{delete, get, post, put},
+    routing::{delete, get, post},
 };
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -76,7 +76,6 @@ pub fn create_router(state: AppState) -> Router {
     let protected_routes = Router::new()
         // Auth routes (except login)
         .route("/api/auth/me", get(auth::get_me).put(auth::update_me))
-        .route("/api/auth/password", put(auth::update_password))
         // Library routes
         .route("/api/libraries", get(library::list).post(library::create))
         .route(

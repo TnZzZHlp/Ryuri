@@ -11,7 +11,7 @@ use axum::{Json, extract::State};
 use crate::error::Result;
 use crate::middlewares::auth::AuthUser;
 use crate::models::{
-    LoginRequest, LoginResponse, UpdatePasswordRequest, UpdateUserRequest, UserResponse,
+    LoginRequest, LoginResponse, UpdateUserRequest, UserResponse,
 };
 use crate::state::AppState;
 
@@ -59,19 +59,4 @@ pub async fn update_me(
         .update_user(auth_user.user_id, req)
         .await?;
     Ok(Json(UserResponse::from(user)))
-}
-
-/// PUT /api/auth/password
-///
-/// Updates the currently authenticated user's password.
-pub async fn update_password(
-    State(state): State<AppState>,
-    auth_user: AuthUser,
-    Json(req): Json<UpdatePasswordRequest>,
-) -> Result<Json<()>> {
-    state
-        .auth_service
-        .update_password(auth_user.user_id, req.old_password, req.new_password)
-        .await?;
-    Ok(Json(()))
 }

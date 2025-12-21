@@ -181,41 +181,68 @@ impl AuthService {
         self.jwt_service.verify_token(token)
     }
 
-    /// Update a user's password.
-    pub async fn update_password(
-        &self,
-        user_id: i64,
-        old_password: String,
-        new_password: String,
-    ) -> Result<()> {
-        // Get the user
+    /// Update user information.
+    pub async fn update_user(&self, user_id: i64, req: UpdateUserRequest) -> Result<User> {
+        // Get the current user
         let user = UserRepository::find_by_id(&self.pool, user_id)
             .await?
             .ok_or_else(|| AppError::NotFound(format!("User with id {} not found", user_id)))?;
 
-        // Verify old password
-        let is_valid = PasswordHashService::verify_password(&old_password, &user.password_hash)?;
-        if !is_valid {
-            return Err(AppError::Unauthorized(
-                "Current password is incorrect".to_string(),
-            ));
-        }
+        // Validate Password if changing (requires old_password)
+        let password_hash = if let Some(new_password) = &req.password {
+            // Check if old_password is provided
+            let old_password = req.old_password.as_ref().ok_or_else(|| {
+                AppError::BadRequest("Current password is required to change password".to_string())
+            })?;
 
-        // Validate new password
-        if new_password.len() < 6 {
-            return Err(AppError::BadRequest(
-                "New password must be at least 6 characters".to_string(),
-            ));
-        }
+            // Verify old password
+            let is_valid = PasswordHashService::verify_password(old_password, &user.password_hash)?;
+            if !is_valid {
+                return Err(AppError::Unauthorized(
+                    "Current password is incorrect".to_string(),
+                ));
+            }
 
-        // Hash and update the new password
-        let new_hash = PasswordHashService::hash_password(&new_password)?;
-        UserRepository::update_password(&self.pool, user_id, &new_hash).await
-    }
+            // Hash new password
+            Some(PasswordHashService::hash_password(new_password)?)
+        } else {
+            None
+        };
 
-    /// Update user information.
-    pub async fn update_user(&self, user_id: i64, req: UpdateUserRequest) -> Result<User> {
-        UserRepository::update(&self.pool, user_id, req.bangumi_api_key).await
+        // Validate Username if changing
+        let username = if let Some(new_username) = &req.username {
+            if new_username.trim().is_empty() {
+                return Err(AppError::BadRequest("Username cannot be empty".to_string()));
+            }
+            // Check if different from current
+            if new_username != &user.username {
+                // Uniqueness check is handled by DB constraint and repository error mapping
+                Some(new_username.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let bangumi_api_key_update = if let Some(key) = &req.bangumi_api_key {
+            if key.is_empty() {
+                Some(None) // Clear
+            } else {
+                Some(Some(key.clone())) // Set
+            }
+        } else {
+            None // No change
+        };
+
+        UserRepository::update(
+            &self.pool,
+            user_id,
+            username,
+            password_hash,
+            bangumi_api_key_update,
+        )
+        .await
     }
 
     /// Get a user by ID.
@@ -225,6 +252,4 @@ impl AuthService {
 }
 
 // Re-export for convenience
-pub use crate::models::{
-    LoginRequest, LoginResponse, RegisterRequest, UpdatePasswordRequest, UserResponse,
-};
+pub use crate::models::{LoginRequest, LoginResponse, RegisterRequest, UserResponse};

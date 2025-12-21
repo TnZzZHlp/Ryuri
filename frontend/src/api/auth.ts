@@ -12,7 +12,6 @@ import type {
     LoginResponse,
     UserResponse,
     UpdateUserRequest,
-    UpdatePasswordRequest,
 } from "./types";
 
 /**
@@ -22,7 +21,6 @@ export interface AuthApi {
     login(username: string, password: string): Promise<LoginResponse>;
     getMe(): Promise<UserResponse>;
     updateMe(request: UpdateUserRequest): Promise<UserResponse>;
-    updatePassword(request: UpdatePasswordRequest): Promise<void>;
 }
 
 /**
@@ -74,17 +72,6 @@ export function createAuthApi(client: ApiClient): AuthApi {
          */
         async updateMe(request: UpdateUserRequest): Promise<UserResponse> {
             return client.put<UserResponse>("/api/auth/me", request);
-        },
-
-        /**
-         * Updates the current authenticated user's password.
-         *
-         * **Implements: Requirement 2.4**
-         *
-         * @param request - The password update request
-         */
-        async updatePassword(request: UpdatePasswordRequest): Promise<void> {
-            await client.put<void>("/api/auth/password", request);
         },
     };
 }

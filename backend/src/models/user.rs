@@ -63,7 +63,13 @@ pub struct JwtClaims {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct UpdateUserRequest {
-    /// New Bangumi API key (None to clear).
+    /// New username (optional).
+    pub username: Option<String>,
+    /// New password (optional).
+    pub password: Option<String>,
+    /// Old password (required if changing password).
+    pub old_password: Option<String>,
+    /// New Bangumi API key (optional).
     pub bangumi_api_key: Option<String>,
 }
 
@@ -109,12 +115,4 @@ impl From<User> for UserResponse {
             created_at: user.created_at,
         }
     }
-}
-
-/// Request to update password.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
-pub struct UpdatePasswordRequest {
-    pub old_password: String,
-    pub new_password: String,
 }

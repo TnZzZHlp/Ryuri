@@ -17,7 +17,7 @@ use crate::handlers::scan_queue::{ListTasksResponse, SubmitScanResponse};
 use crate::models::{
     Chapter, ContentProgressResponse, ContentResponse, ContentType, CreateLibraryRequest, Library,
     LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath, ScanTask,
-    UpdateLibraryRequest, UpdatePasswordRequest, UpdateProgressRequest, UpdateUserRequest,
+    UpdateLibraryRequest, UpdateProgressRequest, UpdateUserRequest,
     UserResponse,
 };
 
@@ -46,7 +46,6 @@ use crate::models::{
         crate::openapi::paths::auth_login,
         crate::openapi::paths::auth_get_me,
         crate::openapi::paths::auth_update_me,
-        crate::openapi::paths::auth_update_password,
         // Library endpoints
         crate::openapi::paths::list_libraries,
         crate::openapi::paths::create_library,
@@ -86,7 +85,6 @@ use crate::models::{
             LoginResponse,
             UserResponse,
             UpdateUserRequest,
-            UpdatePasswordRequest,
             // Library schemas
             Library,
             LibraryWithStats,
@@ -137,7 +135,7 @@ pub mod paths {
     use crate::models::{
         Chapter, ContentProgressResponse, ContentResponse, CreateLibraryRequest, Library,
         LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath, ScanTask,
-        UpdateLibraryRequest, UpdatePasswordRequest, UpdateUserRequest, UserResponse,
+        UpdateLibraryRequest, UpdateUserRequest, UserResponse,
     };
 
     // ========================================================================
@@ -183,21 +181,6 @@ pub mod paths {
         )
     )]
     pub async fn auth_update_me() {}
-
-    /// Update current user password
-    #[utoipa::path(
-        put,
-        path = "/api/auth/password",
-        tag = "auth",
-        security(("bearer_auth" = [])),
-        request_body = UpdatePasswordRequest,
-        responses(
-            (status = 200, description = "Password updated"),
-            (status = 400, description = "Invalid old password"),
-            (status = 401, description = "Not authenticated")
-        )
-    )]
-    pub async fn auth_update_password() {}
 
     // ========================================================================
     // Library endpoints
