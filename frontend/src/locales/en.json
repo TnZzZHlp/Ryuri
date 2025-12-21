@@ -173,6 +173,16 @@
         "status_running": "Running",
         "status_completed": "Completed",
         "status_failed": "Failed",
-        "status_cancelled": "Cancelled"
-    }
-}
+            "status_cancelled": "Cancelled"
+          },
+          "path_selector": {
+            "title": "Select Directory",
+            "description": "Browse and select a folder for your library.",
+            "computer": "Computer",
+            "no_folders": "No folders found",
+            "cancel": "Cancel",
+            "select_this": "Select This Folder",
+            "load_fail": "Failed to load directory"
+          }
+        }
+        

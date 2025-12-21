@@ -173,6 +173,16 @@
         "status_running": "进行中",
         "status_completed": "已完成",
         "status_failed": "失败",
-        "status_cancelled": "已取消"
-    }
-}
+            "status_cancelled": "已取消"
+          },
+          "path_selector": {
+            "title": "选择目录",
+            "description": "浏览并选择用于库的文件夹。",
+            "computer": "此电脑",
+            "no_folders": "未找到文件夹",
+            "cancel": "取消",
+            "select_this": "选择此文件夹",
+            "load_fail": "加载目录失败"
+          }
+        }
+        

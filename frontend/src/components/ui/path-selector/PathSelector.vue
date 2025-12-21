@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { Folder, ChevronUp, HardDrive, Loader2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,6 +14,7 @@ import { createFilesystemApi, type DirectoryEntry } from '@/api/filesystem'
 import { ApiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { toast } from 'vue-sonner'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
     open: boolean
@@ -25,6 +26,7 @@ const emit = defineEmits<{
     (e: 'select', path: string): void
 }>()
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const apiClient = new ApiClient({
     baseUrl: import.meta.env.VITE_API_BASE_URL || '',
@@ -35,14 +37,6 @@ const fsApi = createFilesystemApi(apiClient)
 const currentPath = ref('')
 const entries = ref<DirectoryEntry[]>([])
 const loading = ref(false)
-
-// Initialize
-onMounted(() => {
-    if (props.initialPath) {
-        currentPath.value = props.initialPath
-    }
-    loadDirectory(currentPath.value)
-})
 
 watch(() => props.open, (isOpen) => {
     if (isOpen) {
@@ -57,7 +51,7 @@ async function loadDirectory(path: string) {
         entries.value = await fsApi.listDirectories(path)
         currentPath.value = path
     } catch (e) {
-        toast.error('Failed to load directory')
+        toast.error(t('path_selector.load_fail'))
         // If loading failed (e.g. permission denied or invalid path), 
         // try to go up or root if not already there
         if (path !== '') {
@@ -77,13 +71,13 @@ function handleUp() {
 
     // Simple path manipulation for parent
     // Logic needs to handle Windows (C:\) and Unix (/) 
-    
+
     // Check if it's a Windows drive root like "C:\"
     if (currentPath.value.match(/^[a-zA-Z]:\\$/)) {
         loadDirectory('')
         return
     }
-    
+
     // Check if it's Unix root
     if (currentPath.value === '/') {
         // Already at root, but our backend treats empty string as "Roots" (drives on windows, root on linux)
@@ -93,21 +87,21 @@ function handleUp() {
         // So if we are at "/", going up -> empty string?
         // If we pass empty string on Unix, it returns entries of "/".
         // So on Unix, "/" is the top.
-        return 
+        return
     }
 
     // General parent logic
     // We can use the 'parent' field from the entries if we had one selected, 
     // but we are navigating UP from the current view.
-    
+
     // We'll try to strip the last segment
     let separator = currentPath.value.includes('\\') ? '\\' : '/'
     let parent = currentPath.value
-    
+
     if (parent.endsWith(separator)) {
         parent = parent.slice(0, -1)
     }
-    
+
     const lastIndex = parent.lastIndexOf(separator)
     if (lastIndex !== -1) {
         // If it's like /home/user -> /home
@@ -125,7 +119,7 @@ function handleUp() {
         // No separator found, go to root
         parent = ''
     }
-    
+
     loadDirectory(parent)
 }
 
@@ -139,7 +133,7 @@ function isDrive(path: string) {
 }
 
 function formatPathDisplay(path: string) {
-    if (!path) return 'Computer'
+    if (!path) return t('path_selector.computer')
     return path
 }
 </script>
@@ -148,9 +142,9 @@ function formatPathDisplay(path: string) {
     <Dialog :open="open" @update:open="$emit('update:open', $event)">
         <DialogContent class="sm:max-w-[600px] max-h-[80vh] flex flex-col">
             <DialogHeader>
-                <DialogTitle>Select Directory</DialogTitle>
+                <DialogTitle>{{ t('path_selector.title') }}</DialogTitle>
                 <DialogDescription>
-                    Browse and select a folder for your library.
+                    {{ t('path_selector.description') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -168,23 +162,16 @@ function formatPathDisplay(path: string) {
                     <div v-if="loading" class="flex items-center justify-center py-8">
                         <Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
-                    
+
                     <template v-else>
                         <div v-if="entries.length === 0" class="text-center py-8 text-muted-foreground text-sm">
-                            No folders found
+                            {{ t('path_selector.no_folders') }}
                         </div>
-                        
-                        <Button
-                            v-for="entry in entries"
-                            :key="entry.path"
-                            variant="ghost"
-                            class="w-full justify-start font-normal h-auto py-2"
-                            @click="handleNavigate(entry.path)"
-                        >
-                            <component 
-                                :is="isDrive(entry.path) ? HardDrive : Folder" 
-                                class="mr-2 h-4 w-4 text-blue-500 fill-blue-500/20" 
-                            />
+
+                        <Button v-for="entry in entries" :key="entry.path" variant="ghost"
+                            class="w-full justify-start font-normal h-auto py-2" @click="handleNavigate(entry.path)">
+                            <component :is="isDrive(entry.path) ? HardDrive : Folder"
+                                class="mr-2 h-4 w-4 text-blue-500 fill-blue-500/20" />
                             <span class="truncate">{{ entry.name }}</span>
                         </Button>
                     </template>
@@ -193,10 +180,10 @@ function formatPathDisplay(path: string) {
 
             <DialogFooter>
                 <Button variant="outline" @click="$emit('update:open', false)">
-                    Cancel
+                    {{ t('path_selector.cancel') }}
                 </Button>
                 <Button @click="handleSelect" :disabled="!currentPath">
-                    Select This Folder
+                    {{ t('path_selector.select_this') }}
                 </Button>
             </DialogFooter>
         </DialogContent>
