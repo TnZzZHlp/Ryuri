@@ -257,8 +257,10 @@ const handlePageClick = (e: MouseEvent) => {
 
     if (x < width * 0.3) {
         prevPage()
+        showControls.value = false
     } else if (x > width * 0.7) {
         nextPage()
+        showControls.value = false
     } else {
         toggleControls()
     }
@@ -403,7 +405,8 @@ const handleKeydown = (e: KeyboardEvent) => {
             </Button>
             <div class="ml-4 flex-1 overflow-hidden">
                 <h1 class="text-sm font-medium truncate text-white">
-                    {{ currentChapter?.title || t('reader.chapter_title_fallback', { index: currentChapterIndex + 1 }) }}
+                    {{ currentChapter?.title || t('reader.chapter_title_fallback', { index: currentChapterIndex + 1 })
+                    }}
                 </h1>
             </div>
 
@@ -449,20 +452,17 @@ const handleKeydown = (e: KeyboardEvent) => {
                 </span>
             </div>
 
-                        <Button variant="ghost" size="sm" :disabled="!nextChapter"
+            <Button variant="ghost" size="sm" :disabled="!nextChapter"
+                @click="nextChapter && navigateToChapter(nextChapter)" class="text-white hover:text-white/80">
 
-                            @click="nextChapter && navigateToChapter(nextChapter)" class="text-white hover:text-white/80">
+                {{ t('reader.next') }}
 
-                            {{ t('reader.next') }}
+                <ChevronRight class="ml-1 h-4 w-4" />
 
-                            <ChevronRight class="ml-1 h-4 w-4" />
+            </Button>
 
-                        </Button>
+        </div>
 
-                    </div>
+    </div>
 
-                </div>
-
-            </template>
-
-            
+</template>
