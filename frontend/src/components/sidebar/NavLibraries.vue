@@ -33,9 +33,11 @@ import { useLibraryStore } from "@/stores/useLibraryStore"
 import { useScanTaskStore } from "@/stores/useScanTaskStore"
 import type { Library } from "@/api"
 import { toast } from "vue-sonner"
+import { useI18n } from "vue-i18n"
 
 const libraryStore = useLibraryStore()
 const scanTaskStore = useScanTaskStore()
+const { t } = useI18n()
 
 const libraries = computed(() => libraryStore.libraries.map((lib) => {
     return {
@@ -73,9 +75,9 @@ const handleConfirmDelete = async () => {
 
     try {
         await libraryStore.deleteLibrary(libraryToDelete.value.id)
-        toast.success('Library deleted successfully')
+        toast.success(t('library.delete_success'))
     } catch (e) {
-        toast.error('Failed to delete library', {
+        toast.error(t('library.delete_fail'), {
             description: e instanceof Error ? e.message : 'Unknown error'
         })
     } finally {
@@ -87,9 +89,9 @@ const handleConfirmDelete = async () => {
 const handleScanLibrary = async (libraryId: number) => {
     try {
         await scanTaskStore.triggerScan(libraryId)
-        toast.success('Scan task triggered successfully')
+        toast.success(t('library.scan_success'))
     } catch (e) {
-        toast.error('Failed to trigger scan task', {
+        toast.error(t('library.scan_fail'), {
             description: e instanceof Error ? e.message : 'Unknown error'
         })
     }
@@ -107,9 +109,9 @@ onBeforeMount(() => {
         <Collapsible as-child default-open class="group/collapsible">
             <SidebarMenuItem>
                 <CollapsibleTrigger as-child>
-                    <SidebarMenuButton tooltip="Libraries">
+                    <SidebarMenuButton :tooltip="t('nav.libraries')">
                         <component :is="LibraryBig" />
-                        <span>Libraries</span>
+                        <span>{{ t('nav.libraries') }}</span>
                         <div class="ml-auto flex items-center gap-1">
                             <div role="button" tabindex="0"
                                 class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-sm p-0.5 transition-colors"
@@ -140,15 +142,15 @@ onBeforeMount(() => {
                                         <DropdownMenuGroup>
                                             <DropdownMenuItem @select="handleScanLibrary(library.id)">
                                                 <ScanSearch />
-                                                Scan
+                                                {{ t('common.scan') }}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem @select="handleOpenSetting(library)">
                                                 <Settings />
-                                                Settings
+                                                {{ t('nav.settings') }}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem variant="destructive" @select="handleOpenDelete(library)">
                                                 <Trash2 />
-                                                Delete
+                                                {{ t('common.delete') }}
                                             </DropdownMenuItem>
                                         </DropdownMenuGroup>
                                     </DropdownMenuContent>
@@ -169,18 +171,16 @@ onBeforeMount(() => {
     <AlertDialog v-model:open="deleteDialogOpen">
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Delete Library?</AlertDialogTitle>
+                <AlertDialogTitle>{{ t('library.delete_confirm_title') }}</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action will permanently delete the library "{{ libraryToDelete?.name }}" and all its associated
-                    data (including scan history, progress, etc.).
-                    Files in the file system will not be deleted.
+                    {{ t('library.delete_confirm_desc', { name: libraryToDelete?.name }) }}
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{{ t('common.cancel') }}</AlertDialogCancel>
                 <AlertDialogAction @click="handleConfirmDelete"
                     class="bg-destructive hover:bg-destructive/90">
-                    Delete
+                    {{ t('common.delete') }}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

@@ -16,12 +16,14 @@ import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { FolderOpen } from 'lucide-vue-next'
 import PathSelector from '@/components/ui/path-selector/PathSelector.vue'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
     (e: 'close'): void
 }>()
 
 const libraryStore = useLibraryStore()
+const { t } = useI18n()
 
 // Form state
 const name = ref('')
@@ -33,7 +35,7 @@ const loading = ref(false)
 
 async function handleCreate() {
     if (!name.value.trim()) {
-        toast.error('Library name cannot be empty')
+        toast.error(t('library.name_required'))
         return
     }
 
@@ -49,14 +51,14 @@ async function handleCreate() {
             try {
                 await libraryStore.addScanPath(newLib.id, path.value.trim())
             } catch (e) {
-                toast.error('Library created, but failed to add scan path')
+                toast.error(t('library.scan_path_fail'))
             }
         }
 
-        toast.success('Library created successfully')
+        toast.success(t('library.create_success'))
         emit('close')
     } catch (e) {
-        toast.error('Creation failed')
+        toast.error(t('library.create_fail'))
     } finally {
         loading.value = false
     }
@@ -70,25 +72,25 @@ function handlePathSelect(selectedPath: string) {
 <template>
     <DialogContent class="sm:max-w-[500px]">
         <DialogHeader>
-            <DialogTitle>Create New Library</DialogTitle>
+            <DialogTitle>{{ t('library.create_title') }}</DialogTitle>
             <DialogDescription>
-                Enter the name and settings for the new library.
+                {{ t('library.create_desc') }}
             </DialogDescription>
         </DialogHeader>
 
         <div class="grid gap-6 py-4">
             <!-- Library Name -->
             <div class="grid gap-2">
-                <Label for="library-name">Library Name</Label>
-                <Input id="library-name" v-model="name" placeholder="Enter library name" @keyup.enter="handleCreate" />
+                <Label for="library-name">{{ t('library.name_label') }}</Label>
+                <Input id="library-name" v-model="name" :placeholder="t('library.name_placeholder')" @keyup.enter="handleCreate" />
             </div>
 
             <!-- Initial Scan Path -->
             <div class="grid gap-2">
-                <Label for="library-path">Folder Path (Optional)</Label>
+                <Label for="library-path">{{ t('library.path_label') }}</Label>
                 <div class="flex gap-2">
-                    <Input id="library-path" v-model="path" placeholder="Enter path to your comics/novels" class="flex-1" />
-                    <Button variant="outline" size="icon" @click="showPathSelector = true" title="Select folder">
+                    <Input id="library-path" v-model="path" :placeholder="t('library.path_placeholder')" class="flex-1" />
+                    <Button variant="outline" size="icon" @click="showPathSelector = true" :title="t('library.path_select_tooltip')">
                         <FolderOpen class="h-4 w-4" />
                     </Button>
                 </div>
@@ -96,17 +98,17 @@ function handlePathSelect(selectedPath: string) {
 
             <!-- Scan Interval -->
             <div class="grid gap-2">
-                <Label for="scan-interval">Auto Scan Interval (minutes)</Label>
+                <Label for="scan-interval">{{ t('library.scan_interval_label') }}</Label>
                 <Input id="scan-interval" v-model.number="scanInterval" type="number" min="0"
-                    placeholder="0 to disable auto scan" />
-                <p class="text-xs text-muted-foreground">Set to 0 to disable auto scan</p>
+                    :placeholder="t('library.scan_interval_placeholder')" />
+                <p class="text-xs text-muted-foreground">{{ t('library.scan_interval_help') }}</p>
             </div>
 
             <!-- Watch Mode -->
             <div class="flex items-center justify-between">
                 <div class="space-y-0.5">
-                    <Label for="watch-mode">Watch Mode</Label>
-                    <p class="text-xs text-muted-foreground">Enable to monitor file changes in real-time</p>
+                    <Label for="watch-mode">{{ t('library.watch_mode_label') }}</Label>
+                    <p class="text-xs text-muted-foreground">{{ t('library.watch_mode_help') }}</p>
                 </div>
                 <Switch id="watch-mode" v-model:checked="watchMode" />
             </div>
@@ -115,11 +117,11 @@ function handlePathSelect(selectedPath: string) {
         <DialogFooter>
             <DialogClose as-child>
                 <Button variant="outline">
-                    Cancel
+                    {{ t('common.cancel') }}
                 </Button>
             </DialogClose>
             <Button @click="handleCreate" :disabled="loading">
-                {{ loading ? 'Creating...' : 'Create' }}
+                {{ loading ? t('library.creating_btn') : t('library.create_btn') }}
             </Button>
         </DialogFooter>
     </DialogContent>

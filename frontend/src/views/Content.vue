@@ -23,12 +23,14 @@ import {
 } from 'lucide-vue-next';
 import type { Chapter, ContentProgressResponse } from '@/api/types';
 import { toast } from 'vue-sonner';
+import { useI18n } from 'vue-i18n';
 
 const router = useRouter();
 const libraryId = Number(router.currentRoute.value.params.libraryId);
 const contentId = Number(router.currentRoute.value.params.contentId);
 const contentStore = useContentStore();
 const { getThumbnailUrl, isThumbnailLoading, loadThumbnail } = contentStore;
+const { t } = useI18n();
 
 const content = computed(() => {
     if (contentStore.currentContent?.id === contentId) {
@@ -109,7 +111,7 @@ const getInfoboxValue = (key: string) => {
 const author = computed(() => {
     const infobox = getMetaValue('infobox')
     // Find the field with key '作者'
-    return infobox?.find((item: any) => item.key === '作者')?.value || 'Unknown Author';
+    return infobox?.find((item: any) => item.key === '作者')?.value || t('content.author_unknown');
 });
 const publisher = computed(() => getMetaValue('publisher') || getInfoboxValue('出版社'));
 const publishDate = computed(() => getMetaValue('publish_date') || getMetaValue('date') || getInfoboxValue('发售日'));
@@ -161,7 +163,7 @@ const handleStartReading = (chapterId?: number) => {
         // Default to first chapter
         router.push(`/read/${libraryId}/${contentId}/${chapters.value[0]!.id}`);
     } else {
-        toast.error('No chapters available to read');
+        toast.error(t('content.no_chapters_toast'));
     }
 };
 </script>
@@ -208,18 +210,18 @@ const handleStartReading = (chapterId?: number) => {
                 <!-- Start Reading Button -->
                 <Button @click="() => handleStartReading()" class="w-full mt-4 h-12 text-base" size="lg">
                     <BookOpen class="size-5" />
-                    {{ lastReadChapterId ? 'Continue Reading' : 'Start Reading' }}
+                    {{ lastReadChapterId ? t('content.continue_reading') : t('content.start_reading') }}
                 </Button>
 
                 <!-- Reading Progress -->
                 <div v-if="progress" class="mt-4 space-y-2">
                     <div class="flex justify-between text-sm text-muted-foreground">
-                        <span>Reading Progress</span>
+                        <span>{{ t('content.reading_progress') }}</span>
                         <span>{{ progress.overall_percentage.toFixed(0) }}%</span>
                     </div>
                     <Progress :model-value="progress.overall_percentage" class="h-2" />
                     <div class="text-xs text-muted-foreground text-center">
-                        Read {{ progress.completed_chapters }} / {{ progress.total_chapters }} chapters
+                        {{ t('content.chapters_read', { completed: progress.completed_chapters, total: progress.total_chapters }) }}
                     </div>
                 </div>
             </div>
@@ -270,7 +272,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="platform" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Tv class="size-4" />
-                            <span>Platform</span>
+                            <span>{{ t('content.platform') }}</span>
                         </div>
                         <span class="font-medium">{{ platform }}</span>
                     </div>
@@ -279,7 +281,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="publisher" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Building2 class="size-4" />
-                            <span>Publisher</span>
+                            <span>{{ t('content.publisher') }}</span>
                         </div>
                         <span class="font-medium">{{ publisher }}</span>
                     </div>
@@ -288,7 +290,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="serializedIn" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <BookOpen class="size-4" />
-                            <span>Serialized In</span>
+                            <span>{{ t('content.serialized_in') }}</span>
                         </div>
                         <span class="font-medium">{{ serializedIn }}</span>
                     </div>
@@ -297,7 +299,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="director" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Clapperboard class="size-4" />
-                            <span>Director</span>
+                            <span>{{ t('content.director') }}</span>
                         </div>
                         <span class="font-medium">{{ director }}</span>
                     </div>
@@ -306,7 +308,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="characterDesign" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Palette class="size-4" />
-                            <span>Character Design</span>
+                            <span>{{ t('content.character_design') }}</span>
                         </div>
                         <span class="font-medium">{{ characterDesign }}</span>
                     </div>
@@ -315,7 +317,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="music" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Music class="size-4" />
-                            <span>Music</span>
+                            <span>{{ t('content.music') }}</span>
                         </div>
                         <span class="font-medium">{{ music }}</span>
                     </div>
@@ -324,7 +326,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="publishDate" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Calendar class="size-4" />
-                            <span>Publish Date</span>
+                            <span>{{ t('content.publish_date') }}</span>
                         </div>
                         <span class="font-medium">{{ publishDate }}</span>
                     </div>
@@ -333,7 +335,7 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="isbn" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Hash class="size-4" />
-                            <span>ISBN</span>
+                            <span>{{ t('content.isbn') }}</span>
                         </div>
                         <span class="font-medium">{{ isbn }}</span>
                     </div>
@@ -342,27 +344,27 @@ const handleStartReading = (chapterId?: number) => {
                     <div v-if="pageCount" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <FileText class="size-4" />
-                            <span>Page Count</span>
+                            <span>{{ t('content.page_count') }}</span>
                         </div>
-                        <span class="font-medium">{{ pageCount }} pages</span>
+                        <span class="font-medium">{{ pageCount }} {{ t('content.pages') }}</span>
                     </div>
 
                     <!-- Episodes -->
                     <div v-if="totalEpisodes" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Tv class="size-4" />
-                            <span>Episodes</span>
+                            <span>{{ t('content.episodes') }}</span>
                         </div>
-                        <span class="font-medium">{{ totalEpisodes }} eps</span>
+                        <span class="font-medium">{{ totalEpisodes }} {{ t('content.eps') }}</span>
                     </div>
 
                     <!-- Volumes -->
                     <div v-if="totalVolumes" class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <Layers class="size-4" />
-                            <span>Volumes</span>
+                            <span>{{ t('content.volumes') }}</span>
                         </div>
-                        <span class="font-medium">{{ totalVolumes }} vols</span>
+                        <span class="font-medium">{{ totalVolumes }} {{ t('content.vols') }}</span>
                     </div>
 
                     <!-- Chapter Count (fallback) -->
@@ -370,9 +372,9 @@ const handleStartReading = (chapterId?: number) => {
                         class="flex flex-col gap-1 p-4 rounded-lg bg-muted/50">
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
                             <FileText class="size-4" />
-                            <span>Chapter Count</span>
+                            <span>{{ t('content.chapter_count') }}</span>
                         </div>
-                        <span class="font-medium">{{ content.chapter_count }} chapters</span>
+                        <span class="font-medium">{{ content.chapter_count }} {{ t('content.chapters_unit') }}</span>
                     </div>
                 </div>
 
@@ -388,8 +390,8 @@ const handleStartReading = (chapterId?: number) => {
                 <div class="mt-6">
                     <div class="flex items-center gap-2 mb-4">
                         <List class="size-5" />
-                        <h2 class="text-xl font-semibold">Chapters</h2>
-                        <span class="text-sm text-muted-foreground">({{ chapters.length }} chapters)</span>
+                        <h2 class="text-xl font-semibold">{{ t('content.chapters_title') }}</h2>
+                        <span class="text-sm text-muted-foreground">{{ t('content.chapters_count', { count: chapters.length }) }}</span>
                     </div>
 
                     <!-- Chapters Loading -->
@@ -416,7 +418,7 @@ const handleStartReading = (chapterId?: number) => {
                             <div class="flex items-center gap-2">
                                 <span v-if="lastReadChapterId === chapter.id"
                                     class="text-xs text-primary font-medium px-2 py-0.5 rounded-full bg-primary/10">
-                                    Last Read
+                                    {{ t('content.last_read') }}
                                 </span>
                                 <ChevronRight
                                     class="size-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
@@ -426,7 +428,7 @@ const handleStartReading = (chapterId?: number) => {
 
                     <!-- No Chapters -->
                     <div v-else class="text-center py-8 text-muted-foreground">
-                        <p>No chapters available</p>
+                        <p>{{ t('content.no_chapters') }}</p>
                     </div>
                 </div>
             </div>
@@ -434,9 +436,9 @@ const handleStartReading = (chapterId?: number) => {
 
         <!-- Error State -->
         <div v-else class="flex flex-col items-center justify-center py-20 text-muted-foreground">
-            <p class="text-lg">Content doesn't exist or failed to load</p>
+            <p class="text-lg">{{ t('content.not_found') }}</p>
             <Button variant="outline" class="mt-4" @click="router.back()">
-                Go Back
+                {{ t('content.go_back') }}
             </Button>
         </div>
     </div>

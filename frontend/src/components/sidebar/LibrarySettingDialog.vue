@@ -17,6 +17,7 @@ import { onMounted, ref, watch } from 'vue';
 import { Trash2, Plus, FolderOpen } from 'lucide-vue-next';
 import PathSelector from '@/components/ui/path-selector/PathSelector.vue';
 import { toast } from 'vue-sonner';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps<{
     library: Library
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const libraryStore = useLibraryStore()
+const { t } = useI18n()
 
 // Form state
 const name = ref(props.library.name)
@@ -56,7 +58,7 @@ async function loadScanPaths() {
     try {
         scanPaths.value = await libraryStore.fetchScanPaths(props.library.id)
     } catch (e) {
-        toast.error('Loading scan paths failed')
+        toast.error(t('library.load_paths_fail'))
     } finally {
         pathsLoading.value = false
     }
@@ -64,7 +66,7 @@ async function loadScanPaths() {
 
 async function handleSave() {
     if (!name.value.trim()) {
-        toast.error('Library name cannot be empty')
+        toast.error(t('library.name_required'))
         return
     }
 
@@ -75,10 +77,10 @@ async function handleSave() {
             scan_interval: scanInterval.value,
             watch_mode: watchMode.value,
         })
-        toast.success('Library settings saved')
+        toast.success(t('library.save_success'))
         emit('close')
     } catch (e) {
-        toast.error('Save failed')
+        toast.error(t('library.save_fail'))
     } finally {
         loading.value = false
     }
@@ -87,7 +89,7 @@ async function handleSave() {
 async function handleAddPath() {
     const path = newPath.value.trim()
     if (!path) {
-        toast.error('Please enter a scan path')
+        toast.error(t('library.path_required'))
         return
     }
 
@@ -95,9 +97,9 @@ async function handleAddPath() {
         const addedPath = await libraryStore.addScanPath(props.library.id, path)
         scanPaths.value.push(addedPath)
         newPath.value = ''
-        toast.success('Scan path added')
+        toast.success(t('library.path_added'))
     } catch (e) {
-        toast.error('Adding scan path failed')
+        toast.error(t('library.path_add_fail'))
     }
 }
 
@@ -105,9 +107,9 @@ async function handleRemovePath(pathId: number) {
     try {
         await libraryStore.removeScanPath(props.library.id, pathId)
         scanPaths.value = scanPaths.value.filter(p => p.id !== pathId)
-        toast.success('Scan path removed')
+        toast.success(t('library.path_removed'))
     } catch (e) {
-        toast.error('Removing scan path failed')
+        toast.error(t('library.path_remove_fail'))
     }
 }
 
@@ -119,43 +121,43 @@ function handlePathSelect(path: string) {
 <template>
     <DialogContent class="sm:max-w-[500px]">
         <DialogHeader>
-            <DialogTitle>Library Settings</DialogTitle>
+            <DialogTitle>{{ t('library.settings_title') }}</DialogTitle>
             <DialogDescription>
-                Edit the library's name, scan settings, and scan paths.
+                {{ t('library.settings_desc') }}
             </DialogDescription>
         </DialogHeader>
 
         <div class="grid gap-6 py-4">
             <!-- Library Name -->
             <div class="grid gap-2">
-                <Label for="library-name">Library Name</Label>
-                <Input id="library-name" v-model="name" placeholder="Enter library name" />
+                <Label for="library-name">{{ t('library.name_label') }}</Label>
+                <Input id="library-name" v-model="name" :placeholder="t('library.name_placeholder')" />
             </div>
 
             <!-- Scan Interval -->
             <div class="grid gap-2">
-                <Label for="scan-interval">Auto Scan Interval (minutes)</Label>
+                <Label for="scan-interval">{{ t('library.scan_interval_label') }}</Label>
                 <Input id="scan-interval" v-model.number="scanInterval" type="number" min="0"
-                    placeholder="0 to disable auto scan" />
-                <p class="text-xs text-muted-foreground">Set to 0 to disable auto scan</p>
+                    :placeholder="t('library.scan_interval_placeholder')" />
+                <p class="text-xs text-muted-foreground">{{ t('library.scan_interval_help') }}</p>
             </div>
 
             <!-- Watch Mode -->
             <div class="flex items-center justify-between">
                 <div class="space-y-0.5">
-                    <Label for="watch-mode">Watch Mode</Label>
-                    <p class="text-xs text-muted-foreground">Enable to monitor file changes in real-time</p>
+                    <Label for="watch-mode">{{ t('library.watch_mode_label') }}</Label>
+                    <p class="text-xs text-muted-foreground">{{ t('library.watch_mode_help') }}</p>
                 </div>
                 <Switch id="watch-mode" v-model:checked="watchMode" />
             </div>
 
             <!-- Scan Paths -->
             <div class="grid gap-2">
-                <Label>Scan Paths</Label>
+                <Label>{{ t('library.scan_paths_label') }}</Label>
                 <div class="flex gap-2">
-                    <Input v-model="newPath" placeholder="Enter scan path" class="flex-1"
+                    <Input v-model="newPath" :placeholder="t('library.scan_path_placeholder')" class="flex-1"
                         @keyup.enter="handleAddPath" />
-                    <Button variant="outline" size="icon" @click="showPathSelector = true" title="Select folder">
+                    <Button variant="outline" size="icon" @click="showPathSelector = true" :title="t('library.path_select_tooltip')">
                         <FolderOpen class="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="icon" @click="handleAddPath" :disabled="!newPath.trim()">
@@ -166,12 +168,12 @@ function handlePathSelect(path: string) {
                 <!-- Path List -->
                 <div class="mt-2 space-y-2 max-h-40 overflow-y-auto">
                     <div v-if="pathsLoading" class="text-sm text-muted-foreground text-center py-2">
-                        Loading...
+                        {{ t('library.paths_loading') }}
                     </div>
                     <div v-else-if="scanPaths.length === 0"
                         class="text-sm text-muted-foreground text-center py-2 border border-dashed rounded-md">
                         <FolderOpen class="h-8 w-8 mx-auto mb-1 opacity-50" />
-                        No scan paths available.
+                        {{ t('library.no_paths') }}
                     </div>
                     <div v-else v-for="path in scanPaths" :key="path.id"
                         class="flex items-center justify-between gap-2 p-2 bg-muted/50 rounded-md group">
@@ -189,11 +191,11 @@ function handlePathSelect(path: string) {
         <DialogFooter>
             <DialogClose as-child>
                 <Button variant="outline">
-                    Cancel
+                    {{ t('common.cancel') }}
                 </Button>
             </DialogClose>
             <Button @click="handleSave" :disabled="loading">
-                {{ loading ? 'Saving...' : 'Save' }}
+                {{ loading ? t('library.saving_btn') : t('library.save_btn') }}
             </Button>
         </DialogFooter>
     </DialogContent>

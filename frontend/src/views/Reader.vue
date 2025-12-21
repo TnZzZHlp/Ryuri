@@ -23,10 +23,12 @@ import { toast } from 'vue-sonner'
 import { Progress } from '@/components/ui/progress'
 import type { Chapter } from '@/api/types'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const router = useRouter()
 const readerStore = useReaderStore()
+const { t } = useI18n()
 const {
     chapters,
     loading,
@@ -189,7 +191,7 @@ const loadData = async () => {
             })
         }
     } catch (e) {
-        toast.error('Failed to load chapter')
+        toast.error(t('reader.loading_fail'))
     }
 }
 
@@ -349,13 +351,13 @@ const handleKeydown = (e: KeyboardEvent) => {
 
                 <!-- End of Chapter / Navigation -->
                 <div v-if="endOfChapter" class="py-12 flex flex-col items-center gap-4 w-full">
-                    <p class="text-gray-400">End of Chapter</p>
+                    <p class="text-gray-400">{{ t('reader.end_of_chapter') }}</p>
                     <div class="flex gap-4">
                         <Button v-if="prevChapter" variant="secondary" @click.stop="navigateToChapter(prevChapter)">
-                            <ChevronLeft class="mr-2 h-4 w-4" /> Previous Chapter
+                            <ChevronLeft class="mr-2 h-4 w-4" /> {{ t('reader.prev_chapter') }}
                         </Button>
                         <Button v-if="nextChapter" variant="default" @click.stop="navigateToChapter(nextChapter)">
-                            Next Chapter
+                            {{ t('reader.next_chapter') }}
                             <ChevronRight class="ml-2 h-4 w-4" />
                         </Button>
                     </div>
@@ -370,17 +372,17 @@ const handleKeydown = (e: KeyboardEvent) => {
             </div>
 
             <div v-else-if="endOfChapter" class="flex flex-col items-center gap-6 p-8">
-                <p class="text-xl text-gray-400">End of Chapter</p>
+                <p class="text-xl text-gray-400">{{ t('reader.end_of_chapter') }}</p>
                 <div class="flex flex-col gap-4 min-w-[200px]">
                     <Button v-if="nextChapter" size="lg" variant="default" @click.stop="navigateToChapter(nextChapter)">
-                        Next Chapter
+                        {{ t('reader.next_chapter') }}
                         <ChevronRight class="ml-2 h-4 w-4" />
                     </Button>
                     <Button v-if="prevChapter" variant="secondary" @click.stop="navigateToChapter(prevChapter)">
-                        <ChevronLeft class="mr-2 h-4 w-4" /> Previous Chapter
+                        <ChevronLeft class="mr-2 h-4 w-4" /> {{ t('reader.prev_chapter') }}
                     </Button>
                     <Button variant="outline" @click.stop="router.push(`/library/${libraryId}/content/${contentId}`)">
-                        Exit to Content
+                        {{ t('reader.exit_to_content') }}
                     </Button>
                 </div>
             </div>
@@ -401,7 +403,7 @@ const handleKeydown = (e: KeyboardEvent) => {
             </Button>
             <div class="ml-4 flex-1 overflow-hidden">
                 <h1 class="text-sm font-medium truncate text-white">
-                    {{ currentChapter?.title || 'Chapter ' + (currentChapterIndex + 1) }}
+                    {{ currentChapter?.title || t('reader.chapter_title_fallback', { index: currentChapterIndex + 1 }) }}
                 </h1>
             </div>
 
@@ -413,16 +415,16 @@ const handleKeydown = (e: KeyboardEvent) => {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Reading Mode</DropdownMenuLabel>
+                    <DropdownMenuLabel>{{ t('reader.reading_mode') }}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem @click="readerStore.setMode('scroll')">
                         <AlignJustify class="mr-2 h-4 w-4" />
-                        <span>Scroll (Webtoon)</span>
+                        <span>{{ t('reader.mode_scroll') }}</span>
                         <span v-if="readerMode === 'scroll'" class="ml-auto text-xs">✓</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem @click="readerStore.setMode('paged')">
                         <Columns class="mr-2 h-4 w-4" />
-                        <span>Paged</span>
+                        <span>{{ t('reader.mode_paged') }}</span>
                         <span v-if="readerMode === 'paged'" class="ml-auto text-xs">✓</span>
                     </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -437,7 +439,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 
             <Button variant="ghost" size="sm" :disabled="!prevChapter"
                 @click="prevChapter && navigateToChapter(prevChapter)" class="text-white hover:text-white/80">
-                <ChevronLeft class="mr-1 h-4 w-4" /> Prev
+                <ChevronLeft class="mr-1 h-4 w-4" /> {{ t('reader.prev') }}
             </Button>
 
             <div class="flex flex-col items-center">
@@ -447,11 +449,20 @@ const handleKeydown = (e: KeyboardEvent) => {
                 </span>
             </div>
 
-            <Button variant="ghost" size="sm" :disabled="!nextChapter"
-                @click="nextChapter && navigateToChapter(nextChapter)" class="text-white hover:text-white/80">
-                Next
-                <ChevronRight class="ml-1 h-4 w-4" />
-            </Button>
-        </div>
-    </div>
-</template>
+                        <Button variant="ghost" size="sm" :disabled="!nextChapter"
+
+                            @click="nextChapter && navigateToChapter(nextChapter)" class="text-white hover:text-white/80">
+
+                            {{ t('reader.next') }}
+
+                            <ChevronRight class="ml-1 h-4 w-4" />
+
+                        </Button>
+
+                    </div>
+
+                </div>
+
+            </template>
+
+            
