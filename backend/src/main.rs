@@ -12,10 +12,16 @@ use backend::error::AppError;
 use backend::router::create_router_with_layers;
 use backend::services::auth::AuthConfig;
 use backend::state::{AppConfig, AppState};
+use clap::Parser;
 use tokio::signal;
 use tracing::{debug, info, warn};
 use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+
+/// Ryuri Backend Server
+#[derive(Parser, Debug)]
+#[command(author, version = env!("RYURI_VERSION"), about, long_about = None)]
+struct Args {}
 
 fn generate_random_secret_hex(byte_len: usize) -> String {
     // Use OS CSPRNG. This is suitable for secrets.
@@ -105,12 +111,15 @@ fn init_tracing() {
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
+    // Parse CLI arguments
+    let _args = Args::parse();
+
     // Initialize tracing first
     init_tracing();
 
     let config = ServerConfig::from_env();
 
-    info!("Ryuri starting...");
+    info!("Ryuri v{} starting...", env!("RYURI_VERSION"));
     debug!(host = %config.host, port = %config.port, database = %config.db.database_url, "Server configuration loaded");
 
     info!("Initializing database...");

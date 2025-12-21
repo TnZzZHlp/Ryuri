@@ -30,6 +30,7 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const apiKeyStore = useApiKeyStore()
 const { t } = useI18n()
+const appVersion = __APP_VERSION__
 
 // Profile State
 const bangumiApiKey = ref(props.user.bangumi_api_key || '')
@@ -223,7 +224,10 @@ function copyToClipboard(text: string) {
             </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter class="sm:justify-between gap-2">
+            <div class="flex items-center text-xs text-muted-foreground">
+                Ryuri v{{ appVersion }}
+            </div>
             <DialogClose as-child>
                 <Button variant="outline" @click="emit('close')">
                     {{ t('library.close_btn') }}
