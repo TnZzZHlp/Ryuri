@@ -14,7 +14,6 @@ import type {
     LoginResponse,
     UserResponse,
     UpdateUserRequest,
-    UpdatePasswordRequest,
 } from '@/api/types'
 
 const TOKEN_KEY = 'auth_token'
@@ -108,19 +107,6 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    async function updatePassword(request: UpdatePasswordRequest): Promise<void> {
-        loading.value = true
-        error.value = null
-        try {
-            await getAuthApi(() => token.value).updatePassword(request)
-        } catch (e) {
-            error.value = e instanceof Error ? e.message : 'Failed to change password'
-            throw e
-        } finally {
-            loading.value = false
-        }
-    }
-
     return {
         // State
         token,
@@ -134,7 +120,6 @@ export const useAuthStore = defineStore('auth', () => {
         logout,
         fetchUser,
         updateUser,
-        updatePassword,
     }
 })
 

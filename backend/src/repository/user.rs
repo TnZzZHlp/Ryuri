@@ -81,59 +81,48 @@ impl UserRepository {
         .map_err(AppError::Database)
     }
 
-    /// Update a user's password hash.
-    pub async fn update_password(
-        pool: &Pool<Sqlite>,
-        user_id: i64,
-        password_hash: &str,
-    ) -> Result<()> {
-        let now = Utc::now().to_rfc3339();
-
-        let result = sqlx::query(
-            r#"
-            UPDATE users
-            SET password_hash = ?, updated_at = ?
-            WHERE id = ?
-            "#,
-        )
-        .bind(password_hash)
-        .bind(&now)
-        .bind(user_id)
-        .execute(pool)
-        .await
-        .map_err(AppError::Database)?;
-
-        if result.rows_affected() == 0 {
-            return Err(AppError::NotFound(format!(
-                "User with id {} not found",
-                user_id
-            )));
-        }
-
-        Ok(())
-    }
-
-    /// Update a user's information (e.g., bangumi_api_key).
+    /// Update a user's information.
+    /// Fields set to None will not be updated.
     pub async fn update(
         pool: &Pool<Sqlite>,
         user_id: i64,
-        bangumi_api_key: Option<String>,
+        username: Option<String>,
+        password_hash: Option<String>,
+        bangumi_api_key: Option<Option<String>>,
     ) -> Result<User> {
-        let now = Utc::now().to_rfc3339();
+        use sqlx::Arguments;
+        let mut query = "UPDATE users SET updated_at = ?".to_string();
+        let mut args = sqlx::sqlite::SqliteArguments::default();
+        let _ = args.add(Utc::now().to_rfc3339());
 
-        let result = sqlx::query(
-            r#"
-            UPDATE users
-            SET bangumi_api_key = ?, updated_at = ?
-            WHERE id = ?
-            "#,
-        )
-        .bind(&bangumi_api_key)
-        .bind(&now)
-        .bind(user_id)
-        .execute(pool)
-        .await
-        .map_err(AppError::Database)?;
+        if let Some(u) = username {
+            query.push_str(", username = ?");
+            let _ = args.add(u);
+        }
+
+        if let Some(p) = password_hash {
+            query.push_str(", password_hash = ?");
+            let _ = args.add(p);
+        }
+
+        if let Some(k_opt) = bangumi_api_key {
+            query.push_str(", bangumi_api_key = ?");
+            let _ = args.add(k_opt);
+        }
+
+        query.push_str(" WHERE id = ?");
+        let _ = args.add(user_id);
+
+        let result = sqlx::query_with(&query, args)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                if e.to_string().contains("UNIQUE constraint failed") {
+                    AppError::BadRequest("Username already exists".to_string())
+                } else {
+                    AppError::Database(e)
+                }
+            })?;
 
         if result.rows_affected() == 0 {
             return Err(AppError::NotFound(format!(

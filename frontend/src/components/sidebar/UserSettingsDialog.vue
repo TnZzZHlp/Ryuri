@@ -33,6 +33,7 @@ const { t } = useI18n()
 const appVersion = __APP_VERSION__
 
 // Profile State
+const username = ref(props.user.username || '')
 const bangumiApiKey = ref(props.user.bangumi_api_key || '')
 const profileLoading = ref(false)
 
@@ -48,6 +49,7 @@ const apiKeyCreationLoading = ref(false)
 
 // Watch for user changes to update local state
 watch(() => props.user, (newUser) => {
+    username.value = newUser.username || ''
     bangumiApiKey.value = newUser.bangumi_api_key || ''
 }, { immediate: true })
 
@@ -69,30 +71,47 @@ async function handleUpdateProfile() {
     }
 }
 
-async function handleUpdatePassword() {
-    if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
-        toast.error(t('library.password_fields_required'))
-        return
+async function handleUpdateSecurity() {
+    const payload: { username?: string; old_password?: string; password?: string } = {}
+    let hasChanges = false
+
+    // Username update
+    if (username.value !== props.user.username) {
+        payload.username = username.value
+        hasChanges = true
     }
 
-    if (newPassword.value !== confirmPassword.value) {
-        toast.error(t('library.password_mismatch'))
-        return
+    // Password update
+    const isPasswordChange = oldPassword.value || newPassword.value || confirmPassword.value
+    if (isPasswordChange) {
+        if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
+            toast.error(t('library.password_fields_required'))
+            return
+        }
+
+        if (newPassword.value !== confirmPassword.value) {
+            toast.error(t('library.password_mismatch'))
+            return
+        }
+        payload.old_password = oldPassword.value
+        payload.password = newPassword.value
+        hasChanges = true
     }
+
+    if (!hasChanges) return
 
     passwordLoading.value = true
     try {
-        await authStore.updatePassword({
-            old_password: oldPassword.value,
-            new_password: newPassword.value
-        })
-        toast.success(t('library.password_changed'))
-        // Clear password fields
-        oldPassword.value = ''
-        newPassword.value = ''
-        confirmPassword.value = ''
+        await authStore.updateUser(payload)
+        toast.success(t('library.profile_updated'))
+        // Clear password fields if changed
+        if (payload.password) {
+            oldPassword.value = ''
+            newPassword.value = ''
+            confirmPassword.value = ''
+        }
     } catch (e) {
-        toast.error(e instanceof Error ? e.message : t('library.password_change_fail'))
+        toast.error(e instanceof Error ? e.message : t('library.profile_update_fail'))
     } finally {
         passwordLoading.value = false
     }
@@ -161,6 +180,10 @@ function copyToClipboard(text: string) {
             <div class="space-y-4">
                 <h3 class="text-lg font-medium">{{ t('library.security_section') }}</h3>
                 <div class="grid gap-2">
+                    <Label for="username">{{ t('login.username') }}</Label>
+                    <Input id="username" v-model="username" />
+                </div>
+                <div class="grid gap-2">
                     <Label for="old-password">{{ t('library.old_password_label') }}</Label>
                     <Input id="old-password" type="password" autocomplete="current-password" v-model="oldPassword" />
                 </div>
@@ -174,8 +197,8 @@ function copyToClipboard(text: string) {
                         v-model="confirmPassword" />
                 </div>
                 <div class="flex justify-end">
-                    <Button @click="handleUpdatePassword" :disabled="passwordLoading" size="sm" variant="destructive">
-                        {{ passwordLoading ? t('library.changing_password_btn') : t('library.change_password_btn') }}
+                    <Button @click="handleUpdateSecurity" :disabled="passwordLoading" size="sm">
+                        {{ passwordLoading ? t('library.saving_btn') : t('library.save_btn') }}
                     </Button>
                 </div>
             </div>

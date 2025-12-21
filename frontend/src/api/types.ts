@@ -112,15 +112,10 @@ export interface UserResponse {
  * Request to update user information.
  */
 export interface UpdateUserRequest {
+    username?: string;
+    password?: string;
+    old_password?: string;
     bangumi_api_key?: string | null;
-}
-
-/**
- * Request to update password.
- */
-export interface UpdatePasswordRequest {
-    old_password: string;
-    new_password: string;
 }
 
 /**
