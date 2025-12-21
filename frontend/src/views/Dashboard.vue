@@ -6,10 +6,12 @@ import { createProgressApi } from '@/api/progress';
 import { ApiClient } from '@/api/client';
 import type { ContentResponse } from '@/api/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useI18n } from 'vue-i18n';
 
 const authStore = useAuthStore();
 const contentStore = useContentStore();
 const { getThumbnailUrl, isThumbnailLoading, loadThumbnail } = contentStore;
+const { t } = useI18n();
 
 const recentBooks = ref<ContentResponse[]>([]);
 const loading = ref(true);
@@ -46,7 +48,7 @@ onBeforeMount(async () => {
 
 <template>
     <div class="p-6">
-        <h2 class="text-2xl font-bold tracking-tight mb-6">Recently Read</h2>
+        <h2 class="text-2xl font-bold tracking-tight mb-6">{{ t('dashboard.recently_read') }}</h2>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
             <!-- Loading -->
@@ -90,7 +92,7 @@ onBeforeMount(async () => {
                             {{ getAuthor(book.metadata) }}
                         </p>
                         <p v-else class="text-xs text-muted-foreground">
-                            {{ book.chapter_count }} 章节
+                            {{ t('dashboard.chapters', { count: book.chapter_count }) }}
                         </p>
                     </div>
                 </router-link>
@@ -99,7 +101,7 @@ onBeforeMount(async () => {
             <!-- Empty State -->
             <div v-if="!loading && recentBooks.length === 0"
                 class="col-span-full flex flex-col items-center justify-center py-10 text-muted-foreground">
-                <p>No recent reading history</p>
+                <p>{{ t('dashboard.no_history') }}</p>
             </div>
         </div>
     </div>

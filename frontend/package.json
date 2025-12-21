@@ -1,7 +1,7 @@
 {
     "name": "frontend",
     "private": true,
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -26,6 +26,7 @@
         "vee-validate": "^4.15.1",
         "vue": "^3.5.25",
         "vue-codemirror": "^6.1.1",
+        "vue-i18n": "^11.2.2",
         "vue-router": "^4.6.4",
         "vue-sonner": "^2.0.9",
         "zod": "4.1.13"

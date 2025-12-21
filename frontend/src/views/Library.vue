@@ -3,11 +3,13 @@ import { useRouter } from 'vue-router';
 import { useContentStore } from '@/stores/useContentStore';
 import { computed, onBeforeMount } from 'vue';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useI18n } from 'vue-i18n';
 
 const router = useRouter();
 const library_id: number = Number(router.currentRoute.value.params.libraryId);
 const contentStore = useContentStore();
 const { contents, fetchContents, loading, getThumbnailUrl, isThumbnailLoading } = contentStore;
+const { t } = useI18n();
 
 onBeforeMount(() => {
     if (!contents.get(library_id)) {
@@ -71,7 +73,7 @@ const getAuthor = (metadata: unknown): string => {
                             {{ getAuthor(book.metadata) }}
                         </p>
                         <p v-else class="text-xs text-muted-foreground">
-                            {{ book.chapter_count }} 章节
+                            {{ t('dashboard.chapters', { count: book.chapter_count }) }}
                         </p>
                     </div>
                 </router-link>
@@ -80,8 +82,8 @@ const getAuthor = (metadata: unknown): string => {
             <!-- Empty state -->
             <div v-if="!loading && books.length === 0"
                 class="col-span-full flex flex-col items-center justify-center py-20 text-muted-foreground">
-                <p class="text-lg">There is no content in this library yet.</p>
-                <p class="text-sm">Scan the library to add content.</p>
+                <p class="text-lg">{{ t('library_view.empty_title') }}</p>
+                <p class="text-sm">{{ t('library_view.empty_desc') }}</p>
             </div>
         </div>
     </div>

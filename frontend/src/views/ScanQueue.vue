@@ -15,9 +15,11 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { useIntervalFn } from '@vueuse/core'
+import { useI18n } from 'vue-i18n'
 
 const scanTaskStore = useScanTaskStore()
 const libraryStore = useLibraryStore()
+const { t } = useI18n()
 
 // Component state
 const cancellingTaskId = ref<string | null>(null)
@@ -51,7 +53,7 @@ const loading = computed(() => scanTaskStore.loading)
 
 // Helper functions
 function getLibraryName(libraryId: number): string {
-    return libraryNameMap.value.get(libraryId) || 'Unknown Library'
+    return libraryNameMap.value.get(libraryId) || t('scan_queue.unknown_library')
 }
 
 function formatTime(dateString: string): string {
@@ -82,6 +84,17 @@ function getStatusBadgeClass(status: string): string {
     }
 }
 
+function getStatusLabel(status: string): string {
+    switch (status) {
+        case 'Pending': return t('scan_queue.status_pending')
+        case 'Running': return t('scan_queue.status_running')
+        case 'Completed': return t('scan_queue.status_completed')
+        case 'Failed': return t('scan_queue.status_failed')
+        case 'Cancelled': return t('scan_queue.status_cancelled')
+        default: return status
+    }
+}
+
 function calculateProgress(task: ScanTask): number {
     if (!task.progress || task.progress.total_paths === 0) return 0
     return Math.round((task.progress.scanned_paths / task.progress.total_paths) * 100)
@@ -96,7 +109,7 @@ async function handleCancel(taskId: string) {
     try {
         await scanTaskStore.cancelTask(taskId)
     } catch (e) {
-        toast.error('Cancel task failed', {
+        toast.error(t('scan_queue.cancel_fail'), {
             description: e instanceof Error ? e.message : 'Unknown error'
         })
     } finally {
@@ -108,7 +121,7 @@ async function handleCancel(taskId: string) {
 <template>
     <div class="flex flex-col h-[calc(100vh-7rem)] p-6 gap-8">
         <!-- Page Title -->
-        <h1 class="text-2xl font-bold shrink-0">Scan Queue</h1>
+        <h1 class="text-2xl font-bold shrink-0">{{ t('scan_queue.title') }}</h1>
 
         <!-- Loading State -->
         <template v-if="loading">
@@ -125,8 +138,8 @@ async function handleCancel(taskId: string) {
             <!-- Empty State - No tasks at all -->
             <div v-if="pendingTasks.length === 0 && historyTasks.length === 0 && processingTasks.length === 0"
                 class="flex flex-col items-center justify-center flex-1 py-20 text-muted-foreground">
-                <p class="text-lg">No scan tasks available</p>
-                <p class="text-sm">Trigger a scan in library settings to add tasks</p>
+                <p class="text-lg">{{ t('scan_queue.no_tasks') }}</p>
+                <p class="text-sm">{{ t('scan_queue.no_tasks_desc') }}</p>
             </div>
 
             <template v-else>
@@ -135,7 +148,7 @@ async function handleCancel(taskId: string) {
                     <!-- Empty pending state -->
                     <div v-if="pendingTasks.length === 0 && processingTasks.length === 0"
                         class="text-muted-foreground py-4 text-center border rounded-lg">
-                        There are no active tasks at the moment.
+                        {{ t('scan_queue.no_active_tasks') }}
                     </div>
 
                     <!-- Pending task table -->
@@ -144,19 +157,19 @@ async function handleCancel(taskId: string) {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead class="w-[150px]">
-                                        Status
+                                        {{ t('scan_queue.status') }}
                                     </TableHead>
                                     <TableHead>
-                                        Library
+                                        {{ t('scan_queue.library') }}
                                     </TableHead>
                                     <TableHead>
-                                        Created At
+                                        {{ t('scan_queue.created_at') }}
                                     </TableHead>
                                     <TableHead>
-                                        Progress
+                                        {{ t('scan_queue.progress') }}
                                     </TableHead>
                                     <TableHead class="text-right">
-                                        Actions
+                                        {{ t('scan_queue.actions') }}
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -165,7 +178,7 @@ async function handleCancel(taskId: string) {
                                     <TableCell>
                                         <span
                                             :class="['px-2 py-1 rounded-full text-xs font-medium', getStatusBadgeClass(task.status)]">
-                                            {{ task.status }}
+                                            {{ getStatusLabel(task.status) }}
                                         </span>
                                     </TableCell>
                                     <TableCell>
@@ -177,7 +190,7 @@ async function handleCancel(taskId: string) {
                                     <TableCell>
                                         <div v-if="task.status === 'Running' && task.progress" class="w-48">
                                             <div class="flex items-center justify-between text-sm mb-1">
-                                                <span>Scan Progress</span>
+                                                <span>{{ t('scan_queue.scan_progress') }}</span>
                                                 <span>{{ calculateProgress(task) }}%</span>
                                             </div>
                                             <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
@@ -185,8 +198,7 @@ async function handleCancel(taskId: string) {
                                                     :style="{ width: `${calculateProgress(task)}%` }"></div>
                                             </div>
                                             <div class="text-xs text-muted-foreground mt-1">
-                                                {{ task.progress.scanned_paths }} / {{ task.progress.total_paths }}
-                                                Paths
+                                                {{ t('scan_queue.paths_scanned', { scanned: task.progress.scanned_paths, total: task.progress.total_paths }) }}
                                             </div>
                                         </div>
                                         <span v-else class="text-muted-foreground text-sm">-</span>
@@ -194,7 +206,7 @@ async function handleCancel(taskId: string) {
                                     <TableCell class="text-right">
                                         <Button v-if="canCancel(task)" variant="outline" size="sm"
                                             :disabled="cancellingTaskId === task.id" @click="handleCancel(task.id)">
-                                            {{ cancellingTaskId === task.id ? 'Cancelling...' : 'Cancel' }}
+                                            {{ cancellingTaskId === task.id ? t('scan_queue.cancelling') : t('scan_queue.cancel') }}
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -205,23 +217,23 @@ async function handleCancel(taskId: string) {
 
                 <!-- History Tasks Section -->
                 <section v-if="historyTasks.length > 0" class="flex flex-col flex-1 min-h-0 gap-4">
-                    <h2 class="text-lg font-semibold shrink-0">History</h2>
+                    <h2 class="text-lg font-semibold shrink-0">{{ t('scan_queue.history') }}</h2>
 
                     <div class="rounded-md border flex-1 overflow-auto relative">
                         <table class="w-full caption-bottom text-sm">
                             <TableHeader class="sticky top-0 z-10 bg-background shadow-sm">
                                 <TableRow>
                                     <TableHead class="w-[150px]">
-                                        Status
+                                        {{ t('scan_queue.status') }}
                                     </TableHead>
                                     <TableHead>
-                                        Library
+                                        {{ t('scan_queue.library') }}
                                     </TableHead>
                                     <TableHead>
-                                        Created At
+                                        {{ t('scan_queue.created_at') }}
                                     </TableHead>
                                     <TableHead>
-                                        Result/Error
+                                        {{ t('scan_queue.result_error') }}
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -230,7 +242,7 @@ async function handleCancel(taskId: string) {
                                     <TableCell>
                                         <span
                                             :class="['px-2 py-1 rounded-full text-xs font-medium', getStatusBadgeClass(task.status)]">
-                                            {{ task.status }}
+                                            {{ getStatusLabel(task.status) }}
                                         </span>
                                     </TableCell>
                                     <TableCell>
@@ -244,21 +256,21 @@ async function handleCancel(taskId: string) {
                                         <div v-if="task.status === 'Completed' && task.result"
                                             class="flex flex-col gap-1 text-sm">
                                             <span class="text-green-600 dark:text-green-400">
-                                                Added: {{ task.result.added_count }}
+                                                {{ t('scan_queue.added', { count: task.result.added_count }) }}
                                             </span>
                                             <span class="text-red-600 dark:text-red-400">
-                                                Removed: {{ task.result.removed_count }}
+                                                {{ t('scan_queue.removed', { count: task.result.removed_count }) }}
                                             </span>
                                             <span v-if="task.result.failed_scrape_count > 0"
                                                 class="text-yellow-600 dark:text-yellow-400">
-                                                Failed Scrapes: {{ task.result.failed_scrape_count }}
+                                                {{ t('scan_queue.failed_scrapes', { count: task.result.failed_scrape_count }) }}
                                             </span>
                                         </div>
 
                                         <!-- Error for failed tasks -->
                                         <div v-else-if="task.status === 'Failed' && task.error"
                                             class="text-sm text-red-600 dark:text-red-400">
-                                            Error: {{ task.error }}
+                                            {{ t('scan_queue.error_prefix', { error: task.error }) }}
                                         </div>
                                         <span v-else class="text-muted-foreground text-sm">-</span>
                                     </TableCell>

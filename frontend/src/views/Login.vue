@@ -22,14 +22,16 @@ import {
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import type { ApiError } from '@/api'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const formSchema = toTypedSchema(
     z.object({
-        username: z.string().min(1, 'Please enter your username'),
-        password: z.string().min(1, 'Please enter your password'),
+        username: z.string().min(1, t('login.username_required')),
+        password: z.string().min(1, t('login.password_required')),
     }),
 )
 
@@ -59,7 +61,7 @@ function onSubmit(values: Record<string, unknown>) {
                         <!-- Username Field -->
                         <FormField v-slot="{ componentField }" name="username">
                             <FormItem>
-                                <FormLabel>Username</FormLabel>
+                                <FormLabel>{{ t('login.username') }}</FormLabel>
                                 <FormControl>
                                     <Input type="text" v-bind="componentField" autocomplete="username" />
                                 </FormControl>
@@ -71,7 +73,7 @@ function onSubmit(values: Record<string, unknown>) {
                         <FormField v-slot="{ componentField }" name="password">
                             <FormItem>
                                 <div class="flex items-center justify-between">
-                                    <FormLabel>Password</FormLabel>
+                                    <FormLabel>{{ t('login.password') }}</FormLabel>
                                 </div>
                                 <FormControl>
                                     <Input type="password" v-bind="componentField" autocomplete="current-password" />
@@ -82,7 +84,7 @@ function onSubmit(values: Record<string, unknown>) {
 
                         <!-- Login Button -->
                         <Button type="submit" class="w-full mt-4" :disable="authStore.loading">
-                            <Spinner v-if="authStore.loading" />Login
+                            <Spinner v-if="authStore.loading" />{{ t('login.submit') }}
                         </Button>
                     </Form>
                 </CardContent>
