@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Sun, ArrowLeft, MoreVertical, Search, Loader2, Pencil, Save } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from 'vue-i18n';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -28,6 +29,7 @@ import { EditorView } from "@codemirror/view";
 
 const router = useRouter();
 const contentStore = useContentStore();
+const { t } = useI18n();
 
 // change app theme
 const changeAppTheme = () => {
@@ -41,8 +43,8 @@ const is_mobile = computed(() => {
     return window.innerWidth < 768
 })
 
-// Modify Content Feature
-const showModifyDialog = ref(false);
+// Edit Content Feature
+const showEditDialog = ref(false);
 const activeTab = ref<'general' | 'bangumi'>('general');
 const currentTitle = ref('');
 const currentMetadata = ref('');
@@ -54,7 +56,7 @@ const jsonError = computed(() => {
         JSON.parse(currentMetadata.value);
         return null;
     } catch (e) {
-        return e instanceof Error ? e.message : 'Invalid JSON';
+        return e instanceof Error ? e.message : t('edit_content.invalid_json');
     }
 });
 
@@ -93,7 +95,7 @@ const initApis = async () => {
     bangumiApi = bangumiApiModule.createBangumiApi(client);
 };
 
-const openModifyDialog = async () => {
+const openEditDialog = async () => {
     await initApis();
     const contentId = Number(router.currentRoute.value.params.contentId);
     if (!contentId || !contentApi) return;
@@ -102,14 +104,14 @@ const openModifyDialog = async () => {
         const content = await contentApi.get(contentId);
         currentTitle.value = content.title;
         currentMetadata.value = content.metadata ? JSON.stringify(content.metadata, null, 2) : '{}';
-        showModifyDialog.value = true;
+        showEditDialog.value = true;
         // Reset search state
         searchQuery.value = '';
         searchResults.value = [];
         searchFinished.value = false;
         activeTab.value = 'general';
     } catch (e) {
-        toast.error('Failed to load content details');
+        toast.error(t('edit_content.load_fail'));
         console.error(e);
     }
 };
@@ -117,7 +119,7 @@ const openModifyDialog = async () => {
 const saveContent = async () => {
     if (!contentApi) return;
     if (jsonError.value) {
-        toast.error('Invalid JSON format in metadata');
+        toast.error(t('edit_content.invalid_json'));
         return;
     }
     const contentId = Number(router.currentRoute.value.params.contentId);
@@ -134,7 +136,7 @@ const saveContent = async () => {
             title: currentTitle.value,
             metadata: metadata
         });
-        toast.success('Content updated successfully');
+        toast.success(t('edit_content.update_success'));
 
         // Retrieve fresh content data
         const freshContent = await contentApi.get(contentId);
@@ -151,11 +153,11 @@ const saveContent = async () => {
             contentStore.invalidateThumbnailCache(contentId);
         }
     } catch (e) {
-        toast.error('Failed to update content');
+        toast.error(t('edit_content.update_fail'));
         console.error(e);
     } finally {
         isSaving.value = false;
-        showModifyDialog.value = false;
+        showEditDialog.value = false;
     }
 };
 
@@ -173,7 +175,7 @@ const performSearch = async () => {
             }
         });
     } catch (e) {
-        toast.error('Failed to search Bangumi');
+        toast.error(t('edit_content.search_fail'));
         console.error(e);
     } finally {
         searching.value = false;
@@ -190,7 +192,7 @@ const handleSelectResult = async (item: any) => {
         // Update local metadata
         await contentApi.update(contentId, { metadata: item });
 
-        toast.success('Metadata updated successfully');
+        toast.success(t('edit_content.metadata_update_success'));
 
         // Retrieve fresh content data
         const freshContent = await contentApi.get(contentId);
@@ -204,9 +206,9 @@ const handleSelectResult = async (item: any) => {
 
         contentStore.invalidateThumbnailCache(contentId);
 
-        showModifyDialog.value = false;
+        showEditDialog.value = false;
     } catch (e) {
-        toast.error('Failed to update metadata');
+        toast.error(t('edit_content.metadata_update_fail'));
         console.error(e);
     }
 };
@@ -231,9 +233,9 @@ const handleSelectResult = async (item: any) => {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem @click="openModifyDialog">
+                        <DropdownMenuItem @click="openEditDialog">
                             <Pencil class="mr-2 size-4" />
-                            <span>Modify Content</span>
+                            <span>{{ t('edit_content.title') }}</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -245,10 +247,10 @@ const handleSelectResult = async (item: any) => {
         </div>
     </header>
 
-    <Dialog v-model:open="showModifyDialog">
+    <Dialog v-model:open="showEditDialog">
         <DialogContent class="sm:max-w-[800px]">
             <DialogHeader>
-                <DialogTitle>Modify Content</DialogTitle>
+                <DialogTitle>{{ t('edit_content.title') }}</DialogTitle>
             </DialogHeader>
 
             <!-- Custom Tabs -->
@@ -258,33 +260,33 @@ const handleSelectResult = async (item: any) => {
                     activeTab === 'general' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
                 ]">
                     <Pencil class="mr-2 size-4" />
-                    General
+                    {{ t('edit_content.tab_general') }}
                 </button>
                 <button @click="activeTab = 'bangumi'" :class="[
                     'flex-1 flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                     activeTab === 'bangumi' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
                 ]">
                     <Search class="mr-2 size-4" />
-                    Match Bangumi
+                    {{ t('edit_content.tab_bangumi') }}
                 </button>
             </div>
 
             <!-- General Tab Content -->
             <div v-if="activeTab === 'general'" class="py-4 space-y-4">
                 <div class="space-y-2">
-                    <Label for="title">Title</Label>
-                    <Input id="title" v-model="currentTitle" placeholder="Content title" />
+                    <Label for="title">{{ t('edit_content.title_label') }}</Label>
+                    <Input id="title" v-model="currentTitle" :placeholder="t('edit_content.title_placeholder')" />
                 </div>
                 <div class="space-y-2">
-                    <Label for="metadata">Metadata (JSON)</Label>
+                    <Label for="metadata">{{ t('edit_content.metadata_label') }}</Label>
                     <div class="border rounded-md overflow-hidden h-[300px]"
                         :class="{ 'border-destructive': !!jsonError }">
-                        <Codemirror v-model="currentMetadata" placeholder="Enter JSON metadata..."
+                        <Codemirror v-model="currentMetadata" :placeholder="t('edit_content.metadata_placeholder')"
                             :style="{ height: '100%' }" :autofocus="true" :indent-with-tab="true" :tab-size="2"
                             :extensions="extensions" />
                     </div>
                     <p class="text-xs text-muted-foreground" v-if="!jsonError">
-                        Be careful when editing metadata directly. Invalid JSON will prevent saving.
+                        {{ t('edit_content.metadata_warning') }}
                     </p>
                     <p class="text-xs text-destructive font-mono" v-else>
                         {{ jsonError }}
@@ -294,7 +296,7 @@ const handleSelectResult = async (item: any) => {
                     <Button @click="saveContent" :disabled="isSaving || !!jsonError">
                         <Loader2 v-if="isSaving" class="mr-2 size-4 animate-spin" />
                         <Save v-else class="mr-2 size-4" />
-                        Save Changes
+                        {{ t('edit_content.save_btn') }}
                     </Button>
                 </div>
             </div>
@@ -302,7 +304,8 @@ const handleSelectResult = async (item: any) => {
             <!-- Bangumi Tab Content -->
             <div v-else class="space-y-4">
                 <div class="flex gap-2 mt-2">
-                    <Input v-model="searchQuery" placeholder="Search Bangumi..." @keyup.enter="performSearch" />
+                    <Input v-model="searchQuery" :placeholder="t('edit_content.search_bangumi_placeholder')"
+                        @keyup.enter="performSearch" />
                     <Button @click="performSearch" :disabled="searching">
                         <Loader2 v-if="searching" class="animate-spin" />
                         <Search v-else />
@@ -317,7 +320,7 @@ const handleSelectResult = async (item: any) => {
                             :src="item.images.common || item.images.medium"
                             class="w-16 h-24 object-cover rounded shadow-sm" />
                         <div v-else class="w-16 h-24 bg-muted rounded flex items-center justify-center">
-                            <span class="text-xs text-muted-foreground">No Img</span>
+                            <span class="text-xs text-muted-foreground">{{ t('edit_content.no_img') }}</span>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="font-bold truncate">{{ item.name_cn || item.name }}</div>
@@ -327,7 +330,7 @@ const handleSelectResult = async (item: any) => {
                     </div>
                     <div v-if="searchResults.length === 0 && !searching && searchQuery.length !== 0 && searchFinished"
                         class="text-center text-muted-foreground py-4">
-                        No results found
+                        {{ t('edit_content.no_results') }}
                     </div>
                 </div>
             </div>

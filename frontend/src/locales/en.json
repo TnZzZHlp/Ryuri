@@ -173,16 +173,36 @@
         "status_running": "Running",
         "status_completed": "Completed",
         "status_failed": "Failed",
-            "status_cancelled": "Cancelled"
-          },
-          "path_selector": {
-            "title": "Select Directory",
-            "description": "Browse and select a folder for your library.",
-            "computer": "Computer",
-            "no_folders": "No folders found",
-            "cancel": "Cancel",
-            "select_this": "Select This Folder",
-            "load_fail": "Failed to load directory"
-          }
-        }
-        
+        "status_cancelled": "Cancelled"
+    },
+    "path_selector": {
+        "title": "Select Directory",
+        "description": "Browse and select a folder for your library.",
+        "computer": "Computer",
+        "no_folders": "No folders found",
+        "cancel": "Cancel",
+        "select_this": "Select This Folder",
+        "load_fail": "Failed to load directory"
+    },
+    "edit_content": {
+        "title": "Edit Content",
+        "tab_general": "General",
+        "tab_bangumi": "Match Bangumi",
+        "title_label": "Title",
+        "title_placeholder": "Content title",
+        "metadata_label": "Metadata (JSON)",
+        "metadata_placeholder": "Enter JSON metadata...",
+        "metadata_warning": "Be careful when editing metadata directly. Invalid JSON will prevent saving.",
+        "save_btn": "Save Changes",
+        "search_bangumi_placeholder": "Search Bangumi...",
+        "no_results": "No results found",
+        "no_img": "No Img",
+        "load_fail": "Failed to load content details",
+        "invalid_json": "Invalid JSON format in metadata",
+        "update_success": "Content updated successfully",
+        "update_fail": "Failed to update content",
+        "search_fail": "Failed to search Bangumi",
+        "metadata_update_success": "Metadata updated successfully",
+        "metadata_update_fail": "Failed to update metadata"
+    }
+}

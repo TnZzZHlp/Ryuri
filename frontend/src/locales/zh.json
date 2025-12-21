@@ -101,7 +101,7 @@
         "continue_reading": "继续阅读",
         "reading_progress": "阅读进度",
         "chapters_read": "已读 {completed} / {total} 章",
-        "platform": "平台",
+        "platform": "类型",
         "publisher": "出版社",
         "serialized_in": "连载于",
         "director": "导演",
@@ -173,16 +173,36 @@
         "status_running": "进行中",
         "status_completed": "已完成",
         "status_failed": "失败",
-            "status_cancelled": "已取消"
-          },
-          "path_selector": {
-            "title": "选择目录",
-            "description": "浏览并选择用于库的文件夹。",
-            "computer": "此电脑",
-            "no_folders": "未找到文件夹",
-            "cancel": "取消",
-            "select_this": "选择此文件夹",
-            "load_fail": "加载目录失败"
-          }
-        }
-        
+        "status_cancelled": "已取消"
+    },
+    "path_selector": {
+        "title": "选择目录",
+        "description": "浏览并选择用于库的文件夹。",
+        "computer": "此电脑",
+        "no_folders": "未找到文件夹",
+        "cancel": "取消",
+        "select_this": "选择此文件夹",
+        "load_fail": "加载目录失败"
+    },
+    "edit_content": {
+        "title": "编辑",
+        "tab_general": "常规",
+        "tab_bangumi": "匹配 Bangumi",
+        "title_label": "标题",
+        "title_placeholder": "内容标题",
+        "metadata_label": "元数据 (JSON)",
+        "metadata_placeholder": "输入 JSON 元数据...",
+        "metadata_warning": "直接编辑元数据时请小心。无效的 JSON 将无法保存。",
+        "save_btn": "保存更改",
+        "search_bangumi_placeholder": "搜索 Bangumi...",
+        "no_results": "未找到结果",
+        "no_img": "无图",
+        "load_fail": "加载内容详情失败",
+        "invalid_json": "元数据 JSON 格式无效",
+        "update_success": "内容更新成功",
+        "update_fail": "更新内容失败",
+        "search_fail": "搜索 Bangumi 失败",
+        "metadata_update_success": "元数据更新成功",
+        "metadata_update_fail": "更新元数据失败"
+    }
+}
