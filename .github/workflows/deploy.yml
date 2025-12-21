@@ -1,12 +1,12 @@
-name: Deploy dev
+name: Deploy test
 
 on:
     push:
-        branches: [dev]
+        branches: [main]
         paths:
-            - 'backend/**'
-            - 'frontend/**'
-            - '.github/workflows/deploy.yml'
+            - "backend/**"
+            - "frontend/**"
+            - ".github/workflows/deploy.yml"
     workflow_dispatch:
 
 env:
