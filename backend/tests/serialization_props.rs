@@ -9,8 +9,7 @@
 use backend::models::{
     Chapter, Content, ContentProgressResponse, ContentResponse, ContentType, CreateLibraryRequest,
     JwtClaims, Library, LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse,
-    ReadingProgress, ScanPath, UpdateLibraryRequest, UpdatePasswordRequest, UpdateProgressRequest,
-    UpdateUserRequest, User, UserResponse,
+    ReadingProgress, ScanPath, UpdateLibraryRequest, UpdateProgressRequest, User, UserResponse,
 };
 use chrono::{DateTime, TimeZone, Utc};
 use proptest::prelude::*;
@@ -400,19 +399,6 @@ fn arb_login_request() -> impl Strategy<Value = LoginRequest> {
     (arb_name(), arb_name()).prop_map(|(username, password)| LoginRequest { username, password })
 }
 
-/// Strategy to generate arbitrary UpdateUserRequest instances.
-fn arb_update_user_request() -> impl Strategy<Value = UpdateUserRequest> {
-    prop::option::of(arb_name()).prop_map(|bangumi_api_key| UpdateUserRequest { bangumi_api_key })
-}
-
-/// Strategy to generate arbitrary UpdatePasswordRequest instances.
-fn arb_update_password_request() -> impl Strategy<Value = UpdatePasswordRequest> {
-    (arb_name(), arb_name()).prop_map(|(old_password, new_password)| UpdatePasswordRequest {
-        old_password,
-        new_password,
-    })
-}
-
 /// Strategy to generate arbitrary CreateLibraryRequest instances.
 fn arb_create_library_request() -> impl Strategy<Value = CreateLibraryRequest> {
     (
@@ -488,31 +474,6 @@ proptest! {
         let deserialized: LoginRequest = serde_json::from_str(&json).expect("Should deserialize LoginRequest from JSON");
         prop_assert_eq!(request.username, deserialized.username);
         prop_assert_eq!(request.password, deserialized.password);
-    }
-
-    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
-    /// **Validates: Requirements 5.4**
-    ///
-    /// For any valid UpdateUserRequest, serializing to JSON and deserializing should
-    /// produce an equivalent UpdateUserRequest.
-    #[test]
-    fn update_user_request_json_round_trip(request in arb_update_user_request()) {
-        let json = serde_json::to_string(&request).expect("Should serialize UpdateUserRequest to JSON");
-        let deserialized: UpdateUserRequest = serde_json::from_str(&json).expect("Should deserialize UpdateUserRequest from JSON");
-        prop_assert_eq!(request.bangumi_api_key, deserialized.bangumi_api_key);
-    }
-
-    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
-    /// **Validates: Requirements 5.4**
-    ///
-    /// For any valid UpdatePasswordRequest, serializing to JSON and deserializing should
-    /// produce an equivalent UpdatePasswordRequest.
-    #[test]
-    fn update_password_request_json_round_trip(request in arb_update_password_request()) {
-        let json = serde_json::to_string(&request).expect("Should serialize UpdatePasswordRequest to JSON");
-        let deserialized: UpdatePasswordRequest = serde_json::from_str(&json).expect("Should deserialize UpdatePasswordRequest from JSON");
-        prop_assert_eq!(request.old_password, deserialized.old_password);
-        prop_assert_eq!(request.new_password, deserialized.new_password);
     }
 
     /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
