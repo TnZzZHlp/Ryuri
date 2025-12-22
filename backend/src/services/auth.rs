@@ -11,6 +11,7 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use sqlx::{Pool, Sqlite};
 use tracing::instrument;
+use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{JwtClaims, NewUser, UpdateUserRequest, User};
@@ -105,7 +106,7 @@ impl JwtService {
 
         decode::<JwtClaims>(token, &self.decoding_key, &validation)
             .map(|data| data.claims)
-            .map_err(|e| AppError::Unauthorized(format!("Invalid token: {}", e)))
+            .map_err(|e| AppError::Unauthorized(t!("auth.invalid_token", error = e).to_string()))
     }
 }
 
@@ -131,11 +132,11 @@ impl AuthService {
     pub async fn register(&self, username: String, password: String) -> Result<User> {
         // Validate input
         if username.trim().is_empty() {
-            return Err(AppError::BadRequest("Username cannot be empty".to_string()));
+            return Err(AppError::BadRequest(t!("auth.username_empty").to_string()));
         }
         if password.len() < 6 {
             return Err(AppError::BadRequest(
-                "Password must be at least 6 characters".to_string(),
+                t!("auth.password_too_short").to_string(),
             ));
         }
 
@@ -160,13 +161,13 @@ impl AuthService {
         // Find the user
         let user = UserRepository::find_by_username(&self.pool, &username)
             .await?
-            .ok_or_else(|| AppError::Unauthorized("Invalid username or password".to_string()))?;
+            .ok_or_else(|| AppError::Unauthorized(t!("auth.invalid_credentials").to_string()))?;
 
         // Verify the password
         let is_valid = PasswordHashService::verify_password(&password, &user.password_hash)?;
         if !is_valid {
             return Err(AppError::Unauthorized(
-                "Invalid username or password".to_string(),
+                t!("auth.invalid_credentials").to_string(),
             ));
         }
 
@@ -186,20 +187,20 @@ impl AuthService {
         // Get the current user
         let user = UserRepository::find_by_id(&self.pool, user_id)
             .await?
-            .ok_or_else(|| AppError::NotFound(format!("User with id {} not found", user_id)))?;
+            .ok_or_else(|| AppError::NotFound(t!("auth.user_not_found", id = user_id).to_string()))?;
 
         // Validate Password if changing (requires old_password)
         let password_hash = if let Some(new_password) = &req.password {
             // Check if old_password is provided
             let old_password = req.old_password.as_ref().ok_or_else(|| {
-                AppError::BadRequest("Current password is required to change password".to_string())
+                AppError::BadRequest(t!("auth.current_password_required").to_string())
             })?;
 
             // Verify old password
             let is_valid = PasswordHashService::verify_password(old_password, &user.password_hash)?;
             if !is_valid {
                 return Err(AppError::Unauthorized(
-                    "Current password is incorrect".to_string(),
+                    t!("auth.incorrect_password").to_string(),
                 ));
             }
 
@@ -212,7 +213,7 @@ impl AuthService {
         // Validate Username if changing
         let username = if let Some(new_username) = &req.username {
             if new_username.trim().is_empty() {
-                return Err(AppError::BadRequest("Username cannot be empty".to_string()));
+                return Err(AppError::BadRequest(t!("auth.username_empty").to_string()));
             }
             // Check if different from current
             if new_username != &user.username {

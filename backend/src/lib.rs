@@ -1,3 +1,9 @@
+rust_i18n::i18n!("locales");
+
+pub fn set_lib_locale(locale: &str) {
+    rust_i18n::set_locale(locale);
+}
+
 pub mod db;
 pub mod error;
 pub mod extractors;

@@ -2,6 +2,7 @@ use axum::{extract::Query, Json};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::fs;
+use rust_i18n::t;
 use crate::error::{Result, AppError};
 
 #[derive(Debug, Deserialize)]
@@ -65,12 +66,12 @@ pub async fn list_directories(
     };
 
     if !path.exists() {
-        return Err(AppError::NotFound(format!("Path not found: {}", path.display())));
+        return Err(AppError::NotFound(t!("filesystem.path_not_found", path = path.display()).to_string()));
     }
 
     // Check if it's a directory
     if !path.is_dir() {
-        return Err(AppError::BadRequest(format!("Path is not a directory: {}", path.display())));
+        return Err(AppError::BadRequest(t!("filesystem.path_not_dir", path = path.display()).to_string()));
     }
 
     let parent = path.parent().map(|p| p.to_string_lossy().to_string());

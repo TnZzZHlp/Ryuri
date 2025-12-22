@@ -8,6 +8,7 @@
 
 use crate::error::{AppError, Result};
 use std::path::Path;
+use rust_i18n::t;
 
 /// Novel archive extractor supporting EPUB format.
 pub struct NovelArchiveExtractor;
@@ -36,10 +37,9 @@ impl NovelArchiveExtractor {
 
         match ext.as_str() {
             "epub" => Self::list_epub_files(archive_path),
-            _ => Err(AppError::Archive(format!(
-                "Unsupported archive format: {}",
-                ext
-            ))),
+            _ => Err(AppError::Archive(
+                t!("archive.unsupported_novel_format", extension = ext).to_string(),
+            )),
         }
     }
 
@@ -53,10 +53,9 @@ impl NovelArchiveExtractor {
 
         match ext.as_str() {
             "epub" => Self::extract_epub_file(archive_path, file_name),
-            _ => Err(AppError::Archive(format!(
-                "Unsupported archive format: {}",
-                ext
-            ))),
+            _ => Err(AppError::Archive(
+                t!("archive.unsupported_novel_format", extension = ext).to_string(),
+            )),
         }
     }
 
@@ -87,7 +86,7 @@ impl NovelArchiveExtractor {
 
     fn list_epub_files(archive_path: &Path) -> Result<Vec<String>> {
         let doc = epub::doc::EpubDoc::new(archive_path)
-            .map_err(|e| AppError::Archive(format!("Failed to open EPUB: {}", e)))?;
+            .map_err(|e| AppError::Archive(t!("archive.epub_open_failed", error = e).to_string()))?;
 
         // Get the spine (reading order) from the EPUB
         // SpineItem has an idref field that we use as the identifier
@@ -97,12 +96,12 @@ impl NovelArchiveExtractor {
 
     fn extract_epub_file(archive_path: &Path, file_name: &str) -> Result<String> {
         let mut doc = epub::doc::EpubDoc::new(archive_path)
-            .map_err(|e| AppError::Archive(format!("Failed to open EPUB: {}", e)))?;
+            .map_err(|e| AppError::Archive(t!("archive.epub_open_failed", error = e).to_string()))?;
 
         // Get the resource by ID (spine item idref)
         // get_resource_str returns Option<(String, String)> where first is content, second is mime type
         let (content, _mime_type) = doc.get_resource_str(file_name).ok_or_else(|| {
-            AppError::Archive(format!("Chapter not found in EPUB: {}", file_name))
+            AppError::Archive(t!("archive.chapter_not_found_in_epub", file = file_name).to_string())
         })?;
 
         // Strip HTML tags and return plain text

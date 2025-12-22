@@ -6,6 +6,7 @@
 //! - `ScanQueueService`: Manages a queue of scan tasks with priority-based ordering,
 //!   deduplication, and task status tracking.
 
+use rust_i18n::t;
 use sqlx::{Pool, Sqlite};
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -97,7 +98,7 @@ impl ScanService {
     /// Scan a single scan path and import/update content.
     #[instrument(skip(self), fields(scan_path_id = scan_path.id, path = %scan_path.path))]
     pub async fn scan_path(&self, scan_path: &ScanPath) -> Result<ScanResult> {
-        info!(path = ?scan_path, "Scanning...");
+        info!(path = ?scan_path, "{}", t!("scan.scanning"));
 
         let mut result = ScanResult::default();
         let base_path = Path::new(&scan_path.path);
@@ -106,7 +107,7 @@ impl ScanService {
         if !base_path.exists() {
             return Err(AppError::FileSystem(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
-                format!("Scan path does not exist: {}", scan_path.path),
+                t!("scan.path_not_found", path = scan_path.path),
             )));
         }
 
@@ -157,7 +158,7 @@ impl ScanService {
                     }
                     Err(e) => {
                         // Log error but continue scanning
-                        error!(folder_path = ?folder_path, error = %e, "Failed to import content");
+                        error!(folder_path = ?folder_path, error = %e, "{}", t!("scan.import_failed"));
                     }
                 }
             } else {
@@ -170,7 +171,7 @@ impl ScanService {
                 .await?
                     && let Err(e) = self.rescan_content_chapters(&content, &folder_path).await
                 {
-                    error!(folder_path = ?folder_path, error = %e, "Failed to rescan content");
+                    error!(folder_path = ?folder_path, error = %e, "{}", t!("scan.rescan_failed"));
                 }
             }
         }
@@ -237,7 +238,7 @@ impl ScanService {
         let title = folder_path
             .file_name()
             .and_then(|n| n.to_str())
-            .ok_or_else(|| AppError::BadRequest("Invalid folder name".to_string()))?
+            .ok_or_else(|| AppError::BadRequest(t!("scan.invalid_folder_name").to_string()))?
             .to_string();
 
         // Detect content type and find chapters
@@ -264,14 +265,16 @@ impl ScanService {
         let new_chapters: Vec<NewChapter> = chapters
             .into_iter()
             .enumerate()
-            .map(|(idx, (chapter_title, file_path, page_count, size))| NewChapter {
-                content_id: content.id,
-                title: chapter_title,
-                file_path,
-                sort_order: idx as i32,
-                page_count,
-                size,
-            })
+            .map(
+                |(idx, (chapter_title, file_path, page_count, size))| NewChapter {
+                    content_id: content.id,
+                    title: chapter_title,
+                    file_path,
+                    sort_order: idx as i32,
+                    page_count,
+                    size,
+                },
+            )
             .collect();
 
         ChapterRepository::create_batch(&self.pool, new_chapters).await?;
@@ -299,7 +302,7 @@ impl ScanService {
         // Fetch the updated content with thumbnail
         let final_content = ContentRepository::find_by_id(&self.pool, content.id)
             .await?
-            .ok_or_else(|| AppError::Internal("Failed to retrieve created content".to_string()))?;
+            .ok_or_else(|| AppError::Internal(t!("scan.retrieve_content_failed").to_string()))?;
 
         Ok((final_content, scrape_error))
     }
@@ -345,14 +348,16 @@ impl ScanService {
                     || existing_chapter.page_count != page_count
                     || existing_chapter.size != size
                 {
-                    sqlx::query("UPDATE chapters SET sort_order = ?, page_count = ?, size = ? WHERE id = ?")
-                        .bind(sort_order)
-                        .bind(page_count)
-                        .bind(size)
-                        .bind(existing_chapter.id)
-                        .execute(&self.pool)
-                        .await
-                        .map_err(AppError::Database)?;
+                    sqlx::query(
+                        "UPDATE chapters SET sort_order = ?, page_count = ?, size = ? WHERE id = ?",
+                    )
+                    .bind(sort_order)
+                    .bind(page_count)
+                    .bind(size)
+                    .bind(existing_chapter.id)
+                    .execute(&self.pool)
+                    .await
+                    .map_err(AppError::Database)?;
                 }
             } else {
                 // New chapter
@@ -410,14 +415,14 @@ impl ScanService {
             }
             Ok(None) => {
                 // No results found (Requirement 8.3)
-                let error_msg = format!("No Bangumi results found for '{}'", title);
-                debug!(title = %title, "No Bangumi results found");
+                let error_msg = t!("scan.bangumi_no_results_msg", title = title).to_string();
+                debug!(title = %title, "{}", t!("scan.bangumi_no_results"));
                 (None, Some(error_msg))
             }
             Err(e) => {
                 // Scraping failed (Requirement 8.3)
-                let error_msg = format!("Failed to scrape metadata for '{}': {}", title, e);
-                warn!(title = %title, error = %e, "Failed to scrape metadata");
+                let error_msg = t!("scan.scrape_failed_msg", title = title, error = e).to_string();
+                warn!(title = %title, error = %e, "{}", t!("scan.scrape_failed"));
                 (None, Some(error_msg))
             }
         }
@@ -454,7 +459,7 @@ impl ScanService {
                 (ContentType::Novel, novel_files)
             } else {
                 return Err(AppError::BadRequest(
-                    "No supported archive files found in folder".to_string(),
+                    t!("scan.no_archives_found").to_string(),
                 ));
             };
 
@@ -481,24 +486,24 @@ impl ScanService {
                 ContentType::Comic => match ComicArchiveExtractor::page_count(&path) {
                     Ok(count) => count as i32,
                     Err(e) => {
-                        warn!(path = ?path, error = %e, "Failed to calculate comic page count");
+                        warn!(path = ?path, error = %e, "{}", t!("scan.calc_comic_page_count_failed"));
                         0
                     }
                 },
                 ContentType::Novel => match NovelArchiveExtractor::chapter_count(&path) {
                     Ok(count) => count as i32,
                     Err(e) => {
-                        warn!(path = ?path, error = %e, "Failed to calculate novel chapter count");
+                        warn!(path = ?path, error = %e, "{}", t!("scan.calc_novel_chapter_count_failed"));
                         0
                     }
                 },
             };
-            
+
             // Calculate file size
             let size = match std::fs::metadata(&path) {
                 Ok(metadata) => metadata.len() as i64,
                 Err(e) => {
-                    warn!(path = ?path, error = %e, "Failed to get file metadata");
+                    warn!(path = ?path, error = %e, "{}", t!("scan.get_file_metadata_failed"));
                     0
                 }
             };
@@ -597,7 +602,7 @@ impl ScanService {
     /// Extract cover image from an EPUB file.
     fn extract_epub_cover(&self, epub_path: &Path) -> Result<Option<Vec<u8>>> {
         let mut doc = epub::doc::EpubDoc::new(epub_path)
-            .map_err(|e| AppError::Archive(format!("Failed to open EPUB: {}", e)))?;
+            .map_err(|e| AppError::Archive(t!("scan.epub_open_failed", error = e).to_string()))?;
 
         // Try to get the cover image
         if let Some((cover_data, _mime)) = doc.get_cover() {
@@ -615,9 +620,13 @@ impl ScanService {
         // Load the image
         let img = ImageReader::new(Cursor::new(image_data))
             .with_guessed_format()
-            .map_err(|e| AppError::Internal(format!("Failed to read image format: {}", e)))?
+            .map_err(|e| {
+                AppError::Internal(t!("scan.read_image_format_failed", error = e).to_string())
+            })?
             .decode()
-            .map_err(|e| AppError::Internal(format!("Failed to decode image: {}", e)))?;
+            .map_err(|e| {
+                AppError::Internal(t!("scan.decode_image_failed", error = e).to_string())
+            })?;
 
         // Resize to thumbnail size (max 300px width, maintaining aspect ratio)
         let thumbnail = img.thumbnail(300, 450);
@@ -627,7 +636,9 @@ impl ScanService {
         let mut cursor = Cursor::new(&mut buffer);
         thumbnail
             .write_to(&mut cursor, image::ImageFormat::Jpeg)
-            .map_err(|e| AppError::Internal(format!("Failed to encode thumbnail: {}", e)))?;
+            .map_err(|e| {
+                AppError::Internal(t!("scan.encode_thumbnail_failed", error = e).to_string())
+            })?;
 
         Ok(buffer)
     }
@@ -712,7 +723,7 @@ impl ScanQueueService {
     /// Requirements: 1.3, 2.2, 6.1, 6.2
     pub async fn start_worker(&self) {
         let Some(scan_service) = self.scan_service.clone() else {
-            warn!("Cannot start worker: no scan service configured");
+            warn!("{}", t!("scan_queue.worker_no_service"));
             return;
         };
 
@@ -723,13 +734,13 @@ impl ScanQueueService {
         let task_notify = Arc::clone(&self.task_notify);
 
         let handle = tokio::spawn(async move {
-            info!("Scan queue worker started");
+            info!("{}", t!("scan_queue.worker_started"));
 
             loop {
                 // Wait for either a new task notification or shutdown
                 tokio::select! {
                     _ = shutdown_rx.recv() => {
-                        info!("Scan queue worker received shutdown signal");
+                        info!("{}", t!("scan_queue.worker_shutdown_signal"));
                         break;
                     }
                     _ = task_notify.notified() => {
@@ -745,7 +756,7 @@ impl ScanQueueService {
                 }
             }
 
-            info!("Scan queue worker stopped");
+            info!("{}", t!("scan_queue.worker_stopped"));
         });
 
         let mut worker_handle = self.worker_handle.write().await;
@@ -780,7 +791,7 @@ impl ScanQueueService {
                 let tasks_guard = tasks.read().await;
                 if let Some(task) = tasks_guard.get(&queued_task.task_id) {
                     if task.status == TaskStatus::Cancelled {
-                        debug!(task_id = %queued_task.task_id, "Skipping cancelled task");
+                        debug!(task_id = %queued_task.task_id, "{}", t!("scan_queue.skip_cancelled"));
                         continue;
                     }
                     (task.id, task.library_id)
@@ -796,7 +807,7 @@ impl ScanQueueService {
                 if let Some(task) = tasks_guard.get_mut(&task_id) {
                     task.status = TaskStatus::Running;
                     task.started_at = Some(chrono::Utc::now());
-                    debug!(task_id = %task_id, library_id = library_id, "Starting scan task");
+                    debug!(task_id = %task_id, library_id = library_id, "{}", t!("scan_queue.starting_task"));
                 }
             }
 
@@ -807,7 +818,7 @@ impl ScanQueueService {
                 }
                 _ = shutdown_rx.recv() => {
                     // Shutdown requested during scan
-                    info!(task_id = %task_id, "Scan interrupted by shutdown");
+                    info!(task_id = %task_id, "{}", t!("scan_queue.scan_interrupted"));
                     None
                 }
             };
@@ -820,7 +831,7 @@ impl ScanQueueService {
                 if let Some(task) = tasks_guard.get_mut(&task_id) {
                     // Check if task was cancelled while running
                     if task.status == TaskStatus::Cancelled {
-                        debug!(task_id = %task_id, "Task was cancelled during execution");
+                        debug!(task_id = %task_id, "{}", t!("scan_queue.task_cancelled_exec"));
                         // Already marked as cancelled, just clean up
                         library_tasks_guard.remove(&library_id);
                         continue;
@@ -842,7 +853,7 @@ impl ScanQueueService {
                                 library_id = library_id,
                                 added = result.added.len(),
                                 removed = result.removed.len(),
-                                "Scan task completed"
+                                "{}", t!("scan_queue.task_completed")
                             );
                         }
                         Some(Err(e)) => {
@@ -853,13 +864,13 @@ impl ScanQueueService {
                                 task_id = %task_id,
                                 library_id = library_id,
                                 error = %e,
-                                "Scan task failed"
+                                "{}", t!("scan_queue.task_failed")
                             );
                         }
                         None => {
                             // Shutdown interrupted the scan
                             task.status = TaskStatus::Cancelled;
-                            task.error = Some("Scan interrupted by shutdown".to_string());
+                            task.error = Some(t!("scan_queue.interrupted_by_shutdown").to_string());
                         }
                     }
 
@@ -870,7 +881,7 @@ impl ScanQueueService {
 
             // Check for shutdown after each task
             if shutdown_rx.try_recv().is_ok() {
-                info!("Shutdown signal received, stopping task processing");
+                debug!("{}", t!("scan_queue.worker_shutdown_signal"));
                 break;
             }
         }
@@ -972,9 +983,9 @@ impl ScanQueueService {
         let mut library_tasks = self.library_tasks.write().await;
         let mut pending_queue = self.pending_queue.write().await;
 
-        let task = tasks
-            .get_mut(&task_id)
-            .ok_or_else(|| AppError::NotFound(format!("Task {} not found", task_id)))?;
+        let task = tasks.get_mut(&task_id).ok_or_else(|| {
+            AppError::NotFound(t!("scan_queue.task_not_found", id = task_id).to_string())
+        })?;
 
         match task.status {
             TaskStatus::Pending => {
@@ -1001,9 +1012,15 @@ impl ScanQueueService {
 
                 Ok(())
             }
-            TaskStatus::Completed | TaskStatus::Failed | TaskStatus::Cancelled => Err(
-                AppError::BadRequest(format!("Cannot cancel task with status {:?}", task.status)),
-            ),
+            TaskStatus::Completed | TaskStatus::Failed | TaskStatus::Cancelled => {
+                Err(AppError::BadRequest(
+                    t!(
+                        "scan_queue.cannot_cancel_status",
+                        status = format!("{:?}", task.status)
+                    )
+                    .to_string(),
+                ))
+            }
         }
     }
 
@@ -1084,7 +1101,7 @@ impl ScanQueueService {
     ///
     /// Requirements: 3.2
     pub async fn shutdown(&self) {
-        info!("Shutting down scan queue service");
+        info!("{}", t!("scan_queue.shutting_down"));
 
         // Send shutdown signal to worker
         let _ = self.shutdown_tx.send(());
@@ -1095,13 +1112,13 @@ impl ScanQueueService {
             // Give the worker some time to finish gracefully
             match tokio::time::timeout(std::time::Duration::from_secs(30), handle).await {
                 Ok(Ok(())) => {
-                    info!("Scan queue worker shut down gracefully");
+                    info!("{}", t!("scan_queue.worker_shutdown_gracefully"));
                 }
                 Ok(Err(e)) => {
-                    error!("Scan queue worker panicked: {:?}", e);
+                    error!("{}", t!("scan_queue.worker_panicked", error = e));
                 }
                 Err(_) => {
-                    warn!("Scan queue worker did not shut down within timeout");
+                    warn!("{}", t!("scan_queue.worker_shutdown_timeout"));
                 }
             }
         }

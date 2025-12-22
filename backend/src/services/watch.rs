@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use tracing::{debug, error, instrument, warn};
+use rust_i18n::t;
 
 use crate::error::Result;
 use crate::repository::library::ScanPathRepository;
@@ -84,7 +85,7 @@ impl WatchService {
                 }
             })
             .map_err(|e| {
-                crate::error::AppError::Internal(format!("Failed to create watcher: {}", e))
+                crate::error::AppError::Internal(t!("watch.create_watcher_failed", error = e).to_string())
             })?;
 
         let mut watcher = watcher;
@@ -95,9 +96,9 @@ impl WatchService {
             let path = PathBuf::from(&scan_path.path);
             if path.exists() {
                 if let Err(e) = watcher.watch(&path, RecursiveMode::NonRecursive) {
-                    warn!(path = ?path, error = %e, "Failed to watch path");
+                    warn!(path = ?path, error = %e, "{}", t!("watch.watch_path_failed"));
                 } else {
-                    debug!(path = ?path, "Started watching path");
+                    debug!(path = ?path, "{}", t!("watch.started_watching"));
                     watched_paths.push(path);
                 }
             }
@@ -129,9 +130,9 @@ impl WatchService {
                 // Trigger a rescan of the library
                 // Requirements: 1.10, 1.11
                 if let Err(e) = scan_service.scan_library(lib_id).await {
-                    error!(library_id = lib_id, error = %e, "Watch service: failed to rescan library");
+                    error!(library_id = lib_id, error = %e, "{}", t!("watch.rescan_failed"));
                 } else {
-                    debug!(library_id = lib_id, "Watch service: rescan completed");
+                    debug!(library_id = lib_id, "{}", t!("watch.rescan_completed"));
                 }
             }
         });

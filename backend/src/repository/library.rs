@@ -4,6 +4,7 @@
 
 use chrono::Utc;
 use sqlx::{Pool, Sqlite};
+use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{Library, LibraryWithStats, NewLibrary, NewScanPath, ScanPath};
@@ -193,10 +194,9 @@ impl ScanPathRepository {
             }
             Err(e) => {
                 if e.to_string().contains("UNIQUE constraint failed") {
-                    Err(AppError::BadRequest(format!(
-                        "Scan path '{}' already exists in this library",
-                        new_scan_path.path
-                    )))
+                    Err(AppError::BadRequest(
+                        t!("library.scan_path_exists_msg", path = new_scan_path.path).to_string(),
+                    ))
                 } else {
                     Err(AppError::Database(e))
                 }

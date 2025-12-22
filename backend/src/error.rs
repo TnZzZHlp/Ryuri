@@ -9,6 +9,7 @@ use axum::{
 };
 use serde::Serialize;
 use thiserror::Error;
+use rust_i18n::t;
 
 /// Unified error type for the application.
 #[derive(Debug, Error)]
@@ -72,11 +73,11 @@ impl AppError {
             AppError::NotFound(msg) => msg.clone(),
             AppError::BadRequest(msg) => msg.clone(),
             AppError::Unauthorized(msg) => msg.clone(),
-            AppError::Database(_) => "Database error".to_string(),
-            AppError::FileSystem(_) => "File system error".to_string(),
+            AppError::Database(_) => t!("error.database").to_string(),
+            AppError::FileSystem(_) => t!("error.filesystem").to_string(),
             AppError::Archive(msg) => msg.clone(),
             AppError::Internal(msg) => msg.clone(),
-            AppError::Axum(_) => "HTTP error".to_string(),
+            AppError::Axum(_) => t!("error.http").to_string(),
         }
     }
 

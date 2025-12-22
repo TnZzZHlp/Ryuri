@@ -5,6 +5,7 @@
 
 use sqlx::{Pool, Sqlite};
 use std::path::Path;
+use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::extractors::{ComicArchiveExtractor, NovelArchiveExtractor};
@@ -19,7 +20,7 @@ impl ContentService {
     pub async fn get_content(pool: &Pool<Sqlite>, id: i64) -> Result<Content> {
         ContentRepository::find_by_id(pool, id)
             .await?
-            .ok_or_else(|| AppError::NotFound(format!("Content with id {} not found", id)))
+            .ok_or_else(|| AppError::NotFound(t!("content.id_not_found", id = id).to_string()))
     }
 
     /// List all contents for a library.
@@ -86,10 +87,7 @@ impl ContentService {
 
         // Validate chapter id
         if !chapters.iter().any(|chapter| chapter.id == chapter_id) {
-            return Err(AppError::NotFound(format!(
-                "Chapter {} not found for content {}",
-                chapter_id, content_id
-            )));
+            return Err(AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string()));
         }
 
         let chapter = &chapters.iter().find(|c| c.id == chapter_id).unwrap();
@@ -100,10 +98,7 @@ impl ContentService {
 
         // Validate page index
         if page_index < 0 || page_index as usize >= images.len() {
-            return Err(AppError::NotFound(format!(
-                "Page {} not found in chapter {}",
-                page_index, chapter_id
-            )));
+            return Err(AppError::NotFound(t!("komga.page_not_found", page = page_index).to_string()));
         }
 
         let image_name = &images[page_index as usize];
@@ -140,10 +135,8 @@ impl ContentService {
 
         // Validate chapter index
         if chapter_index < 0 || chapter_index as usize >= chapters.len() {
-            return Err(AppError::NotFound(format!(
-                "Chapter {} not found for content {}",
-                chapter_index, content_id
-            )));
+            let chapter_id = chapter_index as i64; // Approximation for error message
+            return Err(AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string()));
         }
 
         let chapter = &chapters[chapter_index as usize];
@@ -167,10 +160,8 @@ impl ContentService {
 
         // Validate chapter index
         if chapter_index < 0 || chapter_index as usize >= chapters.len() {
-            return Err(AppError::NotFound(format!(
-                "Chapter {} not found for content {}",
-                chapter_index, content_id
-            )));
+            let chapter_id = chapter_index as i64; // Approximation for error message
+            return Err(AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string()));
         }
 
         let chapter = &chapters[chapter_index as usize];
@@ -236,7 +227,7 @@ impl ContentService {
         let content = Self::get_content(pool, content_id).await?;
 
         content.thumbnail.ok_or_else(|| {
-            AppError::NotFound(format!("Thumbnail not found for content {}", content_id))
+            AppError::NotFound(t!("content.thumbnail_not_found", id = content_id).to_string())
         })
     }
 }

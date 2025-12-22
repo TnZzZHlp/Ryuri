@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, instrument, warn};
 use sqlx::{Pool, Sqlite};
+use rust_i18n::t;
 
 use crate::error::Result;
 use crate::models::TaskPriority;
@@ -109,8 +110,8 @@ impl SchedulerService {
 
                         // Submit scan task to queue with Normal priority (Requirements: 5.2)
                         let task_id = scan_queue_service.submit_task(lib_id, TaskPriority::Normal).await;
-                        info!(library_id = lib_id, task_id = %task_id, "Scheduled scan task submitted to queue");
-                        debug!(library_id = lib_id, "Scheduled scan task queued");
+                        info!(library_id = lib_id, task_id = %task_id, "{}", t!("scheduler.task_submitted"));
+                        debug!(library_id = lib_id, "{}", t!("scheduler.task_queued"));
                     }
                     _ = &mut cancel_rx => {
                         // Cancellation requested
@@ -187,7 +188,7 @@ impl SchedulerService {
 
     /// Restore scheduled scans from the database.
     pub async fn restore_schedules(&self, pool: &Pool<Sqlite>) {
-        info!("Restoring scheduled scans...");
+        info!("{}", t!("scheduler.restoring_schedules"));
         match LibraryRepository::list(pool).await {
             Ok(libraries) => {
                 let mut count = 0;
@@ -197,17 +198,17 @@ impl SchedulerService {
                             warn!(
                                 library_id = lib.id,
                                 error = %e,
-                                "Failed to restore schedule for library"
+                                "{}", t!("scheduler.restore_failed")
                             );
                         } else {
                             count += 1;
                         }
                     }
                 }
-                info!(count = count, "Scheduled scans restored");
+                info!(count = count, "{}", t!("scheduler.scans_restored"));
             }
             Err(e) => {
-                error!(error = %e, "Failed to load libraries for schedule restoration");
+                error!(error = %e, "{}", t!("scheduler.load_libraries_failed"));
             }
         }
     }

@@ -4,6 +4,7 @@
 
 use sqlx::{Pool, Sqlite};
 use tracing::instrument;
+use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{
@@ -53,7 +54,7 @@ impl LibraryService {
     pub async fn get_or_error(&self, id: i64) -> Result<Library> {
         self.get(id)
             .await?
-            .ok_or_else(|| AppError::NotFound(format!("Library with id {} not found", id)))
+            .ok_or_else(|| AppError::NotFound(t!("library.id_not_found", id = id).to_string()))
     }
 
     /// List all libraries with statistics.

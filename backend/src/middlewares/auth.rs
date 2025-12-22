@@ -13,6 +13,7 @@ use axum::{
     response::Response,
 };
 use std::borrow::Cow;
+use rust_i18n::t;
 
 use crate::error::AppError;
 use crate::models::{JwtClaims, User};
@@ -84,7 +85,7 @@ pub async fn auth_middleware(
         // If API key is invalid, we don't return error immediately, we fall back to JWT check
         // or maybe we should return error? Usually if explicit auth method is provided and fails, we fail.
         // But for now let's strict fail if header is present but invalid.
-        return Err(AppError::Unauthorized("Invalid API Key".to_string()));
+        return Err(AppError::Unauthorized(t!("auth.invalid_api_key").to_string()));
     }
 
     // 2. Prefer Authorization: Bearer <token>. If absent, optionally accept `?token=`
@@ -96,8 +97,8 @@ pub async fn auth_middleware(
     {
         // Check for Bearer token format
         Cow::Borrowed(auth_header.strip_prefix("Bearer ").ok_or_else(|| {
-            tracing::warn!("Authentication failed: Invalid authorization header format");
-            AppError::Unauthorized("Invalid authorization header format".to_string())
+            tracing::warn!("{}", t!("auth.invalid_auth_header_format"));
+            AppError::Unauthorized(t!("auth.invalid_auth_header_format_error").to_string())
         })?)
     } else {
         // Only allow query token for safe, cacheable-ish image reads.
@@ -108,18 +109,18 @@ pub async fn auth_middleware(
             && (path.contains("/pages/") || path.ends_with("/thumbnail"));
 
         if !matches!(method, Method::GET | Method::HEAD) || !is_image_resource {
-            tracing::warn!("Authentication failed: Missing authorization header");
+            tracing::warn!("{}", t!("auth.missing_auth_header_log"));
             return Err(AppError::Unauthorized(
-                "Missing authorization header".to_string(),
+                t!("auth.missing_auth_header").to_string(),
             ));
         }
 
         let query = req.uri().query().unwrap_or("");
         let token = extract_query_param(query, "token").ok_or_else(|| {
             tracing::warn!(
-                "Authentication failed: Missing authorization header and token query param"
+                "{}", t!("auth.missing_auth_header_and_token_log")
             );
-            AppError::Unauthorized("Missing authorization header".to_string())
+            AppError::Unauthorized(t!("auth.missing_auth_header").to_string())
         })?;
 
         Cow::Owned(token)
@@ -130,7 +131,7 @@ pub async fn auth_middleware(
         .auth_service
         .verify_token(token.as_ref())
         .map_err(|e| {
-            tracing::warn!("Authentication failed: {:?}", e);
+            tracing::warn!("{}", t!("auth.auth_failed_log", error = e));
             e
         })?;
 
@@ -180,7 +181,7 @@ where
         // Extract AuthUser from request extensions
         parts.extensions.get::<AuthUser>().cloned().ok_or_else(|| {
             AppError::Unauthorized(
-                "Missing authentication. This route requires authentication.".to_string(),
+                t!("auth.missing_authentication").to_string(),
             )
         })
     }
