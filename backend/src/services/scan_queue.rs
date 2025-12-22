@@ -952,8 +952,6 @@ impl ScanQueueService {
     }
 
     /// Gets a task by its ID.
-    ///
-    /// Requirements: 2.1
     pub async fn get_task(&self, task_id: Uuid) -> Option<ScanTask> {
         let tasks = self.tasks.read().await;
         tasks.get(&task_id).cloned()
@@ -1044,7 +1042,7 @@ impl ScanQueueService {
     pub async fn list_pending(&self) -> Vec<ScanTask> {
         let tasks = self.tasks.read().await;
 
-        // Get Pending and Running tasks from the tasks map
+        // Get Pending tasks from the tasks map
         let mut result: Vec<ScanTask> = tasks
             .values()
             .filter(|t| t.status == TaskStatus::Pending)
@@ -1064,8 +1062,6 @@ impl ScanQueueService {
     /// Lists task history (completed, failed, cancelled tasks).
     ///
     /// Returns tasks from the last 24 hours by default.
-    ///
-    /// Requirements: 2.3, 6.3
     pub async fn list_history(&self, limit: usize) -> Vec<ScanTask> {
         let tasks = self.tasks.read().await;
 
