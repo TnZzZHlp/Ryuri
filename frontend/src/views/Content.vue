@@ -110,9 +110,9 @@ const getInfoboxValue = (key: string) => {
 
 const author = computed(() => {
     const infobox = getMetaValue('infobox')
-    // Find the field with key '作者'
-    return infobox?.find((item: any) => item.key === '作者')?.value || t('content.author_unknown');
+    return infobox?.find((item: any) => item.key === '作者')?.value || infobox?.find((item: any) => item.key === '作画')?.value || infobox?.find((item: any) => item.key === '原作')?.value || t('content.author_unknown');
 });
+
 const publisher = computed(() => getMetaValue('publisher') || getInfoboxValue('出版社'));
 const publishDate = computed(() => getMetaValue('publish_date') || getMetaValue('date') || getInfoboxValue('发售日'));
 const isbn = computed(() => getMetaValue('isbn'));
@@ -221,7 +221,10 @@ const handleStartReading = (chapterId?: number) => {
                     </div>
                     <Progress :model-value="progress.overall_percentage" class="h-2" />
                     <div class="text-xs text-muted-foreground text-center">
-                        {{ t('content.chapters_read', { completed: progress.completed_chapters, total: progress.total_chapters }) }}
+                        {{ t('content.chapters_read', {
+                            completed: progress.completed_chapters, total:
+                                progress.total_chapters
+                        }) }}
                     </div>
                 </div>
             </div>
@@ -391,7 +394,10 @@ const handleStartReading = (chapterId?: number) => {
                     <div class="flex items-center gap-2 mb-4">
                         <List class="size-5" />
                         <h2 class="text-xl font-semibold">{{ t('content.chapters_title') }}</h2>
-                        <span class="text-sm text-muted-foreground">{{ t('content.chapters_count', { count: chapters.length }) }}</span>
+                        <span class="text-sm text-muted-foreground">{{ t('content.chapters_count', {
+                            count:
+                                chapters.length
+                        }) }}</span>
                     </div>
 
                     <!-- Chapters Loading -->
