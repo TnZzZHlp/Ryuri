@@ -7,9 +7,9 @@
 //! deserializing should produce an equivalent data structure.
 
 use backend::models::{
-    Chapter, Content, ContentResponse, ContentType, CreateLibraryRequest,
-    JwtClaims, Library, LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse,
-    ReadingProgress, ScanPath, UpdateLibraryRequest, UpdateProgressRequest, User, UserResponse,
+    Chapter, Content, ContentResponse, ContentType, CreateLibraryRequest, JwtClaims, Library,
+    LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ReadingProgress, ScanPath,
+    UpdateLibraryRequest, UpdateProgressRequest, User, UserResponse,
 };
 use chrono::{DateTime, TimeZone, Utc};
 use proptest::prelude::*;
@@ -389,9 +389,8 @@ proptest! {
 }
 
 // ============================================================================
-// Property Tests for OpenAPI DTO Serialization Round-Trip
-// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
-// **Validates: Requirements 5.4**
+// Property Tests for DTO Serialization Round-Trip
+// **Feature: comic-reader, Property 19: DTO Serialization Round-Trip**
 // ============================================================================
 
 /// Strategy to generate arbitrary LoginRequest instances.
@@ -435,7 +434,7 @@ fn arb_update_progress_request() -> impl Strategy<Value = UpdateProgressRequest>
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
 
-    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Feature: comic-reader, Property 19: DTO Serialization Round-Trip**
     /// **Validates: Requirements 5.4**
     ///
     /// For any valid LoginRequest, serializing to JSON and deserializing should
@@ -448,7 +447,7 @@ proptest! {
         prop_assert_eq!(request.password, deserialized.password);
     }
 
-    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Feature: comic-reader, Property 19: DTO Serialization Round-Trip**
     /// **Validates: Requirements 5.4**
     ///
     /// For any valid CreateLibraryRequest, serializing to JSON and deserializing should
@@ -462,7 +461,7 @@ proptest! {
         prop_assert_eq!(request.watch_mode, deserialized.watch_mode);
     }
 
-    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Feature: comic-reader, Property 19: DTO Serialization Round-Trip**
     /// **Validates: Requirements 5.4**
     ///
     /// For any valid UpdateLibraryRequest, serializing to JSON and deserializing should
@@ -476,7 +475,7 @@ proptest! {
         prop_assert_eq!(request.watch_mode, deserialized.watch_mode);
     }
 
-    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Feature: comic-reader, Property 19: DTO Serialization Round-Trip**
     /// **Validates: Requirements 5.4**
     ///
     /// For any valid UpdateProgressRequest, serializing to JSON and deserializing should
@@ -488,7 +487,7 @@ proptest! {
         prop_assert_eq!(request.position, deserialized.position);
     }
 
-    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
+    /// **Feature: comic-reader, Property 19: DTO Serialization Round-Trip**
     /// **Validates: Requirements 5.4**
     ///
     /// For any valid LoginResponse, serializing to JSON and deserializing should

@@ -20,7 +20,6 @@ use crate::state::AppState;
 
 /// Response for submitting a scan task.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct SubmitScanResponse {
     /// The task identifier.
     pub task_id: Uuid,
@@ -80,7 +79,6 @@ pub async fn get_task(
 
 /// Query parameters for listing tasks.
 #[derive(Debug, Clone, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ListTasksQuery {
     /// Maximum number of history tasks to return (default: 50).
     #[serde(default = "default_limit")]
@@ -93,7 +91,6 @@ fn default_limit() -> usize {
 
 /// Response for listing tasks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ListTasksResponse {
     /// Tasks currently pending in the queue.
     pub pending: Vec<ScanTask>,

@@ -115,7 +115,7 @@ To run Ryuri directly from the compiled binary, follow these steps:
     Then, navigate to the backend directory and build the application in release mode.
     ```bash
     cd backend
-    cargo build --release --features dev # --features dev enables OpenAPI documentation
+    cargo build --release
     cd ..
     ```
     The compiled binary will be located at `backend/target/release/backend`.

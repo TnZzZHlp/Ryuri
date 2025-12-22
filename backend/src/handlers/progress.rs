@@ -18,7 +18,6 @@ use crate::state::AppState;
 
 /// Query parameters for recent progress.
 #[derive(Debug, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct RecentProgressQuery {
     #[serde(default = "default_recent_limit")]
     pub limit: i64,
@@ -75,7 +74,6 @@ pub async fn get_chapter_progress(
 
 /// Request body for updating chapter progress with optional percentage.
 #[derive(Debug, Clone, serde::Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct UpdateProgressWithPercentageRequest {
     /// Current position within the chapter (page number or character offset).
     pub position: i32,

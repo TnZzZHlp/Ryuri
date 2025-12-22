@@ -17,7 +17,6 @@ const USER_AGENT: &str = "ryuri/0.1.1 (https://github.com/tnzzzhlp/ryuri)";
 
 /// Search result from Bangumi API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct BangumiSearchResult {
     /// Bangumi subject ID.
     pub id: i64,

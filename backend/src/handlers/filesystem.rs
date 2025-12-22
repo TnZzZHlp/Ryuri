@@ -6,35 +6,17 @@ use rust_i18n::t;
 use crate::error::{Result, AppError};
 
 #[derive(Debug, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::IntoParams))]
 pub struct ListDirectoriesQuery {
     path: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct DirectoryEntry {
     name: String,
     path: String,
     parent: Option<String>,
 }
 
-#[cfg_attr(
-    feature = "dev",
-    utoipa::path(
-        get,
-        path = "/api/filesystem",
-        tag = "filesystem",
-        params(
-            ListDirectoriesQuery
-        ),
-        responses(
-            (status = 200, description = "List of directories", body = Vec<DirectoryEntry>),
-            (status = 404, description = "Path not found"),
-            (status = 400, description = "Path is not a directory")
-        )
-    )
-)]
 pub async fn list_directories(
     Query(query): Query<ListDirectoriesQuery>,
 ) -> Result<Json<Vec<DirectoryEntry>>> {

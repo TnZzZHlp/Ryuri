@@ -27,7 +27,7 @@ COPY backend/ .
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
 # Build
-RUN cargo build --release --features dev
+RUN cargo build --release
 
 # Stage 3: Runtime
 FROM debian:bookworm-slim

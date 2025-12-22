@@ -13,7 +13,6 @@ use uuid::Uuid;
 /// Higher priority tasks are processed before lower priority tasks.
 /// Manual scans have High priority, scheduled scans have Normal priority.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub enum TaskPriority {
     /// Normal priority for scheduled scans.
     Normal = 0,
@@ -35,7 +34,6 @@ impl Ord for TaskPriority {
 
 /// Task status for scan operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub enum TaskStatus {
     /// Task is waiting in the queue.
     Pending,
@@ -51,7 +49,6 @@ pub enum TaskStatus {
 
 /// Progress information for a running scan task.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct TaskProgress {
     /// Number of paths that have been scanned.
     pub scanned_paths: i32,
@@ -61,7 +58,6 @@ pub struct TaskProgress {
 
 /// Result information for a completed scan task.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct TaskResult {
     /// Number of content items added during the scan.
     pub added_count: i32,
@@ -73,7 +69,6 @@ pub struct TaskResult {
 
 /// A scan task representing a queued or executed scan operation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ScanTask {
     /// Unique identifier for the task.
     pub id: Uuid,
