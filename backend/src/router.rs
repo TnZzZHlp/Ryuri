@@ -159,7 +159,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(api_router)
         .route("/", get(static_files::serve_index))
         .route("/{*path}", get(static_files::serve_static))
-        .with_state(state);
+        .with_state(state)
 }
 
 /// Create the router with Layers middleware configured.
