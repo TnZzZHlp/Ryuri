@@ -126,10 +126,7 @@ fn arb_percentage() -> impl Strategy<Value = f32> {
     (0u32..=10000).prop_map(|v| v as f32 / 100.0)
 }
 
-/// Strategy to generate number of chapters (1-10).
-fn arb_num_chapters() -> impl Strategy<Value = i32> {
-    1i32..10
-}
+
 
 // ============================================================================
 // Property 13: Progress Persistence Round-Trip
@@ -320,73 +317,7 @@ proptest! {
     }
 
 
-    /// **Feature: comic-reader, Property 14: Progress Percentage Accuracy**
-    /// **Validates: Requirements 5.4**
-    ///
-    /// For any content, aggregated progress should correctly count completed chapters.
-    #[test]
-    fn aggregated_progress_completed_chapters_accuracy(
-        num_chapters in arb_num_chapters(),
-        chapters_to_complete in 0i32..10
-    ) {
-        // Ensure we don't try to complete more chapters than exist
-        let chapters_to_complete = chapters_to_complete.min(num_chapters);
 
-        let rt = Runtime::new().unwrap();
-        rt.block_on(async {
-            let pool = create_test_db().await;
-            let service = ProgressService::new(pool.clone());
-
-            // Create test data
-            let user_id = create_test_user(&pool, "test_user").await;
-            let (library_id, scan_path_id) = create_test_library_with_path(&pool).await;
-            let (content_id, chapter_ids) = create_test_content_with_chapters(
-                &pool,
-                library_id,
-                scan_path_id,
-                num_chapters,
-            ).await;
-
-            // Mark some chapters as complete (100%)
-            for i in 0..chapters_to_complete as usize {
-                if i < chapter_ids.len() {
-                    service
-                        .update_progress_with_percentage(user_id, chapter_ids[i], 100, 100.0)
-                        .await
-                        .expect("Should save progress");
-                }
-            }
-
-            // Get aggregated progress
-            let aggregated = service
-                .get_aggregated_content_progress(user_id, content_id)
-                .await
-                .expect("Should get aggregated progress");
-
-            // Verify completed chapters count
-            prop_assert_eq!(
-                aggregated.completed_chapters,
-                chapters_to_complete,
-                "Completed chapters count should match"
-            );
-            prop_assert_eq!(
-                aggregated.total_chapters,
-                num_chapters,
-                "Total chapters count should match"
-            );
-
-            // Verify overall percentage is reasonable
-            let expected_base = (chapters_to_complete as f32 / num_chapters as f32) * 100.0;
-            prop_assert!(
-                aggregated.overall_percentage >= expected_base - 0.01,
-                "Overall percentage {} should be at least {}",
-                aggregated.overall_percentage,
-                expected_base
-            );
-
-            Ok(())
-        })?;
-    }
 }
 
 // ============================================================================

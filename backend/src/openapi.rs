@@ -15,7 +15,7 @@ use crate::handlers::library::{AddScanPathRequest, ScanPathParams};
 use crate::handlers::progress::{RecentProgressQuery, UpdateProgressWithPercentageRequest};
 use crate::handlers::scan_queue::{ListTasksResponse, SubmitScanResponse};
 use crate::models::{
-    Chapter, ContentProgressResponse, ContentResponse, ContentType, CreateLibraryRequest, Library,
+    Chapter, ContentResponse, ContentType, CreateLibraryRequest, Library,
     LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath, ScanTask,
     UpdateLibraryRequest, UpdateProgressRequest, UpdateUserRequest,
     UserResponse,
@@ -104,7 +104,6 @@ use crate::models::{
             UpdateContentRequest,
             // Progress schemas
             ProgressResponse,
-            ContentProgressResponse,
             UpdateProgressRequest,
             UpdateProgressWithPercentageRequest,
             RecentProgressQuery,
@@ -133,7 +132,7 @@ pub mod paths {
     use crate::handlers::progress::{RecentProgressQuery, UpdateProgressWithPercentageRequest};
     use crate::handlers::scan_queue::{ListTasksResponse, SubmitScanResponse};
     use crate::models::{
-        Chapter, ContentProgressResponse, ContentResponse, CreateLibraryRequest, Library,
+        Chapter, ContentResponse, CreateLibraryRequest, Library,
         LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ScanPath, ScanTask,
         UpdateLibraryRequest, UpdateUserRequest, UserResponse,
     };
@@ -455,7 +454,7 @@ pub mod paths {
             ("id" = i64, Path, description = "Content ID")
         ),
         responses(
-            (status = 200, description = "Content progress", body = ContentProgressResponse),
+            (status = 200, description = "Content progress", body = Vec<ProgressResponse>),
             (status = 401, description = "Not authenticated")
         )
     )]

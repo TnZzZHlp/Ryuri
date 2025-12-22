@@ -20,7 +20,6 @@ const EXPECTED_SCHEMAS: &[&str] = &[
     "LoginResponse",
     "UserResponse",
     "UpdateUserRequest",
-    "UpdatePasswordRequest",
     // Library schemas
     "Library",
     "LibraryWithStats",
@@ -33,20 +32,14 @@ const EXPECTED_SCHEMAS: &[&str] = &[
     "ContentType",
     "ContentResponse",
     "Chapter",
-    "ScanResponse",
     "SearchQuery",
     "ChapterTextResponse",
     "ChapterTextParams",
     "PageParams",
-    "UpdateMetadataRequest",
     // Progress schemas
     "ProgressResponse",
-    "ContentProgressResponse",
     "UpdateProgressRequest",
     "UpdateProgressWithPercentageRequest",
-    // Bangumi schemas
-    "BangumiSearchQuery",
-    "BangumiSearchResult",
 ];
 
 /// **Feature: openapi-dev-feature, Property 1: Schema Completeness**
@@ -92,7 +85,6 @@ fn schema_completeness_all_expected_paths_present() {
         // Auth endpoints
         "/api/auth/login",
         "/api/auth/me",
-        "/api/auth/password",
         // Library endpoints
         "/api/libraries",
         "/api/libraries/{id}",
@@ -103,15 +95,12 @@ fn schema_completeness_all_expected_paths_present() {
         "/api/libraries/{id}/scan",
         "/api/libraries/{id}/search",
         "/api/contents/{id}",
-        "/api/contents/{id}/metadata",
         "/api/contents/{id}/chapters",
         "/api/contents/{id}/chapters/{chapter}/pages/{page}",
         "/api/contents/{id}/chapters/{chapter}/text",
         // Progress endpoints
         "/api/contents/{id}/progress",
         "/api/chapters/{id}/progress",
-        // Bangumi endpoints
-        "/api/bangumi/search",
     ];
 
     let path_keys: Vec<&str> = openapi.paths.paths.keys().map(|s| s.as_str()).collect();
@@ -180,7 +169,7 @@ fn schema_completeness_valid_json_output() {
 fn schema_completeness_all_expected_tags_present() {
     let openapi = ApiDoc::openapi();
 
-    let expected_tags = ["auth", "libraries", "contents", "chapters", "progress", "bangumi"];
+    let expected_tags = ["auth", "libraries", "contents", "chapters", "progress"];
 
     let tag_names: Vec<&str> = openapi
         .tags

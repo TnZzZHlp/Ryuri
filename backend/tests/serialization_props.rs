@@ -7,7 +7,7 @@
 //! deserializing should produce an equivalent data structure.
 
 use backend::models::{
-    Chapter, Content, ContentProgressResponse, ContentResponse, ContentType, CreateLibraryRequest,
+    Chapter, Content, ContentResponse, ContentType, CreateLibraryRequest,
     JwtClaims, Library, LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse,
     ReadingProgress, ScanPath, UpdateLibraryRequest, UpdateProgressRequest, User, UserResponse,
 };
@@ -432,34 +432,6 @@ fn arb_update_progress_request() -> impl Strategy<Value = UpdateProgressRequest>
     (0i32..10000).prop_map(|position| UpdateProgressRequest { position })
 }
 
-/// Strategy to generate arbitrary ContentProgressResponse instances.
-fn arb_content_progress_response() -> impl Strategy<Value = ContentProgressResponse> {
-    (
-        1i64..10000,
-        0i32..1000,
-        0i32..1000,
-        prop::option::of(1i64..10000),
-        0.0f32..100.0,
-    )
-        .prop_map(
-            |(
-                content_id,
-                total_chapters,
-                completed_chapters,
-                current_chapter_id,
-                overall_percentage,
-            )| {
-                ContentProgressResponse {
-                    content_id,
-                    total_chapters,
-                    completed_chapters,
-                    current_chapter_id,
-                    overall_percentage,
-                }
-            },
-        )
-}
-
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
 
@@ -514,23 +486,6 @@ proptest! {
         let json = serde_json::to_string(&request).expect("Should serialize UpdateProgressRequest to JSON");
         let deserialized: UpdateProgressRequest = serde_json::from_str(&json).expect("Should deserialize UpdateProgressRequest from JSON");
         prop_assert_eq!(request.position, deserialized.position);
-    }
-
-    /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
-    /// **Validates: Requirements 5.4**
-    ///
-    /// For any valid ContentProgressResponse, serializing to JSON and deserializing should
-    /// produce an equivalent ContentProgressResponse.
-    #[test]
-    fn content_progress_response_json_round_trip(response in arb_content_progress_response()) {
-        let json = serde_json::to_string(&response).expect("Should serialize ContentProgressResponse to JSON");
-        let deserialized: ContentProgressResponse = serde_json::from_str(&json).expect("Should deserialize ContentProgressResponse from JSON");
-        prop_assert_eq!(response.content_id, deserialized.content_id);
-        prop_assert_eq!(response.total_chapters, deserialized.total_chapters);
-        prop_assert_eq!(response.completed_chapters, deserialized.completed_chapters);
-        prop_assert_eq!(response.current_chapter_id, deserialized.current_chapter_id);
-        // Float comparison with tolerance
-        prop_assert!((response.overall_percentage - deserialized.overall_percentage).abs() < 0.001);
     }
 
     /// **Feature: openapi-dev-feature, Property 2: DTO Serialization Round-Trip**
