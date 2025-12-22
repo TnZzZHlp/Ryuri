@@ -155,13 +155,11 @@ pub fn create_router(state: AppState) -> Router {
         .merge(komga_routes)
         .merge(protected_routes);
 
-    let router = Router::new()
+    Router::new()
         .merge(api_router)
         .route("/", get(static_files::serve_index))
         .route("/{*path}", get(static_files::serve_static))
         .with_state(state);
-
-    router
 }
 
 /// Create the router with Layers middleware configured.
