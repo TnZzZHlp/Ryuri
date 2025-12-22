@@ -21,7 +21,7 @@ import {
     Tv,
     Layers
 } from 'lucide-vue-next';
-import type { Chapter, ContentProgressResponse } from '@/api/types';
+import type { Chapter } from '@/api/types';
 import { toast } from 'vue-sonner';
 import { useI18n } from 'vue-i18n';
 
@@ -42,7 +42,12 @@ const chapters = ref<Chapter[]>([]);
 const contentLoading = ref(true);
 const chaptersLoading = ref(false);
 const lastReadChapterId = ref<number | null>(null);
-const progress = ref<ContentProgressResponse | null>(null);
+const progressStats = ref<{
+    overall_percentage: number;
+    completed_chapters: number;
+    total_chapters: number;
+} | null>(null);
+const chapterProgresses = ref<Record<number, number>>({});
 
 onBeforeMount(async () => {
     try {
@@ -62,16 +67,54 @@ onBeforeMount(async () => {
 
         const [contentData, progressData] = await Promise.all([
             contentApi.get(contentId),
-            progressApi.getContentProgress(contentId).catch(() => null)
+            progressApi.getContentProgress(contentId).catch(() => [])
         ]);
 
         // Update store with fetched content
         // This will update the computed 'content' property
         contentStore.selectContent(contentData);
 
-        progress.value = progressData;
-        if (progressData?.current_chapter_id) {
-            lastReadChapterId.value = progressData.current_chapter_id;
+        // Process progress data
+        if (progressData && Array.isArray(progressData)) {
+            // Sort by updated_at descending to find the last read
+            const sortedProgress = [...progressData].sort((a, b) => 
+                new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+            );
+            
+            if (sortedProgress.length > 0 && sortedProgress[0]) {
+                lastReadChapterId.value = sortedProgress[0].chapter_id;
+            }
+
+            // Map progress
+            const progressMap: Record<number, number> = {};
+            let completedCount = 0;
+            let totalProgressSum = 0;
+
+            progressData.forEach(p => {
+                progressMap[p.chapter_id] = p.percentage;
+                if (p.percentage >= 100) completedCount++;
+                totalProgressSum += p.percentage; // This is sum of chapter percentages
+            });
+            chapterProgresses.value = progressMap;
+
+            // Calculate overall stats
+            // We need total chapters count, which we get from contentData or when chapters are loaded
+            // But contentData.chapter_count might be unreliable if scanning is pending
+            // Let's use contentData.chapter_count as base
+            const totalChapters = contentData.chapter_count;
+            
+            // Calculate weighted percentage
+            // Each chapter contributes (1 / totalChapters) to the total
+            // So sum(chapter_percentages) / totalChapters
+            const overallPercentage = totalChapters > 0 
+                ? Math.min(100, totalProgressSum / totalChapters)
+                : 0;
+
+            progressStats.value = {
+                overall_percentage: overallPercentage,
+                completed_chapters: completedCount,
+                total_chapters: totalChapters
+            };
         }
 
         // Load thumbnail
@@ -83,6 +126,19 @@ onBeforeMount(async () => {
         chaptersLoading.value = true;
         const chapterList = await contentApi.listChapters(contentId);
         chapters.value = chapterList.sort((a, b) => a.sort_order - b.sort_order);
+        
+        // Recalculate stats with actual chapter list count if different
+        if (progressStats.value && chapters.value.length > 0 && chapters.value.length !== progressStats.value.total_chapters) {
+             const totalChapters = chapters.value.length;
+             let totalProgressSum = 0;
+             Object.values(chapterProgresses.value).forEach(p => totalProgressSum += p);
+             
+             progressStats.value.total_chapters = totalChapters;
+             progressStats.value.overall_percentage = totalChapters > 0 
+                ? Math.min(100, totalProgressSum / totalChapters)
+                : 0;
+        }
+        
         chaptersLoading.value = false;
     } catch (e) {
         console.error('Failed to fetch content:', e);
@@ -214,16 +270,16 @@ const handleStartReading = (chapterId?: number) => {
                 </Button>
 
                 <!-- Reading Progress -->
-                <div v-if="progress" class="mt-4 space-y-2">
+                <div v-if="progressStats" class="mt-4 space-y-2">
                     <div class="flex justify-between text-sm text-muted-foreground">
                         <span>{{ t('content.reading_progress') }}</span>
-                        <span>{{ progress.overall_percentage.toFixed(0) }}%</span>
+                        <span>{{ progressStats.overall_percentage.toFixed(0) }}%</span>
                     </div>
-                    <Progress :model-value="progress.overall_percentage" class="h-2" />
+                    <Progress :model-value="progressStats.overall_percentage" class="h-2" />
                     <div class="text-xs text-muted-foreground text-center">
                         {{ t('content.chapters_read', {
-                            completed: progress.completed_chapters, total:
-                                progress.total_chapters
+                            completed: progressStats.completed_chapters, total:
+                                progressStats.total_chapters
                         }) }}
                     </div>
                 </div>
@@ -422,6 +478,10 @@ const handleStartReading = (chapterId?: number) => {
                                 </span>
                             </div>
                             <div class="flex items-center gap-2">
+                                <span v-if="chapterProgresses[chapter.id] !== undefined"
+                                    class="text-xs text-muted-foreground mr-2">
+                                    {{ chapterProgresses[chapter.id]?.toFixed(0) }}%
+                                </span>
                                 <span v-if="lastReadChapterId === chapter.id"
                                     class="text-xs text-primary font-medium px-2 py-0.5 rounded-full bg-primary/10">
                                     {{ t('content.last_read') }}
