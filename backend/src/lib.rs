@@ -14,10 +14,6 @@ pub mod repository;
 pub mod router;
 pub mod services;
 pub mod state;
+/// Utils module.
 pub mod utils;
 
-/// OpenAPI documentation module (only available with `dev` feature).
-///
-/// Requirements: 1.1
-#[cfg(feature = "dev")]
-pub mod openapi;

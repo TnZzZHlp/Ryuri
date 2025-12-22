@@ -12,9 +12,6 @@ use tower_http::{
 };
 use tracing::Level;
 
-#[cfg(feature = "dev")]
-use tower_http::{LatencyUnit, trace::DefaultOnResponse};
-
 use crate::handlers::{
     apikey, auth, content, filesystem, komga, library, progress, scan_queue, static_files,
 };
@@ -164,24 +161,6 @@ pub fn create_router(state: AppState) -> Router {
         .route("/{*path}", get(static_files::serve_static))
         .with_state(state);
 
-    // Add OpenAPI routes when dev feature is enabled
-    add_openapi_routes(router)
-}
-
-/// Add OpenAPI documentation routes (Swagger UI and OpenAPI JSON endpoint).
-#[cfg(feature = "dev")]
-fn add_openapi_routes(router: Router) -> Router {
-    use utoipa::OpenApi;
-    use utoipa_swagger_ui::SwaggerUi;
-
-    use crate::openapi::ApiDoc;
-
-    router.merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-}
-
-/// No-op when dev feature is disabled.
-#[cfg(not(feature = "dev"))]
-fn add_openapi_routes(router: Router) -> Router {
     router
 }
 
@@ -205,30 +184,7 @@ pub fn create_router_with_layers(state: AppState) -> Router {
     add_tracing_layer(router)
 }
 
-/// Add tracing layer with request logging always enabled, response logging only in dev mode.
-#[cfg(feature = "dev")]
-fn add_tracing_layer(router: Router) -> Router {
-    use tower_http::trace::DefaultOnFailure;
-
-    let tracing = TraceLayer::new_for_http()
-        .make_span_with(
-            DefaultMakeSpan::new()
-                .level(Level::INFO)
-                .include_headers(false),
-        )
-        .on_request(DefaultOnRequest::new().level(Level::INFO))
-        .on_failure(DefaultOnFailure::new().level(Level::WARN))
-        .on_response(
-            DefaultOnResponse::new()
-                .level(Level::INFO)
-                .latency_unit(LatencyUnit::Millis),
-        );
-
-    router.layer(tracing)
-}
-
 /// Add tracing layer with request logging only (no response logging in production).
-#[cfg(not(feature = "dev"))]
 fn add_tracing_layer(router: Router) -> Router {
     use tower_http::{LatencyUnit, trace::DefaultOnFailure};
 

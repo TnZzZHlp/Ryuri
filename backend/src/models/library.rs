@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 /// Each library can have multiple scan paths and contains content
 /// of any type (comics or novels).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct Library {
     /// Unique identifier for the library.
     pub id: i64,
@@ -49,7 +48,6 @@ pub struct NewLibrary {
 /// Scan paths are directories on the file system that are scanned
 /// for content to import into the library.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ScanPath {
     /// Unique identifier for the scan path.
     pub id: i64,
@@ -80,7 +78,6 @@ pub struct NewScanPath {
 /// This struct is used when displaying library information
 /// along with counts of associated paths and content.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct LibraryWithStats {
     /// The library data.
     #[serde(flatten)]
@@ -93,7 +90,6 @@ pub struct LibraryWithStats {
 
 /// Request to create a new library.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct CreateLibraryRequest {
     /// Name for the new library.
     pub name: String,
@@ -105,7 +101,6 @@ pub struct CreateLibraryRequest {
 
 /// Request to update an existing library.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct UpdateLibraryRequest {
     /// New name for the library.
     pub name: Option<String>,

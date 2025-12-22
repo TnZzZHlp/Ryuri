@@ -8,7 +8,6 @@ use std::fmt;
 ///
 /// Distinguishes between comic (image-based) and novel (text-based) content.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 #[sqlx(type_name = "TEXT")]
 pub enum ContentType {
     /// Image-based content (manga, comics, etc.)
@@ -108,7 +107,6 @@ pub struct NewContent {
 /// Chapters represent individual archive files (volumes, issues, etc.)
 /// within a content folder.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct Chapter {
     /// Unique identifier for the chapter.
     pub id: i64,
@@ -162,7 +160,6 @@ pub struct NewChapter {
 
 /// Response structure for content list API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
 pub struct ContentResponse {
     pub id: i64,
     pub library_id: i64,

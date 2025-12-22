@@ -1,75 +1,75 @@
 name: Release
 
 on:
-  workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
+    workflow_dispatch:
+    push:
+        tags:
+            - "v*"
 
 permissions:
-  contents: write
+    contents: write
 
 jobs:
-  build-and-release:
-    name: Build and Release
-    runs-on: ubuntu-latest
+    build-and-release:
+        name: Build and Release
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+            - name: Setup Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: "latest"
+
+            - name: Cache frontend Construction Dependencies
+              uses: actions/cache@v5
+              with:
+                  path: |
+                      ~/.pnpm-store
+                      frontend/node_modules
+                  key: ${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-frontend
+
+            - name: Cache backend Construction Dependencies
+              uses: actions/cache@v5
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      backend/target
+                  key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-backend
+
+            - name: Build Frontend
+              working-directory: ./frontend
+              run: |
+                  npm install -g pnpm
+                  pnpm install
+                  pnpm build
+
+            - name: Setup Rust
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Build Backend
+              working-directory: ./backend
+              run: cargo build --release
+
+            - name: Rename Binary
+              run: |
+                  mv backend/target/release/backend ryuri-linux-amd64
+
+            - name: Create Release
+              uses: softprops/action-gh-release@v2
+              if: startsWith(github.ref, 'refs/tags/')
+              with:
+                  files: ryuri-linux-amd64
+                  generate_release_notes: true
+
+    docker-publish:
+        name: Docker Publish
+        uses: ./.github/workflows/docker-publish.yml
+        permissions:
+            contents: read
+            packages: write
         with:
-          node-version: 'latest'
-
-      - name: Cache frontend Construction Dependencies
-        uses: actions/cache@v5
-        with: 
-          path: |
-            ~/.pnpm-store
-            frontend/node_modules
-          key: ${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-frontend
-
-      - name: Cache backend Construction Dependencies
-        uses: actions/cache@v5
-        with: 
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            backend/target
-          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-backend
-
-      - name: Build Frontend
-        working-directory: ./frontend
-        run: |
-          npm install -g pnpm
-          pnpm install
-          pnpm build
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build Backend
-        working-directory: ./backend
-        run: cargo build --release --features dev
-
-      - name: Rename Binary
-        run: |
-          mv backend/target/release/backend ryuri-linux-amd64
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: ryuri-linux-amd64
-          generate_release_notes: true
-
-  docker-publish:
-    name: Docker Publish
-    uses: ./.github/workflows/docker-publish.yml
-    permissions:
-      contents: read
-      packages: write
-    with:
-      tag: ${{ github.ref_name }}
+            tag: ${{ github.ref_name }}
