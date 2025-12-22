@@ -12,11 +12,15 @@ use backend::error::AppError;
 use backend::router::create_router_with_layers;
 use backend::services::auth::AuthConfig;
 use backend::state::{AppConfig, AppState};
+use backend::utils;
 use clap::Parser;
+use rust_i18n::t;
 use tokio::signal;
 use tracing::{debug, info, warn};
 use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+
+rust_i18n::i18n!("locales");
 
 /// Ryuri Backend Server
 #[derive(Parser, Debug)]
@@ -60,10 +64,7 @@ impl ServerConfig {
             Ok(v) if !v.trim().is_empty() => v,
             _ => {
                 let secret = generate_random_secret_hex(32);
-                warn!(
-                    "JWT_SECRET is not set (or is empty); using a random secret from OS RNG. \
-                    Tokens will be invalid after restart. Set JWT_SECRET to make it persistent."
-                );
+                warn!("{}", t!("server.jwt_secret_not_set"));
                 secret
             }
         };
@@ -117,21 +118,24 @@ async fn main() -> Result<(), AppError> {
     // Initialize tracing first
     init_tracing();
 
+    // Initialize i18n
+    utils::init_i18n();
+
     let config = ServerConfig::from_env();
 
-    info!("Ryuri v{} starting...", env!("RYURI_VERSION"));
-    debug!(host = %config.host, port = %config.port, database = %config.db.database_url, "Server configuration loaded");
+    info!("{}", t!("server.starting", version = env!("RYURI_VERSION")));
+    debug!(host = %config.host, port = %config.port, database = %config.db.database_url, "{}", t!("server.config_loaded"));
 
-    info!("Initializing database...");
+    info!("{}", t!("server.init_db"));
     let pool = init_db(&config.db).await?;
-    info!("Database initialized successfully");
+    info!("{}", t!("server.db_initialized"));
 
-    info!("Creating application services...");
+    info!("{}", t!("server.create_services"));
     let state = AppState::new(pool, config.app);
-    info!("Services created successfully");
+    info!("{}", t!("server.services_created"));
 
     // Start the scan queue worker to process submitted scan tasks
-    info!("Starting scan queue worker...");
+    info!("{}", t!("server.start_worker"));
     state.scan_queue_service.start_worker().await;
 
     // Restore scheduled scans
@@ -143,12 +147,12 @@ async fn main() -> Result<(), AppError> {
         .parse()
         .map_err(|e| AppError::Internal(format!("Invalid address: {}", e)))?;
 
-    info!(%addr, "Starting server");
+    info!(%addr, "{}", t!("server.starting_server"));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| AppError::Internal(format!("Failed to bind: {}", e)))?;
 
-    info!("Server is running. Press Ctrl+C to stop.");
+    info!("{}", t!("server.server_running"));
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await

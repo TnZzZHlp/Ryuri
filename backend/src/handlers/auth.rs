@@ -7,6 +7,7 @@
 //! - PUT /api/auth/password - Update password
 
 use axum::{Json, extract::State};
+use rust_i18n::t;
 
 use crate::error::Result;
 use crate::middlewares::auth::AuthUser;
@@ -42,7 +43,7 @@ pub async fn get_me(
         .auth_service
         .get_user(auth_user.user_id)
         .await?
-        .ok_or_else(|| crate::error::AppError::NotFound("User not found".to_string()))?;
+        .ok_or_else(|| crate::error::AppError::NotFound(t!("auth.user_not_found_generic").to_string()))?;
     Ok(Json(UserResponse::from(user)))
 }
 

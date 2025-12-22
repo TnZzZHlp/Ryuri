@@ -4,6 +4,7 @@
 
 use chrono::Utc;
 use sqlx::{Pool, Sqlite};
+use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{NewUser, User};
@@ -40,10 +41,9 @@ impl UserRepository {
             Err(e) => {
                 // Check for unique constraint violation
                 if e.to_string().contains("UNIQUE constraint failed") {
-                    Err(AppError::BadRequest(format!(
-                        "Username '{}' already exists",
-                        new_user.username
-                    )))
+                    Err(AppError::BadRequest(
+                        t!("auth.username_exists_msg", username = new_user.username).to_string(),
+                    ))
                 } else {
                     Err(AppError::Database(e))
                 }
@@ -118,17 +118,16 @@ impl UserRepository {
             .await
             .map_err(|e| {
                 if e.to_string().contains("UNIQUE constraint failed") {
-                    AppError::BadRequest("Username already exists".to_string())
+                    AppError::BadRequest(t!("auth.username_exists").to_string())
                 } else {
                     AppError::Database(e)
                 }
             })?;
 
         if result.rows_affected() == 0 {
-            return Err(AppError::NotFound(format!(
-                "User with id {} not found",
-                user_id
-            )));
+            return Err(AppError::NotFound(
+                t!("auth.user_not_found", id = user_id).to_string(),
+            ));
         }
 
         Self::find_by_id(pool, user_id)

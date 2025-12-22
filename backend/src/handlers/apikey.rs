@@ -5,6 +5,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use rust_i18n::t;
 
 use crate::{
     error::{AppError, Result},
@@ -76,7 +77,7 @@ pub async fn delete_api_key(
     // Verify ownership
     let keys = ApiKeyRepository::list_by_user(&state.pool, user.user_id).await?;
     if !keys.iter().any(|k| k.id == id) {
-        return Err(AppError::NotFound("API key not found".to_string()));
+        return Err(AppError::NotFound(t!("auth.api_key_not_found").to_string()));
     }
 
     ApiKeyRepository::delete(&state.pool, id).await?;

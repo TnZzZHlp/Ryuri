@@ -6,6 +6,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use rust_i18n::t;
 
 use crate::{
     error::{AppError, Result},
@@ -300,7 +301,7 @@ pub async fn get_series(
     let pool = &state.pool;
     let content = ContentRepository::find_by_id(pool, series_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Series with id {} not found", series_id)))?;
+        .ok_or_else(|| AppError::NotFound(t!("komga.series_not_found", id = series_id).to_string()))?;
 
     Ok(Json(content_to_series_dto(content)))
 }
@@ -312,7 +313,7 @@ pub async fn get_series_thumbnail(
     let pool = &state.pool;
     let content = ContentRepository::find_by_id(pool, series_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Series with id {} not found", series_id)))?;
+        .ok_or_else(|| AppError::NotFound(t!("komga.series_not_found", id = series_id).to_string()))?;
 
     if let Some(thumb) = content.thumbnail {
         let mut headers = HeaderMap::new();
@@ -321,7 +322,7 @@ pub async fn get_series_thumbnail(
         headers.insert(header::CACHE_CONTROL, "max-age=86400".parse().unwrap());
         Ok((headers, thumb).into_response())
     } else {
-        Err(AppError::NotFound("Thumbnail not found".to_string()))
+        Err(AppError::NotFound(t!("komga.thumbnail_not_found").to_string()))
     }
 }
 
@@ -335,7 +336,7 @@ pub async fn get_books(
     // Verify series exists
     let content = ContentRepository::find_by_id(pool, series_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Series with id {} not found", series_id)))?;
+        .ok_or_else(|| AppError::NotFound(t!("komga.series_not_found", id = series_id).to_string()))?;
 
     let chapters = ChapterRepository::list_by_content(pool, series_id).await?;
 
@@ -379,11 +380,11 @@ pub async fn get_book(
     let pool = &state.pool;
     let chapter = ChapterRepository::find_by_id(pool, book_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Book with id {} not found", book_id)))?;
+        .ok_or_else(|| AppError::NotFound(t!("komga.book_not_found", id = book_id).to_string()))?;
 
     let content = ContentRepository::find_by_id(pool, chapter.content_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Content for book {} not found", book_id)))?;
+        .ok_or_else(|| AppError::NotFound(t!("komga.content_for_book_not_found", id = book_id).to_string()))?;
 
     Ok(Json(chapter_to_book_dto(chapter, &content)))
 }
@@ -392,35 +393,21 @@ pub async fn get_book_thumbnail(
     State(state): State<AppState>,
     Path(book_id): Path<i64>,
 ) -> Result<Response> {
-    // For now, redirect to series thumbnail as we might not have chapter thumbnails
-    // Or we could try to extract the first page.
-    // Given the constraints and existing code, let's fetch the series thumbnail for now
-    // or return a placeholder?
-    // Komga usually extracts thumbnails from books.
-    // Our existing Content model has a thumbnail. Chapter doesn't have a thumbnail field explicitly in DB struct.
-    // However, `content::get_thumbnail` serves the content thumbnail.
-
-    // Let's get the chapter, then the content, and serve content thumbnail as fallback.
     let pool = &state.pool;
     let chapter = ChapterRepository::find_by_id(pool, book_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Book with id {} not found", book_id)))?;
-
-    // In a real implementation we would extract page 1.
-    // For compatibility, we'll redirect to series thumbnail or similar.
-    // But `get_series_thumbnail` expects series_id.
+        .ok_or_else(|| AppError::NotFound(t!("komga.book_not_found", id = book_id).to_string()))?;
 
     let content = ContentRepository::find_by_id(pool, chapter.content_id)
         .await?
-        .ok_or_else(|| AppError::NotFound("Content not found".into()))?;
+        .ok_or_else(|| AppError::NotFound(t!("komga.content_not_found").to_string()))?;
 
     if let Some(thumb) = content.thumbnail {
         let mut headers = HeaderMap::new();
         headers.insert(header::CONTENT_TYPE, "image/jpeg".parse().unwrap());
-        headers.insert(header::CACHE_CONTROL, "max-age=86400".parse().unwrap());
         Ok((headers, thumb).into_response())
     } else {
-        Err(AppError::NotFound("Thumbnail not found".into()))
+        Err(AppError::NotFound(t!("komga.thumbnail_not_found").to_string()))
     }
 }
 
@@ -431,7 +418,7 @@ pub async fn get_page_list(
     let pool = &state.pool;
     let chapter = ChapterRepository::find_by_id(pool, book_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Book with id {} not found", book_id)))?;
+        .ok_or_else(|| AppError::NotFound(t!("komga.book_not_found", id = book_id).to_string()))?;
 
     use std::path::Path;
     let archive_path = Path::new(&chapter.file_path);
@@ -486,10 +473,10 @@ pub async fn get_page(
     let pool = &state.pool;
     let chapter = ChapterRepository::find_by_id(pool, book_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Book with id {} not found", book_id)))?;
+        .ok_or_else(|| AppError::NotFound(t!("komga.book_not_found", id = book_id).to_string()))?;
 
     if page_number < 1 {
-        return Err(AppError::BadRequest("Page number must be > 0".into()));
+        return Err(AppError::BadRequest(t!("komga.page_must_be_positive").to_string()));
     }
     let page_index = (page_number - 1) as usize;
 
@@ -500,10 +487,7 @@ pub async fn get_page(
     let images = ComicArchiveExtractor::list_files(archive_path)?;
 
     if page_index >= images.len() {
-        return Err(AppError::NotFound(format!(
-            "Page {} not found",
-            page_number
-        )));
+        return Err(AppError::NotFound(t!("komga.page_not_found", page = page_number).to_string()));
     }
 
     let image_name = &images[page_index];

@@ -5,6 +5,7 @@
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 
@@ -187,10 +188,7 @@ impl BangumiService {
         if !response.status().is_success() {
             let status = response.status();
             if status.as_u16() == 404 {
-                return Err(AppError::NotFound(format!(
-                    "Bangumi subject {} not found",
-                    bangumi_id
-                )));
+                return Err(AppError::NotFound(t!("bangumi.subject_not_found", id = bangumi_id).to_string()));
             }
             return Err(AppError::Internal(format!(
                 "Bangumi API returned error: {}",

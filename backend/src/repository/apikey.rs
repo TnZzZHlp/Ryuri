@@ -4,6 +4,7 @@
 
 use chrono::Utc;
 use sqlx::{Pool, Sqlite};
+use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{ApiKey, NewApiKey};
@@ -40,10 +41,9 @@ impl ApiKeyRepository {
             }
             Err(e) => {
                 if e.to_string().contains("UNIQUE constraint failed") {
-                    Err(AppError::BadRequest(format!(
-                        "API key '{}' already exists",
-                        new_key.api_key
-                    )))
+                    Err(AppError::BadRequest(
+                        t!("auth.api_key_exists", key = new_key.api_key).to_string(),
+                    ))
                 } else {
                     Err(AppError::Database(e))
                 }

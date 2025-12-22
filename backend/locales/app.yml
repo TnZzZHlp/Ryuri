@@ -1,0 +1,383 @@
+_version: 2
+server.starting:
+  en: "Ryuri v%{version} starting..."
+  zh-CN: "Ryuri v%{version} 正在启动..."
+server.config_loaded:
+  en: "Server configuration loaded"
+  zh-CN: "服务器配置已加载"
+server.init_db:
+  en: "Initializing database..."
+  zh-CN: "正在初始化数据库..."
+server.db_initialized:
+  en: "Database initialized successfully"
+  zh-CN: "数据库初始化成功"
+server.create_services:
+  en: "Creating application services..."
+  zh-CN: "正在创建应用服务..."
+server.services_created:
+  en: "Services created successfully"
+  zh-CN: "服务创建成功"
+server.start_worker:
+  en: "Starting scan queue worker..."
+  zh-CN: "正在启动扫描队列工作进程..."
+server.starting_server:
+  en: "Starting server"
+  zh-CN: "正在启动服务器"
+server.server_running:
+  en: "Server is running. Press Ctrl+C to stop."
+  zh-CN: "服务器正在运行。按 Ctrl+C 停止。"
+server.jwt_secret_not_set:
+  en: "JWT secret is not set. A random secret has been generated."
+  zh-CN: "JWT 密钥未设置。已生成随机密钥。"
+
+scan.scanning:
+  en: "Scanning..."
+  zh-CN: "正在扫描..."
+scan.path_not_found:
+  en: "Scan path does not exist: %{path}"
+  zh-CN: "扫描路径不存在: %{path}"
+scan.import_failed:
+  en: "Failed to import content"
+  zh-CN: "导入内容失败"
+scan.rescan_failed:
+  en: "Failed to rescan content"
+  zh-CN: "重新扫描内容失败"
+scan.invalid_folder_name:
+  en: "Invalid folder name"
+  zh-CN: "无效的文件夹名称"
+scan.retrieve_content_failed:
+  en: "Failed to retrieve created content"
+  zh-CN: "获取已创建的内容失败"
+scan.bangumi_no_results:
+  en: "No Bangumi results found"
+  zh-CN: "未找到 Bangumi 结果"
+scan.bangumi_no_results_msg:
+  en: "No Bangumi results found for '%{title}'"
+  zh-CN: "未找到 '%{title}' 的 Bangumi 结果"
+scan.scrape_failed:
+  en: "Failed to scrape metadata"
+  zh-CN: "刮削元数据失败"
+scan.scrape_failed_msg:
+  en: "Failed to scrape metadata for '%{title}': %{error}"
+  zh-CN: "刮削 '%{title}' 的元数据失败: %{error}"
+scan.no_archives_found:
+  en: "No supported archive files found in folder"
+  zh-CN: "文件夹中未找到支持的归档文件"
+scan.calc_comic_page_count_failed:
+  en: "Failed to calculate comic page count"
+  zh-CN: "计算漫画页数失败"
+scan.calc_novel_chapter_count_failed:
+  en: "Failed to calculate novel chapter count"
+  zh-CN: "计算小说章节数失败"
+scan.get_file_metadata_failed:
+  en: "Failed to get file metadata"
+  zh-CN: "获取文件元数据失败"
+scan.epub_open_failed:
+  en: "Failed to open EPUB: %{error}"
+  zh-CN: "打开 EPUB 失败: %{error}"
+scan.read_image_format_failed:
+  en: "Failed to read image format: %{error}"
+  zh-CN: "读取图片格式失败: %{error}"
+scan.decode_image_failed:
+  en: "Failed to decode image: %{error}"
+  zh-CN: "解码图片失败: %{error}"
+scan.encode_thumbnail_failed:
+  en: "Failed to encode thumbnail: %{error}"
+  zh-CN: "编码缩略图失败: %{error}"
+scan_queue.worker_no_service:
+  en: "Cannot start worker: no scan service configured"
+  zh-CN: "无法启动工作进程：未配置扫描服务"
+scan_queue.worker_started:
+  en: "Scan queue worker started"
+  zh-CN: "扫描队列工作进程已启动"
+scan_queue.worker_shutdown_signal:
+  en: "Scan queue worker received shutdown signal"
+  zh-CN: "扫描队列工作进程收到关闭信号"
+scan_queue.worker_stopped:
+  en: "Scan queue worker stopped"
+  zh-CN: "扫描队列工作进程已停止"
+scan_queue.skip_cancelled:
+  en: "Skipping cancelled task"
+  zh-CN: "跳过已取消的任务"
+scan_queue.starting_task:
+  en: "Starting scan task"
+  zh-CN: "开始扫描任务"
+scan_queue.scan_interrupted:
+  en: "Scan interrupted by shutdown"
+  zh-CN: "扫描因关闭而中断"
+scan_queue.task_cancelled_exec:
+  en: "Task was cancelled during execution"
+  zh-CN: "任务在执行期间被取消"
+scan_queue.task_completed:
+  en: "Scan task completed"
+  zh-CN: "扫描任务已完成"
+scan_queue.task_failed:
+  en: "Scan task failed"
+  zh-CN: "扫描任务失败"
+scan_queue.interrupted_by_shutdown:
+  en: "Scan interrupted by shutdown"
+  zh-CN: "扫描因关闭而中断"
+scan_queue.task_not_found:
+  en: "Task %{id} not found"
+  zh-CN: "未找到任务 %{id}"
+scan_queue.cannot_cancel_status:
+  en: "Cannot cancel task with status %{status}"
+  zh-CN: "无法取消状态为 %{status} 的任务"
+scan_queue.shutting_down:
+  en: "Shutting down scan queue service"
+  zh-CN: "正在关闭扫描队列服务"
+scan_queue.worker_shutdown_gracefully:
+  en: "Scan queue worker shut down gracefully"
+  zh-CN: "扫描队列工作进程已优雅关闭"
+scan_queue.worker_panicked:
+  en: "Scan queue worker panicked: %{error}"
+  zh-CN: "扫描队列工作进程异常退出: %{error}"
+scan_queue.worker_shutdown_timeout:
+  en: "Scan queue worker did not shut down within timeout"
+  zh-CN: "扫描队列工作进程未在超时时间内关闭"
+scheduler.task_submitted:
+  en: "Scheduled scan task submitted to queue"
+  zh-CN: "已提交计划扫描任务到队列"
+scheduler.task_queued:
+  en: "Scheduled scan task queued"
+  zh-CN: "计划扫描任务已入队"
+scheduler.restoring_schedules:
+  en: "Restoring scheduled scans..."
+  zh-CN: "正在恢复计划扫描..."
+scheduler.restore_failed:
+  en: "Failed to restore schedule for library"
+  zh-CN: "恢复书籍库扫描计划失败"
+scheduler.scans_restored:
+  en: "Scheduled scans restored"
+  zh-CN: "计划扫描已恢复"
+scheduler.load_libraries_failed:
+  en: "Failed to load libraries for schedule restoration"
+  zh-CN: "加载书籍库数据失败，无法恢复计划"
+library.schedule_scan_failed:
+  en: "Failed to schedule scan for library"
+  zh-CN: "安排书籍库扫描任务失败"
+library.start_watch_failed:
+  en: "Failed to start watching library"
+  zh-CN: "启动书籍库监控失败"
+library.not_found:
+  en: "Library with library_id %{id} not found"
+  zh-CN: "未找到 ID 为 %{id} 的书籍库"
+library.id_not_found:
+  en: "Library with id %{id} not found"
+  zh-CN: "未找到 ID 为 %{id} 的书籍库"
+library.update_schedule_failed:
+  en: "Failed to update scan schedule for library"
+  zh-CN: "更新书籍库扫描计划失败"
+library.cancel_scan_failed:
+  en: "Failed to cancel scan schedule for library"
+  zh-CN: "取消书籍库扫描计划失败"
+library.stop_watch_failed:
+  en: "Failed to stop watching library"
+  zh-CN: "停止书籍库监控失败"
+library.refresh_watch_failed:
+  en: "Failed to refresh watching for library"
+  zh-CN: "刷新书籍库监控失败"
+auth.invalid_api_key:
+  en: "Invalid API Key"
+  zh-CN: "无效的 API 密钥"
+auth.invalid_auth_header_format:
+  en: "Authentication failed: Invalid authorization header format"
+  zh-CN: "认证失败：无效的授权头格式"
+auth.invalid_auth_header_format_error:
+  en: "Invalid authorization header format"
+  zh-CN: "无效的授权头格式"
+auth.missing_auth_header_log:
+  en: "Authentication failed: Missing authorization header"
+  zh-CN: "认证失败：缺少授权头"
+auth.missing_auth_header:
+  en: "Missing authorization header"
+  zh-CN: "缺少授权头"
+auth.missing_auth_header_and_token_log:
+  en: "Authentication failed: Missing authorization header and token query param"
+  zh-CN: "认证失败：缺少授权头和 token 查询参数"
+auth.auth_failed_log:
+  en: "Authentication failed: %{error}"
+  zh-CN: "认证失败: %{error}"
+auth.missing_authentication:
+  en: "Missing authentication. This route requires authentication."
+  zh-CN: "缺少认证信息。该路由需要认证。"
+auth.invalid_token:
+  en: "Invalid token: %{error}"
+  zh-CN: "无效的令牌: %{error}"
+auth.invalid_credentials:
+  en: "Invalid username or password"
+  zh-CN: "用户名或密码无效"
+auth.incorrect_password:
+  en: "Current password is incorrect"
+  zh-CN: "当前密码错误"
+auth.user_not_found:
+  en: "User with id %{id} not found"
+  zh-CN: "未找到 ID 为 %{id} 的用户"
+auth.user_not_found_generic:
+  en: "User not found"
+  zh-CN: "未找到用户"
+auth.api_key_not_found:
+  en: "API key not found"
+  zh-CN: "未找到 API 密钥"
+watch.create_watcher_failed:
+  en: "Failed to create watcher: %{error}"
+  zh-CN: "创建文件监控器失败: %{error}"
+watch.watch_path_failed:
+  en: "Failed to watch path"
+  zh-CN: "监控路径失败"
+watch.started_watching:
+  en: "Started watching path"
+  zh-CN: "开始监控路径"
+watch.rescan_failed:
+  en: "Watch service: failed to rescan library"
+  zh-CN: "监控服务：重新扫描书籍库失败"
+watch.rescan_completed:
+  en: "Watch service: rescan completed"
+  zh-CN: "监控服务：重新扫描完成"
+error.database:
+  en: "Database error"
+  zh-CN: "数据库错误"
+error.filesystem:
+  en: "File system error"
+  zh-CN: "文件系统错误"
+error.http:
+  en: "HTTP error"
+  zh-CN: "HTTP 错误"
+komga.series_not_found:
+  en: "Series with id %{id} not found"
+  zh-CN: "未找到 ID 为 %{id} 的系列"
+komga.thumbnail_not_found:
+  en: "Thumbnail not found"
+  zh-CN: "未找到缩略图"
+komga.book_not_found:
+  en: "Book with id %{id} not found"
+  zh-CN: "未找到 ID 为 %{id} 的书籍"
+komga.content_for_book_not_found:
+  en: "Content for book %{id} not found"
+  zh-CN: "未找到书籍 %{id} 的内容"
+komga.content_not_found:
+  en: "Content not found"
+  zh-CN: "未找到内容"
+komga.page_must_be_positive:
+  en: "Page number must be > 0"
+  zh-CN: "页码必须大于 0"
+komga.page_not_found:
+  en: "Page %{page} not found"
+  zh-CN: "未找到第 %{page} 页"
+filesystem.path_not_found:
+  en: "Path not found: %{path}"
+  zh-CN: "路径不存在: %{path}"
+content.id_not_found:
+  en: "Content with id %{id} not found"
+  zh-CN: "未找到 ID 为 %{id} 的内容"
+content.chapter_not_found:
+  en: "Chapter with id %{id} not found"
+  zh-CN: "未找到 ID 为 %{id} 的章节"
+content.thumbnail_not_found:
+  en: "Thumbnail not found for content %{id}"
+  zh-CN: "未找到内容 %{id} 的缩略图"
+filesystem.path_not_dir:
+  en: "Path is not a directory: %{path}"
+  zh-CN: "路径不是目录: %{path}"
+auth.username_empty:
+  en: "Username cannot be empty"
+  zh-CN: "用户名不能为空"
+auth.password_too_short:
+  en: "Password must be at least 6 characters"
+  zh-CN: "密码长度必须至少为 6 个字符"
+auth.username_exists_msg:
+  en: "Username '%{username}' already exists"
+  zh-CN: "用户名 '%{username}' 已存在"
+auth.username_exists:
+  en: "Username already exists"
+  zh-CN: "用户名已存在"
+auth.current_password_required:
+  en: "Current password is required to change password"
+  zh-CN: "更改密码需要提供当前密码"
+content.scan_path_not_found:
+  en: "Scan path not found for content %{id}"
+  zh-CN: "未找到内容 %{id} 的扫描路径"
+progress.invalid_page:
+  en: "Invalid page number"
+  zh-CN: "无效的页码"
+progress.page_out_of_range:
+  en: "Page number %{page} out of range (1-%{max})"
+  zh-CN: "页码 %{page} 超出范围 (1-%{max})"
+library.name_empty:
+  en: "Library name cannot be empty"
+  zh-CN: "图书馆名称不能为空"
+library.path_empty:
+  en: "Library path cannot be empty"
+  zh-CN: "图书馆路径不能为空"
+library.path_exists:
+  en: "Library path already exists"
+  zh-CN: "图书馆路径已存在"
+library.scan_path_exists:
+  en: "Scan path already exists for this library"
+  zh-CN: "该图书馆的扫描路径已存在"
+library.scan_path_exists_msg:
+  en: "Scan path '%{path}' already exists in this library"
+  zh-CN: "扫描路径 '%{path}' 已存在于该图书馆中"
+content.folder_path_exists:
+  en: "Content folder path already exists in library"
+  zh-CN: "内容文件夹路径已存在于图书馆中"
+content.folder_path_exists_msg:
+  en: "Content at path '%{path}' already exists in this library"
+  zh-CN: "路径为 '%{path}' 的内容已存在于该图书馆中"
+content.chapter_path_exists:
+  en: "Chapter file path already exists for content"
+  zh-CN: "章节文件路径已存在于内容中"
+content.chapter_path_exists_msg:
+  en: "Chapter at path '%{path}' already exists"
+  zh-CN: "路径为 '%{path}' 的章节已存在"
+auth.api_key_name_exists:
+  en: "API key name already exists for this user"
+  zh-CN: "该用户的 API 密钥名称已存在"
+auth.api_key_exists:
+  en: "API key '%{key}' already exists"
+  zh-CN: "API 密钥 '%{key}' 已存在"
+archive.unsupported_novel_format:
+  en: "Unsupported novel file format: %{extension}"
+  zh-CN: "不支持的小说文件格式: %{extension}"
+archive.unsupported_comic_format:
+  en: "Unsupported comic file format: %{extension}"
+  zh-CN: "不支持的漫画文件格式: %{extension}"
+archive.epub_open_failed:
+  en: "Failed to open EPUB: %{error}"
+  zh-CN: "打开 EPUB 失败: %{error}"
+archive.chapter_not_found_in_epub:
+  en: "Chapter not found in EPUB: %{file}"
+  zh-CN: "EPUB 中未找到章节: %{file}"
+archive.no_images_found:
+  en: "No images found in archive"
+  zh-CN: "归档文件中未找到图片"
+archive.zip_open_failed:
+  en: "Failed to open ZIP archive: %{error}"
+  zh-CN: "打开 ZIP 归档失败: %{error}"
+archive.zip_read_entry_failed:
+  en: "Failed to read ZIP entry: %{error}"
+  zh-CN: "读取 ZIP 条目失败: %{error}"
+archive.file_not_found:
+  en: "File not found in archive: %{file}"
+  zh-CN: "归档文件中未找到文件: %{file}"
+archive.file_read_failed:
+  en: "Failed to read file from archive: %{error}"
+  zh-CN: "从归档文件中读取文件失败: %{error}"
+archive.rar_open_failed:
+  en: "Failed to open RAR archive: %{error}"
+  zh-CN: "打开 RAR 归档失败: %{error}"
+archive.rar_read_entries_failed:
+  en: "Failed to read RAR entries: %{error}"
+  zh-CN: "读取 RAR 条目失败: %{error}"
+archive.rar_extract_failed:
+  en: "Failed to extract RAR file: %{error}"
+  zh-CN: "解压 RAR 文件失败: %{error}"
+archive.rar_skip_failed:
+  en: "Failed to skip RAR entry: %{error}"
+  zh-CN: "跳过 RAR 条目失败: %{error}"
+archive.invalid_entry_index:
+  en: "Invalid entry index: %{index}"
+  zh-CN: "无效的条目索引: %{index}"
+bangumi.subject_not_found:
+  en: "Bangumi subject %{id} not found"
+  zh-CN: "未找到 Bangumi 条目 %{id}"

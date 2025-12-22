@@ -16,6 +16,7 @@ use axum::{
 };
 use serde::Deserialize;
 use tracing::warn;
+use rust_i18n::t;
 
 use crate::error::Result;
 use crate::models::{
@@ -50,12 +51,12 @@ pub async fn create(
             .schedule_scan(library.id, scan_interval)
             .await
     {
-        warn!(library_id = library.id, error = %e, "Failed to schedule scan for library");
+        warn!(library_id = library.id, error = %e, "{}", t!("library.schedule_scan_failed"));
     }
 
     // Start watch service if watch_mode is enabled
     if watch_mode && let Err(e) = state.watch_service.start_watching(library.id).await {
-        warn!(library_id = library.id, error = %e, "Failed to start watching library");
+        warn!(library_id = library.id, error = %e, "{}", t!("library.start_watch_failed"));
     }
 
     Ok(Json(library))
@@ -73,7 +74,7 @@ pub async fn get(
         .get_with_stats(library_id)
         .await?
         .ok_or_else(|| {
-            crate::error::AppError::NotFound(format!("Library with library_id {} not found", library_id))
+            crate::error::AppError::NotFound(t!("library.not_found", id = library_id).to_string())
         })?;
     Ok(Json(library))
 }
@@ -95,10 +96,10 @@ pub async fn update(
     if let Some(interval) = new_scan_interval {
         if interval > 0 {
             if let Err(e) = state.scheduler_service.schedule_scan(library_id, interval).await {
-                warn!(library_id = library_id, error = %e, "Failed to update scan schedule for library");
+                warn!(library_id = library_id, error = %e, "{}", t!("library.update_schedule_failed"));
             }
         } else if let Err(e) = state.scheduler_service.cancel_scan(library_id).await {
-            warn!(library_id = library_id, error = %e, "Failed to cancel scan schedule for library");
+            warn!(library_id = library_id, error = %e, "{}", t!("library.cancel_scan_failed"));
         }
     }
 
@@ -106,10 +107,10 @@ pub async fn update(
     if let Some(watch_mode) = new_watch_mode {
         if watch_mode {
             if let Err(e) = state.watch_service.start_watching(library_id).await {
-                warn!(library_id = library_id, error = %e, "Failed to start watching library");
+                warn!(library_id = library_id, error = %e, "{}", t!("library.start_watch_failed"));
             }
         } else if let Err(e) = state.watch_service.stop_watching(library_id).await {
-            warn!(library_id = library_id, error = %e, "Failed to stop watching library");
+            warn!(library_id = library_id, error = %e, "{}", t!("library.stop_watch_failed"));
         }
     }
 
@@ -122,12 +123,12 @@ pub async fn update(
 pub async fn delete(State(state): State<AppState>, Path(library_id): Path<i64>) -> Result<Json<()>> {
     // Stop scheduler before deleting
     if let Err(e) = state.scheduler_service.cancel_scan(library_id).await {
-        warn!(library_id, error = %e, "Failed to cancel scan schedule for library");
+        warn!(library_id, error = %e, "{}", t!("library.cancel_scan_failed"));
     }
 
     // Stop watch service before deleting
     if let Err(e) = state.watch_service.stop_watching(library_id).await {
-        warn!(library_id, error = %e, "Failed to stop watching library");
+        warn!(library_id, error = %e, "{}", t!("library.stop_watch_failed"));
     }
 
     state.library_service.delete(library_id).await?;
@@ -168,7 +169,7 @@ pub async fn add_path(
 
     // Refresh watch service to include new path
     if let Err(e) = state.watch_service.refresh_watching(library_id).await {
-        warn!(library_id = library_id, error = %e, "Failed to refresh watching for library");
+        warn!(library_id = library_id, error = %e, "{}", t!("library.refresh_watch_failed"));
     }
 
     Ok(Json(scan_path))
@@ -198,7 +199,7 @@ pub async fn remove_path(
 
     // Refresh watch service to remove the path
     if let Err(e) = state.watch_service.refresh_watching(params.library_id).await {
-        warn!(library_id = params.library_id, error = %e, "Failed to refresh watching for library");
+        warn!(library_id = params.library_id, error = %e, "{}", t!("library.refresh_watch_failed"));
     }
 
     Ok(Json(()))

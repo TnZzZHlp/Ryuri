@@ -4,6 +4,7 @@
 //! on chapters and calculating overall content progress.
 
 use sqlx::{Pool, Sqlite};
+use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{
@@ -37,7 +38,7 @@ impl ProgressService {
         ChapterRepository::find_by_id(&self.pool, chapter_id)
             .await?
             .ok_or_else(|| {
-                AppError::NotFound(format!("Chapter with id {} not found", chapter_id))
+                AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
             })?;
 
         ProgressRepository::find_by_user_and_chapter(&self.pool, user_id, chapter_id).await
@@ -76,7 +77,7 @@ impl ProgressService {
         let chapter = ChapterRepository::find_by_id(&self.pool, chapter_id)
             .await?
             .ok_or_else(|| {
-                AppError::NotFound(format!("Chapter with id {} not found", chapter_id))
+                AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
             })?;
 
         // Calculate percentage based on position
@@ -141,7 +142,7 @@ impl ProgressService {
         ChapterRepository::find_by_id(&self.pool, chapter_id)
             .await?
             .ok_or_else(|| {
-                AppError::NotFound(format!("Chapter with id {} not found", chapter_id))
+                AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
             })?;
 
         let new_progress = NewReadingProgress {

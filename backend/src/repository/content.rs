@@ -4,6 +4,7 @@
 
 use chrono::Utc;
 use sqlx::{Pool, Sqlite};
+use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{Chapter, Content, ContentType, NewChapter, NewContent};
@@ -48,10 +49,10 @@ impl ContentRepository {
             }
             Err(e) => {
                 if e.to_string().contains("UNIQUE constraint failed") {
-                    Err(AppError::BadRequest(format!(
-                        "Content at path '{}' already exists in this library",
-                        new_content.folder_path
-                    )))
+                    Err(AppError::BadRequest(
+                        t!("content.folder_path_exists_msg", path = new_content.folder_path)
+                            .to_string(),
+                    ))
                 } else {
                     Err(AppError::Database(e))
                 }
@@ -345,10 +346,10 @@ impl ChapterRepository {
             }
             Err(e) => {
                 if e.to_string().contains("UNIQUE constraint failed") {
-                    Err(AppError::BadRequest(format!(
-                        "Chapter at path '{}' already exists",
-                        new_chapter.file_path
-                    )))
+                    Err(AppError::BadRequest(
+                        t!("content.chapter_path_exists_msg", path = new_chapter.file_path)
+                            .to_string(),
+                    ))
                 } else {
                     Err(AppError::Database(e))
                 }
