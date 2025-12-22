@@ -248,17 +248,6 @@ export interface ProgressResponse {
 }
 
 /**
- * Response for overall content progress (aggregated from chapter progress).
- */
-export interface ContentProgressResponse {
-    content_id: number;
-    total_chapters: number;
-    completed_chapters: number;
-    current_chapter_id: number | null;
-    overall_percentage: number;
-}
-
-/**
  * Request to update reading progress for a chapter.
  */
 export interface UpdateProgressRequest {

@@ -8,15 +8,15 @@
  */
 
 import { ApiClient } from "./client";
-import type { ProgressResponse, ContentProgressResponse, ContentResponse } from "./types";
+import type { ProgressResponse, ContentResponse } from "./types";
 
 /**
  * Progress API interface.
  */
 export interface ProgressApi {
-    getContentProgress(contentId: number): Promise<ContentProgressResponse>;
+    getContentProgress(contentId: number): Promise<ProgressResponse[]>;
     getRecentProgress(limit?: number): Promise<ContentResponse[]>;
-    getChapterProgress(chapterId: number): Promise<ProgressResponse | null>;
+    getChapterProgress(chapterId: number): Promise<ProgressResponse[]>;
     updateChapterProgress(
         chapterId: number,
         position: number,
@@ -42,8 +42,8 @@ export function createProgressApi(client: ApiClient): ProgressApi {
          */
         async getContentProgress(
             contentId: number
-        ): Promise<ContentProgressResponse> {
-            return client.get<ContentProgressResponse>(
+        ): Promise<ProgressResponse[]> {
+            return client.get<ProgressResponse[]>(
                 `/api/contents/${contentId}/progress`
             );
         },
@@ -61,17 +61,17 @@ export function createProgressApi(client: ApiClient): ProgressApi {
         },
 
         /**
-         * Gets the reading progress for a specific chapter.
+         * Gets the reading progress for all chapters of the content.
          *
          * **Implements: Requirement 6.2**
          *
          * @param chapterId - The chapter ID
-         * @returns The chapter progress or null if not found
+         * @returns List of chapter progresses
          */
         async getChapterProgress(
             chapterId: number
-        ): Promise<ProgressResponse | null> {
-            return client.get<ProgressResponse | null>(
+        ): Promise<ProgressResponse[]> {
+            return client.get<ProgressResponse[]>(
                 `/api/chapters/${chapterId}/progress`
             );
         },

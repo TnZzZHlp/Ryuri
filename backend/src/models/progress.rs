@@ -87,14 +87,3 @@ impl From<ReadingProgress> for ProgressResponse {
         }
     }
 }
-
-/// Response for overall content progress (aggregated from chapter progress).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "dev", derive(utoipa::ToSchema))]
-pub struct ContentProgressResponse {
-    pub content_id: i64,
-    pub total_chapters: i32,
-    pub completed_chapters: i32,
-    pub current_chapter_id: Option<i64>,
-    pub overall_percentage: f32,
-}

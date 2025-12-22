@@ -164,9 +164,10 @@ export const useReaderStore = defineStore("reader", () => {
             // Fetch Progress
             let startPage = 0;
             try {
-                const progress = await progressApi.getChapterProgress(
+                const progresses = await progressApi.getChapterProgress(
                     chapterId
                 );
+                const progress = progresses.find(p => p.chapter_id === chapterId);
                 if (progress) {
                     startPage = progress.position;
                 }

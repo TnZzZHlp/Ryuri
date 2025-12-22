@@ -13,7 +13,7 @@ use serde::Deserialize;
 
 use crate::error::Result;
 use crate::middlewares::auth::AuthUser;
-use crate::models::{ContentProgressResponse, ContentResponse, ProgressResponse};
+use crate::models::{ContentResponse, ProgressResponse};
 use crate::state::AppState;
 
 /// Query parameters for recent progress.
@@ -30,17 +30,17 @@ fn default_recent_limit() -> i64 {
 
 /// GET /api/contents/{id}/progress
 ///
-/// Returns the overall reading progress for a content.
+/// Returns the reading progress for all chapters of a content.
 pub async fn get_content_progress(
     State(state): State<AppState>,
     auth_user: AuthUser,
     Path(content_id): Path<i64>,
-) -> Result<Json<ContentProgressResponse>> {
+) -> Result<Json<Vec<ProgressResponse>>> {
     let progress = state
         .progress_service
-        .get_aggregated_content_progress(auth_user.user_id, content_id)
+        .get_content_progress(auth_user.user_id, content_id)
         .await?;
-    Ok(Json(progress))
+    Ok(Json(progress.into_iter().map(ProgressResponse::from).collect()))
 }
 
 /// GET /api/progress/recent
@@ -60,17 +60,17 @@ pub async fn get_recent_progress(
 
 /// GET /api/chapters/{id}/progress
 ///
-/// Returns the reading progress for a specific chapter.
+/// Returns the reading progress for all chapters of the content that the specified chapter belongs to.
 pub async fn get_chapter_progress(
     State(state): State<AppState>,
     auth_user: AuthUser,
     Path(chapter_id): Path<i64>,
-) -> Result<Json<Option<ProgressResponse>>> {
-    let progress = state
+) -> Result<Json<Vec<ProgressResponse>>> {
+    let progresses = state
         .progress_service
-        .get_chapter_progress_response(auth_user.user_id, chapter_id)
+        .get_chapter_siblings_progress(auth_user.user_id, chapter_id)
         .await?;
-    Ok(Json(progress))
+    Ok(Json(progresses))
 }
 
 /// Request body for updating chapter progress with optional percentage.

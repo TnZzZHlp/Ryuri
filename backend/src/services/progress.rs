@@ -8,7 +8,7 @@ use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{
-    ContentProgressResponse, NewReadingProgress, ProgressResponse, ReadingProgress,
+    NewReadingProgress, ProgressResponse, ReadingProgress,
 };
 use crate::repository::content::ChapterRepository;
 use crate::repository::progress::ProgressRepository;
@@ -155,61 +155,6 @@ impl ProgressService {
         ProgressRepository::upsert(&self.pool, new_progress).await
     }
 
-    /// Get aggregated content progress.
-    ///
-    /// Calculates overall progress across all chapters of a content.
-    /// Requirements: 5.4
-    pub async fn get_aggregated_content_progress(
-        &self,
-        user_id: i64,
-        content_id: i64,
-    ) -> Result<ContentProgressResponse> {
-        // Get total chapter count
-        let total_chapters =
-            ChapterRepository::count_by_content(&self.pool, content_id).await? as i32;
-
-        // Get completed chapters count
-        let completed_chapters =
-            ProgressRepository::count_completed_chapters(&self.pool, user_id, content_id).await?
-                as i32;
-
-        // Get the most recently read chapter
-        let latest_progress =
-            ProgressRepository::find_latest_by_user_and_content(&self.pool, user_id, content_id)
-                .await?;
-
-        let current_chapter_id = latest_progress.as_ref().map(|p| p.chapter_id);
-
-        // Calculate overall percentage
-        let overall_percentage = if total_chapters > 0 {
-            // Weight: completed chapters + current chapter progress
-            let base_percentage = (completed_chapters as f32 / total_chapters as f32) * 100.0;
-
-            // Add partial progress from current chapter if not completed
-            if let Some(ref progress) = latest_progress {
-                if progress.percentage < 100.0 {
-                    // Add fractional chapter progress
-                    let chapter_contribution = progress.percentage / total_chapters as f32;
-                    (base_percentage + chapter_contribution).min(100.0)
-                } else {
-                    base_percentage
-                }
-            } else {
-                base_percentage
-            }
-        } else {
-            0.0
-        };
-
-        Ok(ContentProgressResponse {
-            content_id,
-            total_chapters,
-            completed_chapters,
-            current_chapter_id,
-            overall_percentage,
-        })
-    }
-
     /// Get chapter progress as a response DTO.
     pub async fn get_chapter_progress_response(
         &self,
@@ -218,6 +163,23 @@ impl ProgressService {
     ) -> Result<Option<ProgressResponse>> {
         let progress = self.get_chapter_progress(user_id, chapter_id).await?;
         Ok(progress.map(ProgressResponse::from))
+    }
+
+    /// Get progress for all chapters of the content that the specified chapter belongs to.
+    pub async fn get_chapter_siblings_progress(
+        &self,
+        user_id: i64,
+        chapter_id: i64,
+    ) -> Result<Vec<ProgressResponse>> {
+        // Verify chapter exists and get content_id
+        let chapter = ChapterRepository::find_by_id(&self.pool, chapter_id)
+            .await?
+            .ok_or_else(|| {
+                AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
+            })?;
+
+        let progresses = self.get_content_progress(user_id, chapter.content_id).await?;
+        Ok(progresses.into_iter().map(ProgressResponse::from).collect())
     }
 
     /// Get the most recently read contents for a user.
