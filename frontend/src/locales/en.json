@@ -173,7 +173,11 @@
         "status_running": "Running",
         "status_completed": "Completed",
         "status_failed": "Failed",
-        "status_cancelled": "Cancelled"
+        "status_cancelled": "Cancelled",
+        "details": "Details",
+        "scan_results_details": "Scan Results Details",
+        "added_content_list": "Added Content",
+        "added_chapters_list": "Added Chapters"
     },
     "path_selector": {
         "title": "Select Directory",

@@ -267,12 +267,31 @@ export interface TaskProgress {
 }
 
 /**
+ * Information about a newly added content item.
+ */
+export interface AddedContent {
+    content_name: string;
+    path: string;
+}
+
+/**
+ * Information about a newly added chapter.
+ */
+export interface AddedChapter {
+    content_name: string;
+    chapter_name: string;
+    path: string;
+}
+
+/**
  * Result information for a completed scan task.
  */
 export interface TaskResult {
     added_count: number;
     removed_count: number;
     failed_scrape_count: number;
+    added_contents: AddedContent[];
+    added_chapters: AddedChapter[];
 }
 
 /**
