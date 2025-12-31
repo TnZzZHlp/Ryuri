@@ -42,6 +42,8 @@ pub struct ScanResult {
     pub removed: Vec<i64>,
     /// Content items that failed metadata scraping, with error messages.
     pub failed_scrape: Vec<(Content, String)>,
+    /// Newly added chapters.
+    pub added_chapters: Vec<crate::models::AddedChapter>,
 }
 
 // ============================================================================
@@ -90,6 +92,7 @@ impl ScanService {
             result.added.extend(path_result.added);
             result.removed.extend(path_result.removed);
             result.failed_scrape.extend(path_result.failed_scrape);
+            result.added_chapters.extend(path_result.added_chapters);
         }
 
         Ok(result)
@@ -149,12 +152,13 @@ impl ScanService {
             if !existing_paths.contains(&folder_path_str) {
                 // New content folder found
                 match self.import_content_folder(scan_path, &folder_path).await {
-                    Ok((content, scrape_error)) => {
+                    Ok((content, added_chapters, scrape_error)) => {
                         if let Some(error_msg) = scrape_error {
                             // Content was imported but metadata scraping failed
                             result.failed_scrape.push((content.clone(), error_msg));
                         }
                         result.added.push(content);
+                        result.added_chapters.extend(added_chapters);
                     }
                     Err(e) => {
                         // Log error but continue scanning
@@ -169,9 +173,15 @@ impl ScanService {
                     &folder_path_str,
                 )
                 .await?
-                    && let Err(e) = self.rescan_content_chapters(&content, &folder_path).await
                 {
-                    error!(folder_path = ?folder_path, error = %e, "{}", t!("scan.rescan_failed"));
+                    match self.rescan_content_chapters(&content, &folder_path).await {
+                        Ok(added_chapters) => {
+                             result.added_chapters.extend(added_chapters);
+                        }
+                        Err(e) => {
+                             error!(folder_path = ?folder_path, error = %e, "{}", t!("scan.rescan_failed"));
+                        }
+                    }
                 }
             }
         }
@@ -233,7 +243,7 @@ impl ScanService {
         &self,
         scan_path: &ScanPath,
         folder_path: &Path,
-    ) -> Result<(Content, Option<String>)> {
+    ) -> Result<(Content, Vec<crate::models::AddedChapter>, Option<String>)> {
         // Derive title from folder name (Requirement 2.4)
         let title = folder_path
             .file_name()
@@ -277,7 +287,7 @@ impl ScanService {
             )
             .collect();
 
-        ChapterRepository::create_batch(&self.pool, new_chapters).await?;
+        ChapterRepository::create_batch(&self.pool, new_chapters.clone()).await?;
 
         // Generate thumbnail
         let thumbnail = if let Some(metadata) = metadata.clone() {
@@ -304,11 +314,20 @@ impl ScanService {
             .await?
             .ok_or_else(|| AppError::Internal(t!("scan.retrieve_content_failed").to_string()))?;
 
-        Ok((final_content, scrape_error))
+        let added_chapters = new_chapters
+            .into_iter()
+            .map(|nc| crate::models::AddedChapter {
+                content_name: final_content.title.clone(),
+                chapter_name: nc.title,
+                path: nc.file_path,
+            })
+            .collect();
+
+        Ok((final_content, added_chapters, scrape_error))
     }
 
     /// Rescan existing content to detect added/removed chapters.
-    async fn rescan_content_chapters(&self, content: &Content, folder_path: &Path) -> Result<()> {
+    async fn rescan_content_chapters(&self, content: &Content, folder_path: &Path) -> Result<Vec<crate::models::AddedChapter>> {
         // Detect content type and find chapters
         let (content_type, disk_chapters) = self.detect_content_type_and_chapters(folder_path)?;
         let total_chapters = disk_chapters.len() as i32;
@@ -383,7 +402,7 @@ impl ScanService {
 
         // Insert new chapters
         if !new_chapters.is_empty() {
-            ChapterRepository::create_batch(&self.pool, new_chapters).await?;
+            ChapterRepository::create_batch(&self.pool, new_chapters.clone()).await?;
         }
 
         // Update chapter count
@@ -391,7 +410,16 @@ impl ScanService {
             ContentRepository::update_chapter_count(&self.pool, content.id, total_chapters).await?;
         }
 
-        Ok(())
+        let added_chapters = new_chapters
+            .into_iter()
+            .map(|nc| crate::models::AddedChapter {
+                content_name: content.title.clone(),
+                chapter_name: nc.title,
+                path: nc.file_path,
+            })
+            .collect();
+
+        Ok(added_chapters)
     }
 
     /// Auto-scrape metadata from Bangumi for a content title.
@@ -847,6 +875,15 @@ impl ScanQueueService {
                                 added_count: result.added.len() as i32,
                                 removed_count: result.removed.len() as i32,
                                 failed_scrape_count: result.failed_scrape.len() as i32,
+                                added_contents: result
+                                    .added
+                                    .iter()
+                                    .map(|c| crate::models::AddedContent {
+                                        content_name: c.title.clone(),
+                                        path: c.folder_path.clone(),
+                                    })
+                                    .collect(),
+                                added_chapters: result.added_chapters.clone(),
                             });
                             info!(
                                 task_id = %task_id,

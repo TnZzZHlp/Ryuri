@@ -56,6 +56,26 @@ pub struct TaskProgress {
     pub total_paths: i32,
 }
 
+/// Information about a newly added content item.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddedContent {
+    /// Name/Title of the content.
+    pub content_name: String,
+    /// Path to the content folder.
+    pub path: String,
+}
+
+/// Information about a newly added chapter.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddedChapter {
+    /// Name/Title of the content this chapter belongs to.
+    pub content_name: String,
+    /// Name/Title of the chapter.
+    pub chapter_name: String,
+    /// Path to the chapter file.
+    pub path: String,
+}
+
 /// Result information for a completed scan task.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskResult {
@@ -65,6 +85,10 @@ pub struct TaskResult {
     pub removed_count: i32,
     /// Number of items that failed to scrape metadata.
     pub failed_scrape_count: i32,
+    /// List of added contents.
+    pub added_contents: Vec<AddedContent>,
+    /// List of added chapters.
+    pub added_chapters: Vec<AddedChapter>,
 }
 
 /// A scan task representing a queued or executed scan operation.

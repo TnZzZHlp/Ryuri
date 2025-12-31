@@ -14,6 +14,15 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Dialog,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogDescription,
+    DialogScrollContent
+} from '@/components/ui/dialog'
+import { FileText, BookOpen, File } from 'lucide-vue-next'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
@@ -198,7 +207,10 @@ async function handleCancel(taskId: string) {
                                                     :style="{ width: `${calculateProgress(task)}%` }"></div>
                                             </div>
                                             <div class="text-xs text-muted-foreground mt-1">
-                                                {{ t('scan_queue.paths_scanned', { scanned: task.progress.scanned_paths, total: task.progress.total_paths }) }}
+                                                {{ t('scan_queue.paths_scanned', {
+                                                    scanned: task.progress.scanned_paths,
+                                                    total: task.progress.total_paths
+                                                }) }}
                                             </div>
                                         </div>
                                         <span v-else class="text-muted-foreground text-sm">-</span>
@@ -206,7 +218,8 @@ async function handleCancel(taskId: string) {
                                     <TableCell class="text-right">
                                         <Button v-if="canCancel(task)" variant="outline" size="sm"
                                             :disabled="cancellingTaskId === task.id" @click="handleCancel(task.id)">
-                                            {{ cancellingTaskId === task.id ? t('scan_queue.cancelling') : t('scan_queue.cancel') }}
+                                            {{ cancellingTaskId === task.id ? t('scan_queue.cancelling') :
+                                                t('scan_queue.cancel') }}
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -255,16 +268,88 @@ async function handleCancel(taskId: string) {
                                         <!-- Result for completed tasks -->
                                         <div v-if="task.status === 'Completed' && task.result"
                                             class="flex flex-col gap-1 text-sm">
-                                            <span class="text-green-600 dark:text-green-400">
-                                                {{ t('scan_queue.added', { count: task.result.added_count }) }}
-                                            </span>
-                                            <span class="text-red-600 dark:text-red-400">
-                                                {{ t('scan_queue.removed', { count: task.result.removed_count }) }}
-                                            </span>
+
                                             <span v-if="task.result.failed_scrape_count > 0"
                                                 class="text-yellow-600 dark:text-yellow-400">
-                                                {{ t('scan_queue.failed_scrapes', { count: task.result.failed_scrape_count }) }}
+                                                {{ t('scan_queue.failed_scrapes', {
+                                                    count:
+                                                        task.result.failed_scrape_count
+                                                }) }}
                                             </span>
+
+                                            <!-- Details Button -->
+                                            <div
+                                                v-if="(task.result.added_contents && task.result.added_contents.length > 0) || (task.result.added_chapters && task.result.added_chapters.length > 0)">
+                                                <Dialog>
+                                                    <DialogTrigger as-child>
+                                                        <Button variant="outline" size="sm" class="h-7 text-xs">
+                                                            <FileText class="w-3 h-3 mr-1" />
+                                                            {{ t('scan_queue.details') }}
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogScrollContent class="max-w-2xl">
+                                                        <DialogHeader>
+                                                            <DialogTitle>{{ t('scan_queue.scan_results_details') }}
+                                                            </DialogTitle>
+                                                            <DialogDescription>
+                                                                {{ getLibraryName(task.library_id) }} - {{
+                                                                    formatTime(task.created_at) }}
+                                                            </DialogDescription>
+                                                        </DialogHeader>
+
+                                                        <div class="space-y-6">
+                                                            <!-- Added Content -->
+                                                            <div
+                                                                v-if="task.result.added_contents && task.result.added_contents.length > 0">
+                                                                <h3 class="text-sm font-medium mb-2 flex items-center">
+                                                                    <BookOpen class="w-4 h-4 mr-2" />
+                                                                    {{ t('scan_queue.added_content_list') }} ({{
+                                                                        task.result.added_contents.length }})
+                                                                </h3>
+                                                                <div
+                                                                    class="bg-muted/50 rounded-md p-2 text-sm max-h-[200px] overflow-y-auto">
+                                                                    <div v-for="(content, idx) in task.result.added_contents"
+                                                                        :key="idx"
+                                                                        class="py-1 border-b last:border-0 border-border/50">
+                                                                        <div class="font-medium">{{ content.content_name
+                                                                            }}</div>
+                                                                        <div
+                                                                            class="text-xs text-muted-foreground truncate">
+                                                                            {{ content.path }}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <!-- Added Chapters -->
+                                                            <div
+                                                                v-if="task.result.added_chapters && task.result.added_chapters.length > 0">
+                                                                <h3 class="text-sm font-medium mb-2 flex items-center">
+                                                                    <File class="w-4 h-4 mr-2" />
+                                                                    {{ t('scan_queue.added_chapters_list') }} ({{
+                                                                        task.result.added_chapters.length }})
+                                                                </h3>
+                                                                <div
+                                                                    class="bg-muted/50 rounded-md p-2 text-sm max-h-[200px] overflow-y-auto">
+                                                                    <div v-for="(chapter, idx) in task.result.added_chapters"
+                                                                        :key="idx"
+                                                                        class="py-1 border-b last:border-0 border-border/50">
+                                                                        <div class="flex justify-between gap-2">
+                                                                            <span class="font-medium">{{
+                                                                                chapter.chapter_name }}</span>
+                                                                            <span
+                                                                                class="text-muted-foreground text-xs">{{
+                                                                                    chapter.content_name }}</span>
+                                                                        </div>
+                                                                        <div
+                                                                            class="text-xs text-muted-foreground truncate">
+                                                                            {{ chapter.path }}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </DialogScrollContent>
+                                                </Dialog>
+                                            </div>
                                         </div>
 
                                         <!-- Error for failed tasks -->
