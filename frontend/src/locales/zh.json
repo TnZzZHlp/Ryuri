@@ -154,7 +154,7 @@
         "created_at": "创建时间",
         "progress": "进度",
         "actions": "操作",
-        "result_error": "结果/错误",
+        "result": "结果",
         "history": "历史记录",
         "no_tasks": "暂无扫描任务",
         "no_tasks_desc": "在库设置中触发扫描以添加任务",
@@ -177,7 +177,8 @@
         "details": "详情",
         "scan_results_details": "扫描结果详情",
         "added_content_list": "新增内容",
-        "added_chapters_list": "新增章节"
+        "added_chapters_list": "新增章节",
+        "no_new_content": "无新增内容"
     },
     "path_selector": {
         "title": "选择目录",
