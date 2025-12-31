@@ -246,7 +246,7 @@ async function handleCancel(taskId: string) {
                                         {{ t('scan_queue.created_at') }}
                                     </TableHead>
                                     <TableHead>
-                                        {{ t('scan_queue.result_error') }}
+                                        {{ t('scan_queue.result') }}
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -279,7 +279,7 @@ async function handleCancel(taskId: string) {
 
                                             <!-- Details Button -->
                                             <div
-                                                v-if="(task.result.added_contents && task.result.added_contents.length > 0) || (task.result.added_chapters && task.result.added_chapters.length > 0)">
+                                                v-else-if="(task.result.added_contents && task.result.added_contents.length > 0) || (task.result.added_chapters && task.result.added_chapters.length > 0)">
                                                 <Dialog>
                                                     <DialogTrigger as-child>
                                                         <Button variant="outline" size="sm" class="h-7 text-xs">
@@ -312,7 +312,7 @@ async function handleCancel(taskId: string) {
                                                                         :key="idx"
                                                                         class="py-1 border-b last:border-0 border-border/50">
                                                                         <div class="font-medium">{{ content.content_name
-                                                                            }}</div>
+                                                                        }}</div>
                                                                         <div
                                                                             class="text-xs text-muted-foreground truncate">
                                                                             {{ content.path }}</div>
@@ -350,6 +350,11 @@ async function handleCancel(taskId: string) {
                                                     </DialogScrollContent>
                                                 </Dialog>
                                             </div>
+
+                                            <span v-else class="text-muted-foreground">
+                                                {{ t('scan_queue.no_new_content') }}
+                                            </span>
+
                                         </div>
 
                                         <!-- Error for failed tasks -->

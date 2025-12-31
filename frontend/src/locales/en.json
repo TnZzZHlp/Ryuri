@@ -154,7 +154,7 @@
         "created_at": "Created At",
         "progress": "Progress",
         "actions": "Actions",
-        "result_error": "Result/Error",
+        "result": "Result",
         "history": "History",
         "no_tasks": "No scan tasks available",
         "no_tasks_desc": "Trigger a scan in library settings to add tasks",
@@ -177,7 +177,8 @@
         "details": "Details",
         "scan_results_details": "Scan Results Details",
         "added_content_list": "Added Content",
-        "added_chapters_list": "Added Chapters"
+        "added_chapters_list": "Added Chapters",
+        "no_new_content": "No new content"
     },
     "path_selector": {
         "title": "Select Directory",
