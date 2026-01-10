@@ -4,6 +4,11 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
+WORKDIR /app
+
+# Copy VERSION file for frontend build
+COPY VERSION .
+
 WORKDIR /app/frontend
 
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
@@ -15,18 +20,22 @@ RUN pnpm build
 # Stage 2: Build Backend
 FROM rust:1-bookworm AS backend-builder
 
-WORKDIR /app/backend
+WORKDIR /app
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y pkg-config libssl-dev
 
+# Copy VERSION file first
+COPY VERSION .
+
 # Copy source code
-COPY backend/ .
+COPY backend/ ./backend/
 
 # Copy frontend dist to where rust-embed expects it (../frontend/dist relative to backend/)
-COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Build
+WORKDIR /app/backend
 RUN cargo build --release
 
 # Stage 3: Runtime
