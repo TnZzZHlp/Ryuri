@@ -15,15 +15,6 @@ pub struct DbConfig {
     pub max_connections: u32,
 }
 
-impl Default for DbConfig {
-    fn default() -> Self {
-        Self {
-            database_url: "sqlite:comic_reader.db?mode=rwc".to_string(),
-            max_connections: 5,
-        }
-    }
-}
-
 /// Initialize the database connection pool and run migrations.
 ///
 /// This function creates the database file if it doesn't exist,
