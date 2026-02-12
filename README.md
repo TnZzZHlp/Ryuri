@@ -215,7 +215,7 @@ You can easily deploy Ryuri using the official Docker image.
     **Environment Variables:**
 
     -   `DATABASE_URL`: Connection string for the database. Ensure it points to a location inside the volume (e.g., `/app/data`).
-    -   `JWT_SECRET`: A secure random string for signing authentication tokens.
+    -   `JWT_SECRET`: (Optional) A secure random string for signing authentication tokens (default: random string generated on each startup).
     -   `JWT_EXPIRATION_HOURS`: (Optional) Token expiration time in hours (default: 24).
 
     **Volumes:**
@@ -228,7 +228,7 @@ You can easily deploy Ryuri using the official Docker image.
 Ryuri provides a REST API for all frontend operations. Additionally, it exposes a Komga-compatible API layer under `/komga`.
 
 -   **Standard API**: Used by the web frontend for library management, reading, and settings.
--   **Komga API**: See [KOMGA_API.md](backend/KOMGA_API.md) for details on supported endpoints for third-party clients.
+-   **Limited Komga API support**: Support the API required for the Komga plugin in the Mihon APP.
 
 ## License
 
