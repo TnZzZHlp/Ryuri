@@ -22,37 +22,37 @@ Ryuri 是一个自托管的漫画和电子书阅读服务器，专注于简洁�
 
 ## 功能特性
 
--   **自托管库**: 整理您的漫画、电子书（支持 zip、rar、cbz、cbr、epub 格式）。
--   **网页阅读器**: 现代化、响应式的网页界面，可在任何设备上阅读。
--   **Komga 兼容性**: 实现了 Komga API，允许您使用如 [Mihon](https://github.com/mihonapp/mihon) 等客户端。
--   **进度追踪**: 自动跨设备追踪您的阅读进度。
--   **内容扫描**: 高效扫描您的文件夹以更新库。
+- **自托管库**: 整理您的漫画、电子书（支持 zip、rar、cbz、cbr、epub 格式）。
+- **网页阅读器**: 现代化、响应式的网页界面，可在任何设备上阅读。
+- **Komga 兼容性**: 实现了 Komga API，允许您使用如 [Mihon](https://github.com/mihonapp/mihon) 等客户端。
+- **进度追踪**: 自动跨设备追踪您的阅读进度。
+- **内容扫描**: 高效扫描您的文件夹以更新库。
 
 ## 技术栈
 
 ### 后端
 
--   **语言**: Rust
--   **框架**: [Axum](https://github.com/tokio-rs/axum)
--   **数据库**: SQLite (通过 [SQLx](https://github.com/launchbadge/sqlx))
--   **核心依赖**: `tokio`, `tower-http`, `zip`, `rar`, `epub`
+- **语言**: Rust
+- **框架**: [Axum](https://github.com/tokio-rs/axum)
+- **数据库**: SQLite (通过 [SQLx](https://github.com/launchbadge/sqlx))
+- **核心依赖**: `tokio`, `tower-http`, `zip`, `rar`, `epub`
 
 ### 前端
 
--   **框架**: [Vue.js 3](https://vuejs.org/)
--   **构建工具**: [Vite](https://vitejs.dev/)
--   **语言**: TypeScript
--   **状态管理**: [Pinia](https://pinia.vuejs.org/)
--   **样式**: [Tailwind CSS](https://tailwindcss.com/)
--   **UI 组件**: [shadcn-vue](https://www.shadcn-vue.com/)
+- **框架**: [Vue.js 3](https://vuejs.org/)
+- **构建工具**: [Vite](https://vitejs.dev/)
+- **语言**: TypeScript
+- **状态管理**: [Pinia](https://pinia.vuejs.org/)
+- **样式**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI 组件**: [shadcn-vue](https://www.shadcn-vue.com/)
 
 ## 快速开始
 
 ### 前置要求
 
--   [Rust](https://www.rust-lang.org/tools/install) (最新稳定版)
--   [Node.js](https://nodejs.org/) (推荐 v18+)
--   [pnpm](https://pnpm.io/) (可选，但推荐用于前端)
+- [Rust](https://www.rust-lang.org/tools/install) (最新稳定版)
+- [Node.js](https://nodejs.org/) (推荐 v18+)
+- [pnpm](https://pnpm.io/) (可选，但推荐用于前端)
 
 ### 开发环境设置
 
@@ -109,12 +109,11 @@ Ryuri 是一个自托管的漫画和电子书阅读服务器，专注于简洁�
     ```
 
     **重要的环境变量:**
-
-    -   `DATABASE_URL`: 指定数据库连接字符串，例如 `sqlite:ryuri.db?mode=rwc`。
-    -   `JWT_SECRET`: **对安全性至关重要。**请替换为强随机字符串。
-    -   `HOST`: （可选）绑定的主机地址（默认: `0.0.0.0`）。
-    -   `PORT`: （可选）监听的端口（默认: `3000`）。
-    -   `JWT_EXPIRATION_HOURS`: （可选）JWT 令牌的有效期（默认: `24`）。
+    - `DATABASE_URL`: 指定数据库连接字符串，例如 `sqlite:ryuri.db?mode=rwc`。
+    - `JWT_SECRET`: **对安全性至关重要。**请替换为强随机字符串。
+    - `HOST`: （可选）绑定的主机地址（默认: `0.0.0.0`）。
+    - `PORT`: （可选）监听的端口（默认: `3000`）。
+    - `JWT_EXPIRATION_HOURS`: （可选）JWT 令牌的有效期（默认: `24`）。
 
     服务器将启动，通常在 `http://localhost:3000`。
 
@@ -172,12 +171,11 @@ Ryuri 是一个自托管的漫画和电子书阅读服务器，专注于简洁�
     ```
 
     **重要的环境变量:**
-
-    -   `DATABASE_URL`: 指定数据库连接字符串。对于 SQLite，`sqlite:ryuri.db?mode=rwc` 将在当前目录中创建一个 `ryuri.db` 文件。
-    -   `JWT_SECRET`: **对安全性至关重要。**请将 `"your_secure_random_string_here"` 替换为长且随机的唯一字符串。如果没有持久化的密钥，用户会话将在每次重启时失效。
-    -   `HOST`: （可选）绑定的主机地址（默认: `0.0.0.0`）。
-    -   `PORT`: （可选）监听的端口（默认: `3000`）。
-    -   `JWT_EXPIRATION_HOURS`: （可选）JWT 令牌的有效期（默认: `24`）。
+    - `DATABASE_URL`: 指定数据库连接字符串。对于 SQLite，`sqlite:ryuri.db?mode=rwc` 将在当前目录中创建一个 `ryuri.db` 文件。
+    - `JWT_SECRET`: **对安全性至关重要。**请将 `"your_secure_random_string_here"` 替换为长且随机的唯一字符串。如果没有持久化的密钥，用户会话将在每次重启时失效。
+    - `HOST`: （可选）绑定的主机地址（默认: `0.0.0.0`）。
+    - `PORT`: （可选）监听的端口（默认: `3000`）。
+    - `JWT_EXPIRATION_HOURS`: （可选）JWT 令牌的有效期（默认: `24`）。
 
     服务器将启动，通常在 `http://localhost:3000`。
 
@@ -207,22 +205,20 @@ Ryuri 是一个自托管的漫画和电子书阅读服务器，专注于简洁�
     ```
 
     **环境变量:**
-
-    -   `DATABASE_URL`: 数据库的连接字符串。确保它指向卷内的位置（例如 `/app/data`）。
-    -   `JWT_SECRET`: 用于签名认证令牌的安全随机字符串。
-    -   `JWT_EXPIRATION_HOURS`: （可选）令牌过期时间（小时）（默认: 24）。
+    - `DATABASE_URL`: 数据库的连接字符串。确保它指向卷内的位置（例如 `/app/data`）。
+    - `JWT_SECRET`: （可选）用于签名认证令牌的安全随机字符串（默认每次启动自动生成随机字符串）。
+    - `JWT_EXPIRATION_HOURS`: （可选）JWT 令牌的有效期（小时）（默认: 24）。
 
     **卷:**
-
-    -   `/app/data`: 数据库的持久存储。
-    -   `/comics`: （示例）在此挂载您的本地漫画目录，以将其添加到您的 Ryuri 库中。
+    - `/app/data`: 数据库的持久存储。
+    - `/comics`: （示例）在此挂载您的本地漫画目录，以将其添加到您的 Ryuri 库中。
 
 ## API 文档
 
 Ryuri 为所有前端操作提供 REST API。此外，它在 `/komga` 下公开了 Komga 兼容的 API 层。
 
--   **标准 API**: 由网页前端用于库管理、阅读和设置。
--   **Komga API**: 有关第三方客户端支持的端点的详细信息，请参见 [KOMGA_API.md](../backend/KOMGA_API.md)。
+- **标准 API**: 由网页前端用于库管理、阅读和设置。
+- **有限的 Komga API 支持**: 支持 Mihon APP 中的 Komga 插件所需的API.
 
 ## 许可证
 

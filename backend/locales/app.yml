@@ -72,9 +72,6 @@ scan.calc_novel_chapter_count_failed:
 scan.get_file_metadata_failed:
   en: "Failed to get file metadata"
   zh-CN: "获取文件元数据失败"
-scan.epub_open_failed:
-  en: "Failed to open EPUB: %{error}"
-  zh-CN: "打开 EPUB 失败: %{error}"
 scan.read_image_format_failed:
   en: "Failed to read image format: %{error}"
   zh-CN: "读取图片格式失败: %{error}"
@@ -342,12 +339,6 @@ archive.unsupported_novel_format:
 archive.unsupported_comic_format:
   en: "Unsupported comic file format: %{extension}"
   zh-CN: "不支持的漫画文件格式: %{extension}"
-archive.epub_open_failed:
-  en: "Failed to open EPUB: %{error}"
-  zh-CN: "打开 EPUB 失败: %{error}"
-archive.chapter_not_found_in_epub:
-  en: "Chapter not found in EPUB: %{file}"
-  zh-CN: "EPUB 中未找到章节: %{file}"
 archive.no_images_found:
   en: "No images found in archive"
   zh-CN: "归档文件中未找到图片"
