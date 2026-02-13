@@ -57,6 +57,9 @@ jobs:
             - name: Check toolchain
               run: rustc --version && cargo --version
 
+            - name: Install system dependencies
+              run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+
             - name: Build backend (release)
               run: cd backend && cargo build --release
 

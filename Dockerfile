@@ -23,7 +23,7 @@ FROM rust:1-bookworm AS backend-builder
 WORKDIR /app
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y pkg-config libssl-dev
+RUN apt-get update && apt-get install -y pkg-config libssl-dev libfontconfig1-dev
 
 # Copy VERSION file first
 COPY VERSION .
@@ -47,6 +47,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
+    libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-builder /app/backend/target/release/backend /app/ryuri
