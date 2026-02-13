@@ -29,7 +29,7 @@ impl ContentType {
     /// Returns the supported archive extensions for this content type.
     pub fn supported_extensions(&self) -> &'static [&'static str] {
         match self {
-            ContentType::Comic => &["zip", "cbz", "cbr", "rar"],
+            ContentType::Comic => &["zip", "cbz", "cbr", "rar", "pdf"],
             ContentType::Novel => &["epub"],
         }
     }
@@ -180,7 +180,9 @@ impl From<Content> for ContentResponse {
             title: content.title,
             chapter_count: content.chapter_count,
             has_thumbnail: content.thumbnail.is_some(),
-            metadata: content.metadata.and_then(|bytes| serde_json::from_slice(&bytes).ok()),
+            metadata: content
+                .metadata
+                .and_then(|bytes| serde_json::from_slice(&bytes).ok()),
             created_at: content.created_at,
         }
     }

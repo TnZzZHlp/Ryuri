@@ -3,12 +3,12 @@
 //! This module provides the business logic for content operations including
 //! retrieval, listing, searching, deletion, and chapter management.
 
+use rust_i18n::t;
 use sqlx::{Pool, Sqlite};
 use std::path::Path;
-use rust_i18n::t;
 
 use crate::error::{AppError, Result};
-use crate::extractors::{ComicArchiveExtractor, NovelArchiveExtractor};
+use crate::extractors::{ComicArchiveExtractor, NovelArchiveExtractor, PdfExtractor};
 use crate::models::{Chapter, Content, ContentType};
 use crate::repository::content::{ChapterRepository, ContentRepository};
 
@@ -87,24 +87,36 @@ impl ContentService {
 
         // Validate chapter id
         if !chapters.iter().any(|chapter| chapter.id == chapter_id) {
-            return Err(AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string()));
+            return Err(AppError::NotFound(
+                t!("content.chapter_not_found", id = chapter_id).to_string(),
+            ));
         }
 
         let chapter = &chapters.iter().find(|c| c.id == chapter_id).unwrap();
         let archive_path = Path::new(&chapter.file_path);
 
         // List images in the archive
-        let images = ComicArchiveExtractor::list_files(archive_path)?;
+        let images = if PdfExtractor::is_supported(archive_path) {
+            PdfExtractor::list_files(archive_path)?
+        } else {
+            ComicArchiveExtractor::list_files(archive_path)?
+        };
 
         // Validate page index
         if page_index < 0 || page_index as usize >= images.len() {
-            return Err(AppError::NotFound(t!("komga.page_not_found", page = page_index).to_string()));
+            return Err(AppError::NotFound(
+                t!("komga.page_not_found", page = page_index).to_string(),
+            ));
         }
 
         let image_name = &images[page_index as usize];
 
         // Extract and return the image
-        ComicArchiveExtractor::extract_file(archive_path, image_name)
+        if PdfExtractor::is_supported(archive_path) {
+            PdfExtractor::extract_file(archive_path, image_name)
+        } else {
+            ComicArchiveExtractor::extract_file(archive_path, image_name)
+        }
     }
 
     /// Get the text content of a novel chapter.
@@ -136,7 +148,9 @@ impl ContentService {
         // Validate chapter index
         if chapter_index < 0 || chapter_index as usize >= chapters.len() {
             let chapter_id = chapter_index as i64; // Approximation for error message
-            return Err(AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string()));
+            return Err(AppError::NotFound(
+                t!("content.chapter_not_found", id = chapter_id).to_string(),
+            ));
         }
 
         let chapter = &chapters[chapter_index as usize];
@@ -161,14 +175,22 @@ impl ContentService {
         // Validate chapter index
         if chapter_index < 0 || chapter_index as usize >= chapters.len() {
             let chapter_id = chapter_index as i64; // Approximation for error message
-            return Err(AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string()));
+            return Err(AppError::NotFound(
+                t!("content.chapter_not_found", id = chapter_id).to_string(),
+            ));
         }
 
         let chapter = &chapters[chapter_index as usize];
         let archive_path = Path::new(&chapter.file_path);
 
         match content.content_type {
-            ContentType::Comic => ComicArchiveExtractor::page_count(archive_path),
+            ContentType::Comic => {
+                if PdfExtractor::is_supported(archive_path) {
+                    PdfExtractor::page_count(archive_path)
+                } else {
+                    ComicArchiveExtractor::page_count(archive_path)
+                }
+            }
             ContentType::Novel => NovelArchiveExtractor::chapter_count(archive_path),
         }
     }
