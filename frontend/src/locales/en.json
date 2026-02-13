@@ -145,7 +145,9 @@
         "mode_scroll": "Scroll (Webtoon)",
         "mode_paged": "Paged",
         "prev": "Prev",
-        "next": "Next"
+        "next": "Next",
+        "text_loading": "Loading text...",
+        "text_load_fail": "Failed to load chapter text"
     },
     "scan_queue": {
         "title": "Scan Queue",

@@ -41,7 +41,10 @@ const {
     currentChapter,
     currentChapterIndex,
     prevChapter,
-    nextChapter
+    nextChapter,
+    isNovel,
+    chapterText,
+    textLoading
 } = storeToRefs(readerStore)
 
 // State
@@ -79,6 +82,12 @@ const renderedPages = computed(() => {
     }
 
     return pagesList
+})
+
+// Novel text paragraphs
+const textParagraphs = computed(() => {
+    if (!chapterText.value) return []
+    return chapterText.value.split('\n').filter(p => p.trim().length > 0)
 })
 
 // Methods
@@ -169,7 +178,18 @@ const loadMorePages = () => {
 }
 
 const updateProgress = () => {
-    if (readerMode.value === 'scroll' && containerRef.value) {
+    if (!containerRef.value) return
+
+    if (isNovel.value) {
+        // Novel: track scroll percentage
+        const scrollTop = containerRef.value.scrollTop
+        const docHeight = containerRef.value.scrollHeight
+        const winHeight = containerRef.value.clientHeight
+        const total = docHeight - winHeight
+        const percentage = total > 0 ? (scrollTop / total) * 100 : 0
+        readingProgress.value = percentage
+        readerStore.saveNovelProgress(percentage)
+    } else if (readerMode.value === 'scroll') {
         const scrollTop = containerRef.value.scrollTop
         const docHeight = containerRef.value.scrollHeight
         const winHeight = containerRef.value.clientHeight
@@ -181,7 +201,7 @@ const updateProgress = () => {
 const loadData = async () => {
     try {
         await readerStore.loadChapter(contentId.value, chapterId.value)
-        if (readerMode.value === 'scroll') {
+        if (!isNovel.value && readerMode.value === 'scroll') {
             nextTick(() => {
                 initObserver()
                 // If we have progress, scroll to it
@@ -190,7 +210,7 @@ const loadData = async () => {
                 }
             })
         }
-    } catch (e) {
+    } catch {
         toast.error(t('reader.loading_fail'))
     }
 }
@@ -210,7 +230,7 @@ const toggleControls = () => {
 }
 
 // Paged Navigation
-const nextPage = () => {
+const nextPageFn = () => {
     if (endOfChapter.value) {
         if (nextChapter.value) navigateToChapter(nextChapter.value)
         return
@@ -237,7 +257,7 @@ const nextPage = () => {
     readerStore.saveProgress(currentPage.value)
 }
 
-const prevPage = () => {
+const prevPageFn = () => {
     if (currentPage.value > 0 && !endOfChapter.value) {
         currentPage.value--
         readerStore.loadPage(currentPage.value)
@@ -256,10 +276,10 @@ const handlePageClick = (e: MouseEvent) => {
     const x = e.clientX
 
     if (x < width * 0.3) {
-        prevPage()
+        prevPageFn()
         showControls.value = false
     } else if (x > width * 0.7) {
-        nextPage()
+        nextPageFn()
         showControls.value = false
     } else {
         toggleControls()
@@ -274,7 +294,7 @@ watch(() => route.params.chapterId, () => {
 })
 
 watch(currentPage, (newPage) => {
-    if (readerMode.value === 'paged' && currentChapter.value && currentChapter.value.page_count > 0) {
+    if (!isNovel.value && readerMode.value === 'paged' && currentChapter.value && currentChapter.value.page_count > 0) {
         readingProgress.value = ((newPage + 1) / currentChapter.value.page_count) * 100
     }
 })
@@ -288,7 +308,11 @@ watch(readerMode, (newMode) => {
     }
 })
 
-const preventSelection = (e: Event) => e.preventDefault()
+const preventSelection = (e: Event) => {
+    // Allow text selection in novel mode
+    if (isNovel.value) return
+    e.preventDefault()
+}
 
 onMounted(() => {
     loadData()
@@ -303,16 +327,29 @@ onUnmounted(() => {
 })
 
 const handleKeydown = (e: KeyboardEvent) => {
+    if (isNovel.value) {
+        // Novel mode: left/right for chapter navigation, Escape to exit
+        if (e.key === 'ArrowLeft') {
+            if (prevChapter.value) navigateToChapter(prevChapter.value)
+        } else if (e.key === 'ArrowRight') {
+            if (nextChapter.value) navigateToChapter(nextChapter.value)
+        } else if (e.key === 'Escape') {
+            router.push(`/content/${contentId.value}`)
+        }
+        showControls.value = false
+        return
+    }
+
     if (e.key === 'ArrowLeft') {
         if (readerMode.value === 'paged') {
-            prevPage()
+            prevPageFn()
         } else {
             if (prevChapter.value) navigateToChapter(prevChapter.value)
         }
 
     } else if (e.key === 'ArrowRight') {
         if (readerMode.value === 'paged') {
-            nextPage()
+            nextPageFn()
         } else {
             if (nextChapter.value) navigateToChapter(nextChapter.value)
         }
@@ -321,7 +358,7 @@ const handleKeydown = (e: KeyboardEvent) => {
     } else if (e.key === ' ' || e.key === 'Space') {
         e.preventDefault()
         if (readerMode.value === 'paged') {
-            nextPage()
+            nextPageFn()
         }
     }
 
@@ -334,8 +371,40 @@ const handleKeydown = (e: KeyboardEvent) => {
 
         <!-- Reader Content -->
 
-        <!-- Scroll Mode -->
-        <div v-if="readerMode === 'scroll'" class="mx-auto max-w-4xl min-h-screen" @click="toggleControls">
+        <!-- Novel Text Reader Mode -->
+        <div v-if="isNovel" class="novel-reader mx-auto max-w-3xl min-h-screen px-6 md:px-12 py-20"
+            @click="toggleControls">
+            <div v-if="loading || textLoading" class="flex items-center justify-center h-screen">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            </div>
+
+            <div v-else-if="chapterText" class="novel-text-content">
+                <p v-for="(paragraph, index) in textParagraphs" :key="index" class="novel-paragraph">
+                    {{ paragraph }}
+                </p>
+
+                <!-- End of Chapter Navigation -->
+                <div class="py-16 flex flex-col items-center gap-4 w-full border-t border-white/10 mt-12">
+                    <p class="text-gray-400">{{ t('reader.end_of_chapter') }}</p>
+                    <div class="flex gap-4">
+                        <Button v-if="prevChapter" variant="secondary" @click.stop="navigateToChapter(prevChapter)">
+                            <ChevronLeft class="mr-2 h-4 w-4" /> {{ t('reader.prev_chapter') }}
+                        </Button>
+                        <Button v-if="nextChapter" variant="default" @click.stop="navigateToChapter(nextChapter)">
+                            {{ t('reader.next_chapter') }}
+                            <ChevronRight class="ml-2 h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else class="flex items-center justify-center h-screen text-gray-400">
+                <p>{{ t('reader.text_load_fail') }}</p>
+            </div>
+        </div>
+
+        <!-- Comic: Scroll Mode -->
+        <div v-else-if="readerMode === 'scroll'" class="mx-auto max-w-4xl min-h-screen" @click="toggleControls">
             <div v-if="loading" class="flex items-center justify-center h-screen">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
             </div>
@@ -367,7 +436,7 @@ const handleKeydown = (e: KeyboardEvent) => {
             </div>
         </div>
 
-        <!-- Paged Mode -->
+        <!-- Comic: Paged Mode -->
         <div v-else class="h-screen w-full flex items-center justify-center overflow-hidden" @click="handlePageClick">
             <div v-if="loading" class="flex items-center justify-center">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
@@ -410,8 +479,8 @@ const handleKeydown = (e: KeyboardEvent) => {
                 </h1>
             </div>
 
-            <!-- Settings Menu -->
-            <DropdownMenu>
+            <!-- Settings Menu (hidden for novels) -->
+            <DropdownMenu v-if="!isNovel">
                 <DropdownMenuTrigger as-child>
                     <Button variant="ghost" size="icon">
                         <Settings class="h-5 w-5 text-white" />
@@ -447,8 +516,13 @@ const handleKeydown = (e: KeyboardEvent) => {
 
             <div class="flex flex-col items-center">
                 <span class="text-xs text-gray-400">
-                    {{ readerMode === 'paged' ? (currentPage + 1) + ' / ' + (currentChapter?.page_count || '?') :
-                        `${currentChapterIndex + 1} / ${chapters.length}` }}
+                    <template v-if="isNovel">
+                        {{ `${currentChapterIndex + 1} / ${chapters.length}` }}
+                    </template>
+                    <template v-else>
+                        {{ readerMode === 'paged' ? (currentPage + 1) + ' / ' + (currentChapter?.page_count || '?') :
+                            `${currentChapterIndex + 1} / ${chapters.length}` }}
+                    </template>
                 </span>
             </div>
 
@@ -466,3 +540,27 @@ const handleKeydown = (e: KeyboardEvent) => {
     </div>
 
 </template>
+
+<style scoped>
+.novel-reader {
+    font-family: 'Georgia', 'Noto Serif SC', 'Source Han Serif CN', serif;
+}
+
+.novel-text-content {
+    color: #e0ddd5;
+    line-height: 2;
+    font-size: 1.125rem;
+}
+
+.novel-paragraph {
+    text-indent: 2em;
+    margin-bottom: 0.75em;
+}
+
+@media (max-width: 768px) {
+    .novel-text-content {
+        font-size: 1rem;
+        line-height: 1.9;
+    }
+}
+</style>
