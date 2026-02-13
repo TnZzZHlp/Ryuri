@@ -231,6 +231,12 @@ watch.rescan_failed:
 watch.rescan_completed:
   en: "Watch service: rescan completed"
   zh-CN: "监控服务：重新扫描完成"
+watch.event_received:
+  en: "Watch service: event received"
+  zh-CN: "监控服务：事件已接收"
+watch.restore_watchers_failed:
+  en: "Failed to load libraries for watch service restoration"
+  zh-CN: "加载书籍库数据失败，无法恢复文件监控"
 error.database:
   en: "Database error"
   zh-CN: "数据库错误"

@@ -7,13 +7,13 @@
 //! Requirements: 1.9, 1.10, 1.11
 
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use rust_i18n::t;
 use sqlx::{Pool, Sqlite};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use tracing::{debug, error, instrument, warn};
-use rust_i18n::t;
 
 use crate::error::Result;
 use crate::repository::library::ScanPathRepository;
@@ -85,7 +85,9 @@ impl WatchService {
                 }
             })
             .map_err(|e| {
-                crate::error::AppError::Internal(t!("watch.create_watcher_failed", error = e).to_string())
+                crate::error::AppError::Internal(
+                    t!("watch.create_watcher_failed", error = e).to_string(),
+                )
             })?;
 
         let mut watcher = watcher;
@@ -95,7 +97,7 @@ impl WatchService {
         for scan_path in &scan_paths {
             let path = PathBuf::from(&scan_path.path);
             if path.exists() {
-                if let Err(e) = watcher.watch(&path, RecursiveMode::NonRecursive) {
+                if let Err(e) = watcher.watch(&path, RecursiveMode::Recursive) {
                     warn!(path = ?path, error = %e, "{}", t!("watch.watch_path_failed"));
                 } else {
                     debug!(path = ?path, "{}", t!("watch.started_watching"));
@@ -121,6 +123,7 @@ impl WatchService {
         let lib_id = library_id;
         tokio::spawn(async move {
             while let Some(_event) = rx.recv().await {
+                debug!(library_id = lib_id, "{}", t!("watch.event_received"));
                 // Debounce: wait a bit for more events to settle
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
@@ -175,6 +178,27 @@ impl WatchService {
             self.start_watching(library_id).await?;
         }
         Ok(())
+    }
+
+    /// Restore file watchers for all libraries with watch_mode enabled.
+    ///
+    /// This should be called during application startup to resume
+    /// watching libraries that had watch_mode enabled before shutdown.
+    pub async fn restore_watchers(&self) {
+        match crate::repository::library::LibraryRepository::list(&self.pool).await {
+            Ok(libraries) => {
+                for lib in libraries {
+                    if lib.watch_mode
+                        && let Err(e) = self.start_watching(lib.id).await
+                    {
+                        warn!(library_id = lib.id, error = %e, "{}", t!("library.start_watch_failed"));
+                    }
+                }
+            }
+            Err(e) => {
+                warn!(error = %e, "{}", t!("watch.restore_watchers_failed"));
+            }
+        }
     }
 
     /// Stop all watchers (for shutdown).

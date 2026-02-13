@@ -1,0 +1,140 @@
+name: CI
+
+on:
+    pull_request:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    changes:
+        name: Detect Changes
+        runs-on: ubuntu-latest
+        outputs:
+            frontend: ${{ steps.filter.outputs.frontend }}
+            backend: ${{ steps.filter.outputs.backend }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Check for file changes
+              uses: dorny/paths-filter@v3
+              id: filter
+              with:
+                  filters: |
+                      frontend:
+                        - 'frontend/**'
+                        - 'package.json'
+                        - 'pnpm-lock.yaml'
+                      backend:
+                        - 'backend/**'
+                        - 'Cargo.toml'
+                        - 'Cargo.lock'
+
+    frontend:
+        name: Frontend CI
+        needs: changes
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: ./frontend
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.pnpm-store
+                      node_modules
+                  key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+                  restore-keys: |
+                      ${{ runner.os }}-pnpm-
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10
+
+            - name: Install dependencies
+              run: pnpm install
+
+            - name: Type check
+              run: pnpm vue-tsc -b --noEmit
+
+            - name: Build
+              run: pnpm build
+
+    backend:
+        name: Backend CI
+        needs: changes
+        if: ${{ needs.changes.outputs.backend == 'true' }}
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Cache pnpm dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.pnpm-store
+                      frontend/node_modules
+                  key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+                  restore-keys: |
+                      ${{ runner.os }}-pnpm-
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10
+
+            - name: Build Frontend
+              working-directory: ./frontend
+              run: |
+                  pnpm install
+                  pnpm build
+
+            - name: Cache Rust dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      backend/target
+                  key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-cargo-
+
+            - name: Setup Rust
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Install system dependencies
+              run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+
+            - name: Lint
+              working-directory: ./backend
+              run: cargo clippy -- -D warnings
+
+            - name: Build
+              working-directory: ./backend
+              run: cargo build --release
+
+            - name: Test
+              working-directory: ./backend
+              run: cargo test

@@ -141,6 +141,9 @@ async fn main() -> Result<(), AppError> {
     // Restore scheduled scans
     state.scheduler_service.restore_schedules(&state.pool).await;
 
+    // Restore file watchers for libraries with watch_mode enabled
+    state.watch_service.restore_watchers().await;
+
     let app = create_router_with_layers(state);
 
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)

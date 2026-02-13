@@ -1,24 +1,26 @@
-//! Comic archive extractor for ZIP, CBZ, CBR, RAR formats.
+//! Archive extractor for ZIP, CBZ, CBR, RAR formats.
 //!
-//! This module provides functionality to extract images from comic archive files.
+//! This module provides functionality to extract images from compressed archive files.
 //! Supported formats:
 //! - ZIP/CBZ: Standard ZIP archives (CBZ is just ZIP with a different extension)
 //! - CBR/RAR: RAR archives
 
 use crate::error::{AppError, Result};
+use rust_i18n::t;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use rust_i18n::t;
+
+use super::natural_sort_key;
 
 /// Supported image extensions for comics.
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "bmp"];
 
-/// Comic archive extractor supporting ZIP, CBZ, CBR, and RAR formats.
-pub struct ComicArchiveExtractor;
+/// Archive extractor supporting ZIP, CBZ, CBR, and RAR formats.
+pub struct ArchiveExtractor;
 
-impl ComicArchiveExtractor {
-    /// Returns the supported archive extensions for comics.
+impl ArchiveExtractor {
+    /// Returns the supported archive extensions.
     pub fn supported_extensions() -> &'static [&'static str] {
         &["zip", "cbz", "cbr", "rar"]
     }
@@ -88,9 +90,9 @@ impl ComicArchiveExtractor {
 
         let mut files: Vec<String> = Vec::new();
         for i in 0..archive.len() {
-            let entry = archive
-                .by_index(i)
-                .map_err(|e| AppError::Archive(t!("archive.zip_read_entry_failed", error = e).to_string()))?;
+            let entry = archive.by_index(i).map_err(|e| {
+                AppError::Archive(t!("archive.zip_read_entry_failed", error = e).to_string())
+            })?;
             let name = entry.name().to_string();
             if Self::is_image_file(&name) {
                 files.push(name);
@@ -107,14 +109,14 @@ impl ComicArchiveExtractor {
         let mut archive = zip::ZipArchive::new(file)
             .map_err(|e| AppError::Archive(t!("archive.zip_open_failed", error = e).to_string()))?;
 
-        let mut entry = archive
-            .by_name(file_name)
-            .map_err(|_| AppError::Archive(t!("archive.file_not_found", file = file_name).to_string()))?;
+        let mut entry = archive.by_name(file_name).map_err(|_| {
+            AppError::Archive(t!("archive.file_not_found", file = file_name).to_string())
+        })?;
 
         let mut buffer = Vec::new();
-        entry
-            .read_to_end(&mut buffer)
-            .map_err(|e| AppError::Archive(t!("archive.file_read_failed", error = e).to_string()))?;
+        entry.read_to_end(&mut buffer).map_err(|e| {
+            AppError::Archive(t!("archive.file_read_failed", error = e).to_string())
+        })?;
 
         Ok(buffer)
     }
@@ -130,7 +132,9 @@ impl ComicArchiveExtractor {
         let entries = archive
             .into_iter()
             .collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(|e| AppError::Archive(t!("archive.rar_read_entries_failed", error = e).to_string()))?;
+            .map_err(|e| {
+                AppError::Archive(t!("archive.rar_read_entries_failed", error = e).to_string())
+            })?;
 
         for entry in entries {
             let name = entry.filename.to_string_lossy().to_string();
@@ -162,7 +166,9 @@ impl ComicArchiveExtractor {
                     if name == file_name {
                         // Extract this file to temp directory
                         let _next = header.extract_to(&temp_dir).map_err(|e| {
-                            AppError::Archive(t!("archive.rar_extract_failed", error = e).to_string())
+                            AppError::Archive(
+                                t!("archive.rar_extract_failed", error = e).to_string(),
+                            )
                         })?;
 
                         // Read the extracted file
@@ -185,7 +191,9 @@ impl ComicArchiveExtractor {
                 Ok(None) => break,
                 Err(e) => {
                     let _ = std::fs::remove_dir_all(&temp_dir);
-                    return Err(AppError::Archive(t!("archive.rar_read_entries_failed", error = e).to_string()));
+                    return Err(AppError::Archive(
+                        t!("archive.rar_read_entries_failed", error = e).to_string(),
+                    ));
                 }
             }
         }
@@ -193,7 +201,9 @@ impl ComicArchiveExtractor {
         // Clean up temp directory
         let _ = std::fs::remove_dir_all(&temp_dir);
 
-        Err(AppError::Archive(t!("archive.file_not_found", file = file_name).to_string()))
+        Err(AppError::Archive(
+            t!("archive.file_not_found", file = file_name).to_string(),
+        ))
     }
 
     /// Checks if a filename is an image file based on extension.
@@ -203,91 +213,22 @@ impl ComicArchiveExtractor {
     }
 }
 
-/// Generates a natural sort key for a string.
-/// This handles numeric portions correctly (e.g., "page2" < "page10").
-pub fn natural_sort_key(s: &str) -> Vec<NaturalSortPart> {
-    let mut parts = Vec::new();
-    let mut current_num = String::new();
-    let mut current_str = String::new();
-
-    for c in s.chars() {
-        if c.is_ascii_digit() {
-            if !current_str.is_empty() {
-                parts.push(NaturalSortPart::Text(current_str.to_lowercase()));
-                current_str.clear();
-            }
-            current_num.push(c);
-        } else {
-            if !current_num.is_empty()
-                && let Ok(num) = current_num.parse::<u64>()
-            {
-                parts.push(NaturalSortPart::Number(num));
-                current_num.clear();
-            } else if !current_num.is_empty() {
-                current_num.clear();
-            }
-            current_str.push(c);
-        }
-    }
-
-    // Handle remaining parts
-    if !current_num.is_empty()
-        && let Ok(num) = current_num.parse::<u64>()
-    {
-        parts.push(NaturalSortPart::Number(num));
-    }
-    if !current_str.is_empty() {
-        parts.push(NaturalSortPart::Text(current_str.to_lowercase()));
-    }
-
-    parts
-}
-
-/// A part of a natural sort key - either text or a number.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum NaturalSortPart {
-    /// Numeric portion (compared numerically)
-    Number(u64),
-    /// Text portion (compared lexicographically, case-insensitive)
-    Text(String),
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_natural_sort_key_simple() {
-        let key1 = natural_sort_key("page1.jpg");
-        let key2 = natural_sort_key("page2.jpg");
-        let key10 = natural_sort_key("page10.jpg");
-
-        assert!(key1 < key2);
-        assert!(key2 < key10);
-    }
-
-    #[test]
-    fn test_natural_sort_key_mixed() {
-        let key1 = natural_sort_key("chapter1_page01.jpg");
-        let key2 = natural_sort_key("chapter1_page02.jpg");
-        let key3 = natural_sort_key("chapter2_page01.jpg");
-
-        assert!(key1 < key2);
-        assert!(key2 < key3);
-    }
-
-    #[test]
     fn test_is_image_file() {
-        assert!(ComicArchiveExtractor::is_image_file("test.jpg"));
-        assert!(ComicArchiveExtractor::is_image_file("test.PNG"));
-        assert!(ComicArchiveExtractor::is_image_file("folder/test.jpeg"));
-        assert!(!ComicArchiveExtractor::is_image_file("test.txt"));
-        assert!(!ComicArchiveExtractor::is_image_file("test.xml"));
+        assert!(ArchiveExtractor::is_image_file("test.jpg"));
+        assert!(ArchiveExtractor::is_image_file("test.PNG"));
+        assert!(ArchiveExtractor::is_image_file("folder/test.jpeg"));
+        assert!(!ArchiveExtractor::is_image_file("test.txt"));
+        assert!(!ArchiveExtractor::is_image_file("test.xml"));
     }
 
     #[test]
     fn test_supported_extensions() {
-        let exts = ComicArchiveExtractor::supported_extensions();
+        let exts = ArchiveExtractor::supported_extensions();
         assert!(exts.contains(&"zip"));
         assert!(exts.contains(&"cbz"));
         assert!(exts.contains(&"cbr"));

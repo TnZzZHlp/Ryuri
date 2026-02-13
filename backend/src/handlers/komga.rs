@@ -5,13 +5,13 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use rust_i18n::t;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{AppError, Result},
-    extractors::ComicArchiveExtractor,
-    models::{Chapter, Content, ContentType},
+    extractors::ArchiveExtractor,
+    models::{Chapter, Content},
     repository::{
         content::{ChapterRepository, ContentRepository},
         library::LibraryRepository,
@@ -301,7 +301,9 @@ pub async fn get_series(
     let pool = &state.pool;
     let content = ContentRepository::find_by_id(pool, series_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(t!("komga.series_not_found", id = series_id).to_string()))?;
+        .ok_or_else(|| {
+            AppError::NotFound(t!("komga.series_not_found", id = series_id).to_string())
+        })?;
 
     Ok(Json(content_to_series_dto(content)))
 }
@@ -313,7 +315,9 @@ pub async fn get_series_thumbnail(
     let pool = &state.pool;
     let content = ContentRepository::find_by_id(pool, series_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(t!("komga.series_not_found", id = series_id).to_string()))?;
+        .ok_or_else(|| {
+            AppError::NotFound(t!("komga.series_not_found", id = series_id).to_string())
+        })?;
 
     if let Some(thumb) = content.thumbnail {
         let mut headers = HeaderMap::new();
@@ -322,7 +326,9 @@ pub async fn get_series_thumbnail(
         headers.insert(header::CACHE_CONTROL, "max-age=86400".parse().unwrap());
         Ok((headers, thumb).into_response())
     } else {
-        Err(AppError::NotFound(t!("komga.thumbnail_not_found").to_string()))
+        Err(AppError::NotFound(
+            t!("komga.thumbnail_not_found").to_string(),
+        ))
     }
 }
 
@@ -336,7 +342,9 @@ pub async fn get_books(
     // Verify series exists
     let content = ContentRepository::find_by_id(pool, series_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(t!("komga.series_not_found", id = series_id).to_string()))?;
+        .ok_or_else(|| {
+            AppError::NotFound(t!("komga.series_not_found", id = series_id).to_string())
+        })?;
 
     let chapters = ChapterRepository::list_by_content(pool, series_id).await?;
 
@@ -384,7 +392,9 @@ pub async fn get_book(
 
     let content = ContentRepository::find_by_id(pool, chapter.content_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(t!("komga.content_for_book_not_found", id = book_id).to_string()))?;
+        .ok_or_else(|| {
+            AppError::NotFound(t!("komga.content_for_book_not_found", id = book_id).to_string())
+        })?;
 
     Ok(Json(chapter_to_book_dto(chapter, &content)))
 }
@@ -407,7 +417,9 @@ pub async fn get_book_thumbnail(
         headers.insert(header::CONTENT_TYPE, "image/jpeg".parse().unwrap());
         Ok((headers, thumb).into_response())
     } else {
-        Err(AppError::NotFound(t!("komga.thumbnail_not_found").to_string()))
+        Err(AppError::NotFound(
+            t!("komga.thumbnail_not_found").to_string(),
+        ))
     }
 }
 
@@ -426,7 +438,7 @@ pub async fn get_page_list(
     // Try to list files, if it fails, fallback to simple counter if page_count > 0
     let mut pages = Vec::new();
 
-    match ComicArchiveExtractor::list_files(archive_path) {
+    match ArchiveExtractor::list_files(archive_path) {
         Ok(images) => {
             for (i, name) in images.iter().enumerate() {
                 pages.push(PageDto {
@@ -476,7 +488,9 @@ pub async fn get_page(
         .ok_or_else(|| AppError::NotFound(t!("komga.book_not_found", id = book_id).to_string()))?;
 
     if page_number < 1 {
-        return Err(AppError::BadRequest(t!("komga.page_must_be_positive").to_string()));
+        return Err(AppError::BadRequest(
+            t!("komga.page_must_be_positive").to_string(),
+        ));
     }
     let page_index = (page_number - 1) as usize;
 
@@ -484,14 +498,16 @@ pub async fn get_page(
     let archive_path = Path::new(&chapter.file_path);
 
     // We need to list files to get the name at index.
-    let images = ComicArchiveExtractor::list_files(archive_path)?;
+    let images = ArchiveExtractor::list_files(archive_path)?;
 
     if page_index >= images.len() {
-        return Err(AppError::NotFound(t!("komga.page_not_found", page = page_number).to_string()));
+        return Err(AppError::NotFound(
+            t!("komga.page_not_found", page = page_number).to_string(),
+        ));
     }
 
     let image_name = &images[page_index];
-    let image_data = ComicArchiveExtractor::extract_file(archive_path, image_name)?;
+    let image_data = ArchiveExtractor::extract_file(archive_path, image_name)?;
 
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_TYPE, "image/jpeg".parse().unwrap());
@@ -704,14 +720,15 @@ fn chapter_to_book_dto(chapter: Chapter, content: &Content) -> BookDto {
         size: format_size(chapter.size),
         media: MediaDto {
             status: "READY".to_string(),
-            media_type: match content.content_type {
-                ContentType::Comic => "application/zip".to_string(), // Common for comics
-                ContentType::Novel => "application/epub+zip".to_string(),
+            media_type: match chapter.file_type.as_str() {
+                "epub" => "application/epub+zip".to_string(),
+                "pdf" => "application/pdf".to_string(),
+                _ => "application/zip".to_string(),
             },
             pages_count: chapter.page_count,
-            media_profile: match content.content_type {
-                ContentType::Comic => "DIVINA".to_string(),
-                ContentType::Novel => "EPUB".to_string(),
+            media_profile: match chapter.file_type.as_str() {
+                "epub" => "EPUB".to_string(),
+                _ => "DIVINA".to_string(),
             },
             epub_divina_compatible: false,
         },

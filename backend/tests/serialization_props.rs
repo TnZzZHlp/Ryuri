@@ -7,9 +7,9 @@
 //! deserializing should produce an equivalent data structure.
 
 use backend::models::{
-    Chapter, Content, ContentResponse, ContentType, CreateLibraryRequest, JwtClaims, Library,
-    LibraryWithStats, LoginRequest, LoginResponse, ProgressResponse, ReadingProgress, ScanPath,
-    UpdateLibraryRequest, UpdateProgressRequest, User, UserResponse,
+    Chapter, Content, ContentResponse, CreateLibraryRequest, JwtClaims, Library, LibraryWithStats,
+    LoginRequest, LoginResponse, ProgressResponse, ReadingProgress, ScanPath, UpdateLibraryRequest,
+    UpdateProgressRequest, User, UserResponse,
 };
 use chrono::{DateTime, TimeZone, Utc};
 use proptest::prelude::*;
@@ -17,11 +17,6 @@ use proptest::prelude::*;
 // ============================================================================
 // Arbitrary Strategies for Data Types
 // ============================================================================
-
-/// Strategy to generate arbitrary ContentType values.
-fn arb_content_type() -> impl Strategy<Value = ContentType> {
-    prop_oneof![Just(ContentType::Comic), Just(ContentType::Novel),]
-}
 
 /// Strategy to generate arbitrary DateTime<Utc> values.
 fn arb_datetime() -> impl Strategy<Value = DateTime<Utc>> {
@@ -95,7 +90,6 @@ fn arb_content() -> impl Strategy<Value = Content> {
         1i64..10000,
         1i64..10000,
         1i64..10000,
-        arb_content_type(),
         arb_name(),
         arb_path(),
         0i32..1000,
@@ -108,7 +102,6 @@ fn arb_content() -> impl Strategy<Value = Content> {
                 id,
                 library_id,
                 scan_path_id,
-                content_type,
                 title,
                 folder_path,
                 chapter_count,
@@ -119,7 +112,6 @@ fn arb_content() -> impl Strategy<Value = Content> {
                 id,
                 library_id,
                 scan_path_id,
-                content_type,
                 title,
                 folder_path,
                 chapter_count,
@@ -138,15 +130,21 @@ fn arb_chapter() -> impl Strategy<Value = Chapter> {
         1i64..10000,
         arb_name(),
         arb_path(),
+        prop_oneof![
+            Just("cbz".to_string()),
+            Just("pdf".to_string()),
+            Just("epub".to_string())
+        ],
         0i32..1000,
         0i64..1000000,
     )
         .prop_map(
-            |(id, content_id, title, file_path, sort_order, size)| Chapter {
+            |(id, content_id, title, file_path, file_type, sort_order, size)| Chapter {
                 id,
                 content_id,
                 title,
                 file_path,
+                file_type,
                 sort_order,
                 size,
                 page_count: 0, // Skip page_count for serialization tests
@@ -292,18 +290,6 @@ proptest! {
         let deserialized: JwtClaims = serde_json::from_str(&json).expect("Should deserialize JwtClaims from JSON");
         prop_assert_eq!(claims, deserialized, "JwtClaims round-trip should preserve data");
     }
-
-    /// **Feature: comic-reader, Property 18: JSON Serialization Round-Trip**
-    /// **Validates: Requirements 8.2, 8.3, 8.4**
-    ///
-    /// For any valid ContentType, serializing to JSON and deserializing should
-    /// produce an equivalent ContentType.
-    #[test]
-    fn content_type_json_round_trip(content_type in arb_content_type()) {
-        let json = serde_json::to_string(&content_type).expect("Should serialize ContentType to JSON");
-        let deserialized: ContentType = serde_json::from_str(&json).expect("Should deserialize ContentType from JSON");
-        prop_assert_eq!(content_type, deserialized, "ContentType round-trip should preserve data");
-    }
 }
 
 // ============================================================================
@@ -327,7 +313,6 @@ proptest! {
         // Compare fields (ContentResponse doesn't derive PartialEq)
         prop_assert_eq!(response.id, deserialized.id);
         prop_assert_eq!(response.library_id, deserialized.library_id);
-        prop_assert_eq!(response.content_type, deserialized.content_type);
         prop_assert_eq!(response.title, deserialized.title);
         prop_assert_eq!(response.chapter_count, deserialized.chapter_count);
         prop_assert_eq!(response.has_thumbnail, deserialized.has_thumbnail);

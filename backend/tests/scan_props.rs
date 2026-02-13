@@ -4,7 +4,7 @@
 //! title derivation, and scan path associations.
 
 use backend::db::{DbConfig, init_db};
-use backend::models::{ContentType, CreateLibraryRequest};
+use backend::models::CreateLibraryRequest;
 use backend::services::library::LibraryService;
 use backend::services::scan_queue::ScanService;
 use proptest::prelude::*;
@@ -144,12 +144,7 @@ proptest! {
                 "Content title should equal folder name"
             );
 
-            // Verify content type is Comic (since we created a ZIP with images)
-            prop_assert_eq!(
-                content.content_type,
-                ContentType::Comic,
-                "Content type should be Comic"
-            );
+
 
             Ok(())
         })?;

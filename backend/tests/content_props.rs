@@ -4,7 +4,6 @@
 //! retrieval, deletion, search, and image ordering.
 
 use backend::db::{DbConfig, init_db};
-use backend::models::ContentType;
 use backend::models::Content;
 use backend::services::content::ContentService;
 use chrono::Utc;
@@ -18,7 +17,10 @@ use tokio::runtime::Runtime;
 
 /// Helper to extract metadata as JSON from Content (which stores it as BLOB)
 fn get_metadata_json(content: &Content) -> Option<serde_json::Value> {
-    content.metadata.as_ref().and_then(|bytes| serde_json::from_slice(bytes).ok())
+    content
+        .metadata
+        .as_ref()
+        .and_then(|bytes| serde_json::from_slice(bytes).ok())
 }
 
 /// Create an in-memory database for testing.
@@ -45,7 +47,6 @@ fn arb_content_title() -> impl Strategy<Value = String> {
         .prop_map(|s| s.trim().to_string())
         .prop_filter("Title must not be empty", |s| !s.is_empty())
 }
-
 
 /// Helper function to create a test library.
 async fn create_test_library(pool: &Pool<Sqlite>, name: &str) -> i64 {
@@ -91,22 +92,16 @@ async fn insert_test_content(
     library_id: i64,
     scan_path_id: i64,
     title: &str,
-    content_type: ContentType,
 ) -> i64 {
     let now = Utc::now().to_rfc3339();
-    let content_type_str = match content_type {
-        ContentType::Comic => "Comic",
-        ContentType::Novel => "Novel",
-    };
     let result = sqlx::query(
         r#"
-        INSERT INTO contents (library_id, scan_path_id, content_type, title, folder_path, chapter_count, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+        INSERT INTO contents (library_id, scan_path_id, title, folder_path, chapter_count, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 0, ?, ?)
         "#,
     )
     .bind(library_id)
     .bind(scan_path_id)
-    .bind(content_type_str)
     .bind(title)
     .bind(format!("/path/to/{}", title))
     .bind(&now)
@@ -207,7 +202,6 @@ proptest! {
                         library_id,
                         scan_path_id,
                         &title,
-                        ContentType::Comic,
                     ).await;
                     all_content_ids.push(content_id);
                 }
@@ -276,7 +270,6 @@ proptest! {
                 library_id,
                 scan_path_id,
                 &content_title,
-                ContentType::Comic,
             ).await;
 
             // Add chapters
@@ -354,7 +347,6 @@ proptest! {
                     library_id,
                     scan_path_id,
                     &title,
-                    ContentType::Comic,
                 ).await;
                 matching_ids.push(content_id);
             }
@@ -369,7 +361,6 @@ proptest! {
                         library_id,
                         scan_path_id,
                         &title,
-                        ContentType::Novel,
                     ).await;
                 }
             }
@@ -436,7 +427,6 @@ proptest! {
                 library_id,
                 scan_path_id,
                 &content_title,
-                ContentType::Comic,
             ).await;
 
             // Search for something that definitely won't match
@@ -587,7 +577,6 @@ proptest! {
     fn api_response_completeness(
         library_name in arb_library_name(),
         num_contents in 1usize..6,
-        content_types in prop::collection::vec(prop::bool::ANY, 1..6)
     ) {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
@@ -600,18 +589,12 @@ proptest! {
             // Create contents with varying types
             let mut created_ids: Vec<i64> = Vec::new();
             for i in 0..num_contents {
-                let content_type = if content_types.get(i).copied().unwrap_or(true) {
-                    ContentType::Comic
-                } else {
-                    ContentType::Novel
-                };
                 let title = format!("Content_{}", i);
                 let content_id = insert_test_content(
                     &pool,
                     library_id,
                     scan_path_id,
                     &title,
-                    content_type,
                 ).await;
                 created_ids.push(content_id);
             }
@@ -653,11 +636,7 @@ proptest! {
                     "Response should have non-negative chapter_count"
                 );
 
-                // Verify content_type is valid (Comic or Novel)
-                prop_assert!(
-                    matches!(response.content_type, ContentType::Comic | ContentType::Novel),
-                    "Response should have a valid content_type"
-                );
+
 
                 // Verify has_thumbnail field exists (boolean)
                 // The field exists by virtue of being in the struct, but we verify it's accessible
@@ -712,7 +691,6 @@ proptest! {
                 library_id,
                 scan_path_id,
                 &content_title,
-                ContentType::Comic,
             ).await;
 
             // Retrieve the content
@@ -725,7 +703,6 @@ proptest! {
             // Verify all fields are preserved correctly
             prop_assert_eq!(response.id, content.id, "id should be preserved");
             prop_assert_eq!(response.library_id, content.library_id, "library_id should be preserved");
-            prop_assert_eq!(response.content_type, content.content_type, "content_type should be preserved");
             prop_assert_eq!(&response.title, &content.title, "title should be preserved");
             prop_assert_eq!(response.chapter_count, content.chapter_count, "chapter_count should be preserved");
             prop_assert_eq!(response.has_thumbnail, content.thumbnail.is_some(), "has_thumbnail should reflect thumbnail presence");
@@ -769,7 +746,6 @@ proptest! {
                 library_id,
                 scan_path_id,
                 &content_title,
-                ContentType::Comic,
             ).await;
 
             // Generate various metadata JSON blobs that simulate Bangumi API responses
@@ -872,7 +848,6 @@ proptest! {
                 library_id,
                 scan_path_id,
                 &content_title,
-                ContentType::Comic,
             ).await;
 
             // First update: set initial metadata
@@ -940,7 +915,6 @@ proptest! {
                 library_id,
                 scan_path_id,
                 &content_title,
-                ContentType::Comic,
             ).await;
 
             // Create metadata with various JSON types
