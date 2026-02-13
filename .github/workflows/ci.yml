@@ -1,0 +1,115 @@
+name: CI
+
+on:
+    pull_request:
+    push:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    changes:
+        name: Detect Changes
+        runs-on: ubuntu-latest
+        outputs:
+            frontend: ${{ steps.filter.outputs.frontend }}
+            backend: ${{ steps.filter.outputs.backend }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Check for file changes
+              uses: dorny/paths-filter@v3
+              id: filter
+              with:
+                  filters: |
+                      frontend:
+                        - 'frontend/**'
+                        - 'package.json'
+                        - 'pnpm-lock.yaml'
+                      backend:
+                        - 'backend/**'
+                        - 'Cargo.toml'
+                        - 'Cargo.lock'
+
+    frontend:
+        name: Frontend CI
+        needs: changes
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: ./frontend
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "latest"
+
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.pnpm-store
+                      node_modules
+                  key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+                  restore-keys: |
+                      ${{ runner.os }}-pnpm-
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: latest
+
+            - name: Install dependencies
+              run: pnpm install
+
+            - name: Type check
+              run: pnpm vue-tsc -b --noEmit
+
+            - name: Build
+              run: pnpm build
+
+    backend:
+        name: Backend CI
+        needs: changes
+        if: ${{ needs.changes.outputs.backend == 'true' }}
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: ./backend
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Cache Rust dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      target
+                  key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-cargo-
+
+            - name: Setup Rust
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Install system dependencies
+              run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+
+            - name: Lint
+              run: cargo clippy -- -D warnings
+
+            - name: Build
+              run: cargo build --release
+
+            - name: Test
+              run: cargo test
