@@ -40,21 +40,6 @@ export class ApiError extends Error {
     }
 }
 
-// ============================================================================
-// Enums (as const objects for erasableSyntaxOnly compatibility)
-// ============================================================================
-
-/**
- * Content type enumeration.
- * Distinguishes between comic (image-based) and novel (text-based) content.
- */
-export const ContentType = {
-    Comic: "Comic",
-    Novel: "Novel",
-} as const;
-
-export type ContentType = (typeof ContentType)[keyof typeof ContentType];
-
 /**
  * Task priority for scan operations.
  */
@@ -197,7 +182,6 @@ export interface ScanPath {
 export interface ContentResponse {
     id: number;
     library_id: number;
-    content_type: ContentType;
     title: string;
     chapter_count: number;
     has_thumbnail: boolean;
@@ -213,6 +197,7 @@ export interface Chapter {
     content_id: number;
     title: string;
     file_path: string;
+    file_type: string;
     sort_order: number;
     page_count: number;
     size: number;

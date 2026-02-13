@@ -269,8 +269,8 @@ async fn insert_test_content(
     let now = Utc::now().to_rfc3339();
     let result = sqlx::query(
         r#"
-        INSERT INTO contents (library_id, scan_path_id, content_type, title, folder_path, chapter_count, created_at, updated_at)
-        VALUES (?, ?, 'Comic', ?, ?, 0, ?, ?)
+        INSERT INTO contents (library_id, scan_path_id, title, folder_path, chapter_count, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 0, ?, ?)
         "#,
     )
     .bind(library_id)

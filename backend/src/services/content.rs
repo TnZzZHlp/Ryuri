@@ -9,7 +9,7 @@ use std::path::Path;
 
 use crate::error::{AppError, Result};
 use crate::extractors::{ComicArchiveExtractor, NovelArchiveExtractor, PdfExtractor};
-use crate::models::{Chapter, Content, ContentType};
+use crate::models::{Chapter, Content};
 use crate::repository::content::{ChapterRepository, ContentRepository};
 
 /// Service for content management operations.
@@ -57,12 +57,12 @@ impl ContentService {
         Ok(chapters)
     }
 
-    /// Get a specific page image from a comic chapter.
+    /// Get a specific page image from an image-based chapter.
     ///
     /// # Arguments
     /// * `pool` - Database connection pool
     /// * `content_id` - ID of the content
-    /// * `chapter_index` - 0-based index of the chapter
+    /// * `chapter_id` - ID of the chapter
     /// * `page_index` - 0-based index of the page within the chapter
     ///
     /// # Returns
@@ -73,49 +73,55 @@ impl ContentService {
         chapter_id: i64,
         page_index: i64,
     ) -> Result<Vec<u8>> {
-        // Get the content and verify it's a comic
-        let content = Self::get_content(pool, content_id).await?;
-
-        if content.content_type != ContentType::Comic {
-            return Err(AppError::BadRequest(
-                "Cannot get page from non-comic content".to_string(),
-            ));
-        }
+        // Get the content to verify it exists
+        let _content = Self::get_content(pool, content_id).await?;
 
         // Get the chapters
         let chapters = ChapterRepository::list_by_content(pool, content_id).await?;
 
-        // Validate chapter id
-        if !chapters.iter().any(|chapter| chapter.id == chapter_id) {
-            return Err(AppError::NotFound(
-                t!("content.chapter_not_found", id = chapter_id).to_string(),
+        // Find the chapter by id
+        let chapter = chapters
+            .iter()
+            .find(|c| c.id == chapter_id)
+            .ok_or_else(|| {
+                AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
+            })?;
+
+        // Verify this is an image-based or text-based chapter
+        if !chapter.is_image_based() && !chapter.is_text_based() {
+            return Err(AppError::BadRequest(
+                "Cannot get page from non-image-based or non-text-based chapter".to_string(),
             ));
         }
 
-        let chapter = &chapters.iter().find(|c| c.id == chapter_id).unwrap();
         let archive_path = Path::new(&chapter.file_path);
 
-        // List images in the archive
-        let images = if PdfExtractor::is_supported(archive_path) {
+        // List files/images/sections in the archive
+        let files = if chapter.is_text_based() {
+            NovelArchiveExtractor::list_files(archive_path)?
+        } else if PdfExtractor::is_supported(archive_path) {
             PdfExtractor::list_files(archive_path)?
         } else {
             ComicArchiveExtractor::list_files(archive_path)?
         };
 
         // Validate page index
-        if page_index < 0 || page_index as usize >= images.len() {
+        if page_index < 0 || page_index as usize >= files.len() {
             return Err(AppError::NotFound(
                 t!("komga.page_not_found", page = page_index).to_string(),
             ));
         }
 
-        let image_name = &images[page_index as usize];
+        let file_name = &files[page_index as usize];
 
-        // Extract and return the image
-        if PdfExtractor::is_supported(archive_path) {
-            PdfExtractor::extract_file(archive_path, image_name)
+        // Extract and return the content
+        if chapter.is_text_based() {
+            let text = NovelArchiveExtractor::extract_file(archive_path, file_name)?;
+            Ok(text.into_bytes())
+        } else if PdfExtractor::is_supported(archive_path) {
+            PdfExtractor::extract_file(archive_path, file_name)
         } else {
-            ComicArchiveExtractor::extract_file(archive_path, image_name)
+            ComicArchiveExtractor::extract_file(archive_path, file_name)
         }
     }
 
@@ -133,14 +139,8 @@ impl ContentService {
         content_id: i64,
         chapter_index: i32,
     ) -> Result<String> {
-        // Get the content and verify it's a novel
-        let content = Self::get_content(pool, content_id).await?;
-
-        if content.content_type != ContentType::Novel {
-            return Err(AppError::BadRequest(
-                "Cannot get text from non-novel content".to_string(),
-            ));
-        }
+        // Get the content
+        let _content = Self::get_content(pool, content_id).await?;
 
         // Get the chapters
         let chapters = ChapterRepository::list_by_content(pool, content_id).await?;
@@ -154,6 +154,14 @@ impl ContentService {
         }
 
         let chapter = &chapters[chapter_index as usize];
+
+        // Verify this is a text-based chapter
+        if !chapter.is_text_based() {
+            return Err(AppError::BadRequest(
+                "Cannot get text from non-text-based chapter".to_string(),
+            ));
+        }
+
         let archive_path = Path::new(&chapter.file_path);
 
         // Extract all text from the chapter archive
@@ -167,7 +175,7 @@ impl ContentService {
         chapter_index: i32,
     ) -> Result<usize> {
         // Get the content
-        let content = Self::get_content(pool, content_id).await?;
+        let _content = Self::get_content(pool, content_id).await?;
 
         // Get the chapters
         let chapters = ChapterRepository::list_by_content(pool, content_id).await?;
@@ -183,15 +191,13 @@ impl ContentService {
         let chapter = &chapters[chapter_index as usize];
         let archive_path = Path::new(&chapter.file_path);
 
-        match content.content_type {
-            ContentType::Comic => {
-                if PdfExtractor::is_supported(archive_path) {
-                    PdfExtractor::page_count(archive_path)
-                } else {
-                    ComicArchiveExtractor::page_count(archive_path)
-                }
-            }
-            ContentType::Novel => NovelArchiveExtractor::chapter_count(archive_path),
+        // Branch based on file type
+        if chapter.is_text_based() {
+            NovelArchiveExtractor::chapter_count(archive_path)
+        } else if PdfExtractor::is_supported(archive_path) {
+            PdfExtractor::page_count(archive_path)
+        } else {
+            ComicArchiveExtractor::page_count(archive_path)
         }
     }
 
@@ -216,11 +222,6 @@ impl ContentService {
                 // New thumbnail found
                 Some(crate::utils::download_image(cover_data).await.ok())
             } else {
-                // Metadata provided but no image -> Clear thumbnail?
-                // Or maybe we should keep the old one?
-                // Logic: If new metadata is provided, it replaces the old one.
-                // If it doesn't have an image, the content probably shouldn't have one either (from metadata source).
-                // So we set it to None.
                 Some(None)
             }
         } else {
@@ -229,9 +230,6 @@ impl ContentService {
         };
 
         // Convert metadata to Option<Option<Value>> for the repository
-        // Some(Some(v)) -> Update to v
-        // None -> Don't update
-        // We don't support "Clear" (Some(None)) via this API yet, as Option<Value> doesn't distinguish missing vs null easily.
         let metadata_update = metadata.map(Some);
 
         ContentRepository::update_info(pool, id, title, metadata_update, thumbnail_update).await

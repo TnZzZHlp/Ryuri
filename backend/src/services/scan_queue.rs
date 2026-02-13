@@ -21,15 +21,15 @@ use crate::extractors::{
     ComicArchiveExtractor, NovelArchiveExtractor, PdfExtractor, natural_sort_key,
 };
 use crate::models::{
-    Chapter, Content, ContentType, NewChapter, NewContent, QueuedTask, ScanPath, ScanTask,
-    TaskPriority, TaskResult, TaskStatus,
+    Chapter, Content, NewChapter, NewContent, QueuedTask, ScanPath, ScanTask, TaskPriority,
+    TaskResult, TaskStatus, file_type_from_path,
 };
 use crate::repository::content::{ChapterRepository, ContentRepository};
 use crate::repository::library::ScanPathRepository;
 use crate::services::bangumi::BangumiService;
 
-type ChapterEntry = (String, String, i32, i64);
-type DetectContentResult = Result<(ContentType, Vec<ChapterEntry>)>;
+/// (title, file_path, file_type, page_count, size)
+type ChapterEntry = (String, String, String, i32, i64);
 
 // ============================================================================
 // ScanResult
@@ -254,8 +254,8 @@ impl ScanService {
             .ok_or_else(|| AppError::BadRequest(t!("scan.invalid_folder_name").to_string()))?
             .to_string();
 
-        // Detect content type and find chapters
-        let (content_type, chapters) = self.detect_content_type_and_chapters(folder_path)?;
+        // Detect chapters in the folder
+        let chapters = self.detect_chapters(folder_path)?;
 
         // Auto-scrape metadata from Bangumi if service is available
         let (metadata, scrape_error) = self.auto_scrape_metadata(&title).await;
@@ -264,7 +264,6 @@ impl ScanService {
         let new_content = NewContent {
             library_id: scan_path.library_id,
             scan_path_id: scan_path.id,
-            content_type,
             title,
             folder_path: folder_path.to_string_lossy().to_string(),
             chapter_count: chapters.len() as i32,
@@ -279,10 +278,11 @@ impl ScanService {
             .into_iter()
             .enumerate()
             .map(
-                |(idx, (chapter_title, file_path, page_count, size))| NewChapter {
+                |(idx, (chapter_title, file_path, file_type, page_count, size))| NewChapter {
                     content_id: content.id,
                     title: chapter_title,
                     file_path,
+                    file_type,
                     sort_order: idx as i32,
                     page_count,
                     size,
@@ -335,23 +335,9 @@ impl ScanService {
         content: &Content,
         folder_path: &Path,
     ) -> Result<Vec<crate::models::AddedChapter>> {
-        // Detect content type and find chapters
-        let (content_type, disk_chapters) = self.detect_content_type_and_chapters(folder_path)?;
+        // Detect chapters on disk
+        let disk_chapters = self.detect_chapters(folder_path)?;
         let total_chapters = disk_chapters.len() as i32;
-
-        // Update content type if changed
-        if content.content_type != content_type {
-            let type_str = match content_type {
-                ContentType::Comic => "Comic",
-                ContentType::Novel => "Novel",
-            };
-            sqlx::query("UPDATE contents SET content_type = ? WHERE id = ?")
-                .bind(type_str)
-                .bind(content.id)
-                .execute(&self.pool)
-                .await
-                .map_err(AppError::Database)?;
-        }
 
         // Get existing chapters from DB
         let db_chapters = ChapterRepository::list_by_content(&self.pool, content.id).await?;
@@ -365,21 +351,25 @@ impl ScanService {
         let mut new_chapters = Vec::new();
 
         // Iterate over disk chapters
-        for (idx, (title, file_path, page_count, size)) in disk_chapters.into_iter().enumerate() {
+        for (idx, (title, file_path, file_type, page_count, size)) in
+            disk_chapters.into_iter().enumerate()
+        {
             let sort_order = idx as i32;
 
             if let Some(existing_chapter) = db_chapters_map.remove(&file_path) {
-                // Check if we need to update sort_order or page_count or size
+                // Check if we need to update sort_order, page_count, size, or file_type
                 if existing_chapter.sort_order != sort_order
                     || existing_chapter.page_count != page_count
                     || existing_chapter.size != size
+                    || existing_chapter.file_type != file_type
                 {
                     sqlx::query(
-                        "UPDATE chapters SET sort_order = ?, page_count = ?, size = ? WHERE id = ?",
+                        "UPDATE chapters SET sort_order = ?, page_count = ?, size = ?, file_type = ? WHERE id = ?",
                     )
                     .bind(sort_order)
                     .bind(page_count)
                     .bind(size)
+                    .bind(&file_type)
                     .bind(existing_chapter.id)
                     .execute(&self.pool)
                     .await
@@ -391,6 +381,7 @@ impl ScanService {
                     content_id: content.id,
                     title,
                     file_path,
+                    file_type,
                     sort_order,
                     page_count,
                     size,
@@ -463,12 +454,11 @@ impl ScanService {
         }
     }
 
-    /// Detect content type based on archive files and return sorted chapters.
+    /// Detect all supported archive files in a folder and return chapter entries.
     ///
-    /// Requirements: 2.2, 2.3
-    fn detect_content_type_and_chapters(&self, folder_path: &Path) -> DetectContentResult {
-        let mut comic_files = Vec::new();
-        let mut novel_files = Vec::new();
+    /// Each chapter carries its own `file_type` (extension), so mixed folders are supported.
+    fn detect_chapters(&self, folder_path: &Path) -> Result<Vec<ChapterEntry>> {
+        let mut files = Vec::new();
 
         let entries = std::fs::read_dir(folder_path)?;
 
@@ -476,37 +466,28 @@ impl ScanService {
             let entry = entry?;
             let path = entry.path();
 
-            if path.is_file() {
-                if ComicArchiveExtractor::is_supported(&path) || PdfExtractor::is_supported(&path) {
-                    comic_files.push(path);
-                } else if NovelArchiveExtractor::is_supported(&path) {
-                    novel_files.push(path);
-                }
+            if path.is_file()
+                && (ComicArchiveExtractor::is_supported(&path)
+                    || PdfExtractor::is_supported(&path)
+                    || NovelArchiveExtractor::is_supported(&path))
+            {
+                files.push(path);
             }
         }
 
-        // Determine content type based on which type has more files
-        // If equal, prefer comics
-        let (content_type, files) =
-            if comic_files.len() >= novel_files.len() && !comic_files.is_empty() {
-                (ContentType::Comic, comic_files)
-            } else if !novel_files.is_empty() {
-                (ContentType::Novel, novel_files)
-            } else {
-                return Err(AppError::BadRequest(
-                    t!("scan.no_archives_found").to_string(),
-                ));
-            };
+        if files.is_empty() {
+            return Err(AppError::BadRequest(
+                t!("scan.no_archives_found").to_string(),
+            ));
+        }
 
         // Sort files by filename using natural sort
-        let mut files = files;
         files.sort_by_key(|p| {
             natural_sort_key(&p.file_name().unwrap_or_default().to_string_lossy())
         });
 
-        // Create chapter entries (title derived from filename without extension)
-        // And calculate page count
-        let mut chapters: Vec<(String, String, i32, i64)> = Vec::with_capacity(files.len());
+        // Create chapter entries with per-file type detection
+        let mut chapters: Vec<ChapterEntry> = Vec::with_capacity(files.len());
 
         for path in files {
             let title = path
@@ -515,30 +496,33 @@ impl ScanService {
                 .unwrap_or("Unknown")
                 .to_string();
             let file_path = path.to_string_lossy().to_string();
+            let file_type = file_type_from_path(&path);
 
-            // Calculate page count based on content type
-            let page_count = match content_type {
-                ContentType::Comic => {
-                    let count_result = if PdfExtractor::is_supported(&path) {
-                        PdfExtractor::page_count(&path)
-                    } else {
-                        ComicArchiveExtractor::page_count(&path)
-                    };
-                    match count_result {
-                        Ok(count) => count as i32,
-                        Err(e) => {
-                            warn!(path = ?path, error = %e, "{}", t!("scan.calc_comic_page_count_failed"));
-                            0
-                        }
-                    }
-                }
-                ContentType::Novel => match NovelArchiveExtractor::chapter_count(&path) {
+            // Calculate page count based on file type
+            let page_count = if NovelArchiveExtractor::is_supported(&path) {
+                match NovelArchiveExtractor::chapter_count(&path) {
                     Ok(count) => count as i32,
                     Err(e) => {
                         warn!(path = ?path, error = %e, "{}", t!("scan.calc_novel_chapter_count_failed"));
                         0
                     }
-                },
+                }
+            } else if PdfExtractor::is_supported(&path) {
+                match PdfExtractor::page_count(&path) {
+                    Ok(count) => count as i32,
+                    Err(e) => {
+                        warn!(path = ?path, error = %e, "{}", t!("scan.calc_comic_page_count_failed"));
+                        0
+                    }
+                }
+            } else {
+                match ComicArchiveExtractor::page_count(&path) {
+                    Ok(count) => count as i32,
+                    Err(e) => {
+                        warn!(path = ?path, error = %e, "{}", t!("scan.calc_comic_page_count_failed"));
+                        0
+                    }
+                }
             };
 
             // Calculate file size
@@ -550,24 +534,34 @@ impl ScanService {
                 }
             };
 
-            chapters.push((title, file_path, page_count, size));
+            chapters.push((title, file_path, file_type, page_count, size));
         }
 
-        Ok((content_type, chapters))
+        Ok(chapters)
     }
 
     /// Generate a thumbnail for content.
     ///
-    /// Requirements: 2.5, 2.6
+    /// Determines the thumbnail strategy based on the first chapter's file type.
     async fn generate_thumbnail(
         &self,
-        content: &Content,
+        _content: &Content,
         folder_path: &Path,
     ) -> Result<Option<Vec<u8>>> {
-        match content.content_type {
-            ContentType::Comic => self.generate_comic_thumbnail(folder_path),
-            ContentType::Novel => self.generate_novel_thumbnail(folder_path),
+        // Check if there are any epub files (try novel thumbnail first for epub content)
+        let has_epub = std::fs::read_dir(folder_path)?
+            .filter_map(|e| e.ok())
+            .any(|e| NovelArchiveExtractor::is_supported(&e.path()));
+
+        if has_epub {
+            // Try novel thumbnail (cover image or epub embedded cover)
+            if let Ok(Some(thumb)) = self.generate_novel_thumbnail(folder_path) {
+                return Ok(Some(thumb));
+            }
         }
+
+        // Fall back to comic thumbnail (first page of first archive/pdf)
+        self.generate_comic_thumbnail(folder_path)
     }
 
     /// Generate thumbnail for comics from the first page of the first chapter.
@@ -1318,7 +1312,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_list_pending_includes_running_tasks() {
+    async fn test_list_processing_includes_running_tasks() {
         let service = ScanQueueService::new();
         let task_id = service.submit_task(1, TaskPriority::Normal).await;
 
@@ -1330,9 +1324,9 @@ mod tests {
             }
         }
 
-        let pending = service.list_pending().await;
-        assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].id, task_id);
-        assert_eq!(pending[0].status, TaskStatus::Running);
+        let processing = service.list_processing().await;
+        assert_eq!(processing.len(), 1);
+        assert_eq!(processing[0].id, task_id);
+        assert_eq!(processing[0].status, TaskStatus::Running);
     }
 }

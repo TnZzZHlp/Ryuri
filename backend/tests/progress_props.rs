@@ -74,14 +74,14 @@ async fn create_test_content_with_chapters(
     scan_path_id: i64,
     num_chapters: i32,
 ) -> (i64, Vec<i64>) {
-    use backend::models::{ContentType, NewChapter, NewContent};
+    use backend::models::{NewChapter, NewContent};
 
     let content = ContentRepository::create(
         pool,
         NewContent {
             library_id,
             scan_path_id,
-            content_type: ContentType::Comic,
+
             title: "Test Content".to_string(),
             folder_path: format!(
                 "/test/content_{}",
@@ -103,6 +103,7 @@ async fn create_test_content_with_chapters(
                 content_id: content.id,
                 title: format!("Chapter {}", i + 1),
                 file_path: format!("/test/chapter_{}.cbz", i),
+                file_type: "cbz".to_string(),
                 sort_order: i,
                 page_count: 10,
                 size: 1024,
@@ -125,8 +126,6 @@ fn arb_position() -> impl Strategy<Value = i32> {
 fn arb_percentage() -> impl Strategy<Value = f32> {
     (0u32..=10000).prop_map(|v| v as f32 / 100.0)
 }
-
-
 
 // ============================================================================
 // Property 13: Progress Persistence Round-Trip

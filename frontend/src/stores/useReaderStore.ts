@@ -6,7 +6,7 @@ import { createReaderApi } from "@/api/reader";
 import { createProgressApi } from "@/api/progress";
 import { createContentApi } from "@/api/content";
 import { ApiClient } from "@/api/client";
-import type { Chapter, ContentType } from "@/api/types";
+import type { Chapter } from "@/api/types";
 import { useDebounceFn } from "@vueuse/core";
 
 export type ReaderMode = "scroll" | "paged";
@@ -40,12 +40,11 @@ export const useReaderStore = defineStore("reader", () => {
     const PRELOAD_BUFFER = 5;
 
     // Novel-specific state
-    const contentType = ref<ContentType | null>(null);
     const chapterText = ref<string>("");
     const textLoading = ref(false);
 
     // Computed
-    const isNovel = computed(() => contentType.value === "Novel");
+    const isNovel = computed(() => currentChapter.value?.file_type === "epub");
 
     const currentChapter = computed(() =>
         chapters.value.find((c) => c.id === currentChapterId.value),
@@ -189,12 +188,6 @@ export const useReaderStore = defineStore("reader", () => {
         loading.value = true;
 
         try {
-            // Fetch content type if not loaded
-            if (contentType.value === null) {
-                const contentData = await contentApi.get(contentId);
-                contentType.value = contentData.content_type;
-            }
-
             // Load chapters list if needed
             if (contentStore.chapters.get(contentId)) {
                 chapters.value = contentStore.chapters.get(contentId)!;
@@ -284,7 +277,6 @@ export const useReaderStore = defineStore("reader", () => {
         currentPage,
 
         // Novel state
-        contentType,
         chapterText,
         textLoading,
 

@@ -444,7 +444,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 
             <div v-else-if="endOfChapter" class="flex flex-col items-center gap-6 p-8">
                 <p class="text-xl text-gray-400">{{ t('reader.end_of_chapter') }}</p>
-                <div class="flex flex-col gap-4 min-w-[200px]">
+                <div class="flex flex-col gap-4 min-w-50">
                     <Button v-if="nextChapter" size="lg" variant="default" @click.stop="navigateToChapter(nextChapter)">
                         {{ t('reader.next_chapter') }}
                         <ChevronRight class="ml-2 h-4 w-4" />

@@ -2,40 +2,8 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
-/// Content type enumeration.
-///
-/// Distinguishes between comic (image-based) and novel (text-based) content.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "TEXT")]
-pub enum ContentType {
-    /// Image-based content (manga, comics, etc.)
-    Comic,
-    /// Text-based content (novels, light novels, etc.)
-    Novel,
-}
-
-impl fmt::Display for ContentType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ContentType::Comic => write!(f, "Comic"),
-            ContentType::Novel => write!(f, "Novel"),
-        }
-    }
-}
-
-impl ContentType {
-    /// Returns the supported archive extensions for this content type.
-    pub fn supported_extensions(&self) -> &'static [&'static str] {
-        match self {
-            ContentType::Comic => &["zip", "cbz", "cbr", "rar", "pdf"],
-            ContentType::Novel => &["epub"],
-        }
-    }
-}
-
-/// A content item (comic or novel).
+/// A content item.
 ///
 /// Content represents a single manga series, comic, or novel that has been
 /// imported into a library. Each content item can have multiple chapters.
@@ -47,8 +15,6 @@ pub struct Content {
     pub library_id: i64,
     /// ID of the scan path this content was imported from.
     pub scan_path_id: i64,
-    /// Type of content (comic or novel).
-    pub content_type: ContentType,
     /// Title of the content (derived from folder name).
     pub title: String,
     /// Path to the content folder on the file system.
@@ -72,14 +38,12 @@ impl Content {
     pub fn create(
         library_id: i64,
         scan_path_id: i64,
-        content_type: ContentType,
         title: String,
         folder_path: String,
     ) -> NewContent {
         NewContent {
             library_id,
             scan_path_id,
-            content_type,
             title,
             folder_path,
             chapter_count: 0,
@@ -94,7 +58,6 @@ impl Content {
 pub struct NewContent {
     pub library_id: i64,
     pub scan_path_id: i64,
-    pub content_type: ContentType,
     pub title: String,
     pub folder_path: String,
     pub chapter_count: i32,
@@ -116,6 +79,8 @@ pub struct Chapter {
     pub title: String,
     /// Path to the chapter archive file.
     pub file_path: String,
+    /// File type (extension) of the chapter file (e.g. "cbz", "pdf", "epub").
+    pub file_type: String,
     /// Sort order for displaying chapters.
     pub sort_order: i32,
     /// Number of pages/images in this chapter (0 if not yet calculated).
@@ -132,6 +97,7 @@ impl Chapter {
         content_id: i64,
         title: String,
         file_path: String,
+        file_type: String,
         sort_order: i32,
         page_count: i32,
         size: i64,
@@ -140,10 +106,24 @@ impl Chapter {
             content_id,
             title,
             file_path,
+            file_type,
             sort_order,
             page_count,
             size,
         }
+    }
+
+    /// Returns true if this chapter is a text-based format (epub).
+    pub fn is_text_based(&self) -> bool {
+        self.file_type == "epub"
+    }
+
+    /// Returns true if this chapter is an image-based format (zip, cbz, cbr, rar, pdf).
+    pub fn is_image_based(&self) -> bool {
+        matches!(
+            self.file_type.as_str(),
+            "zip" | "cbz" | "cbr" | "rar" | "pdf"
+        )
     }
 }
 
@@ -153,6 +133,7 @@ pub struct NewChapter {
     pub content_id: i64,
     pub title: String,
     pub file_path: String,
+    pub file_type: String,
     pub sort_order: i32,
     pub page_count: i32,
     pub size: i64,
@@ -163,7 +144,6 @@ pub struct NewChapter {
 pub struct ContentResponse {
     pub id: i64,
     pub library_id: i64,
-    pub content_type: ContentType,
     pub title: String,
     pub chapter_count: i32,
     pub has_thumbnail: bool,
@@ -176,7 +156,6 @@ impl From<Content> for ContentResponse {
         Self {
             id: content.id,
             library_id: content.library_id,
-            content_type: content.content_type,
             title: content.title,
             chapter_count: content.chapter_count,
             has_thumbnail: content.thumbnail.is_some(),
@@ -188,55 +167,13 @@ impl From<Content> for ContentResponse {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_content_type_serialize_comic() {
-        let content_type = ContentType::Comic;
-        let json = serde_json::to_string(&content_type).unwrap();
-        assert_eq!(json, "\"Comic\"");
-    }
-
-    #[test]
-    fn test_content_type_serialize_novel() {
-        let content_type = ContentType::Novel;
-        let json = serde_json::to_string(&content_type).unwrap();
-        assert_eq!(json, "\"Novel\"");
-    }
-
-    #[test]
-    fn test_content_type_deserialize_comic() {
-        let json = "\"Comic\"";
-        let content_type: ContentType = serde_json::from_str(json).unwrap();
-        assert_eq!(content_type, ContentType::Comic);
-    }
-
-    #[test]
-    fn test_content_type_deserialize_novel() {
-        let json = "\"Novel\"";
-        let content_type: ContentType = serde_json::from_str(json).unwrap();
-        assert_eq!(content_type, ContentType::Novel);
-    }
-
-    #[test]
-    fn test_content_type_display() {
-        assert_eq!(ContentType::Comic.to_string(), "Comic");
-        assert_eq!(ContentType::Novel.to_string(), "Novel");
-    }
-
-    #[test]
-    fn test_content_type_supported_extensions() {
-        let comic_exts = ContentType::Comic.supported_extensions();
-        assert!(comic_exts.contains(&"zip"));
-        assert!(comic_exts.contains(&"cbz"));
-        assert!(comic_exts.contains(&"cbr"));
-        assert!(comic_exts.contains(&"rar"));
-
-        let novel_exts = ContentType::Novel.supported_extensions();
-        assert!(novel_exts.contains(&"epub"));
-        assert!(!novel_exts.contains(&"zip"));
-        assert!(!novel_exts.contains(&"txt"));
-    }
+/// Helper to extract file type (extension) from a path.
+pub fn file_type_from_path(path: &std::path::Path) -> String {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .unwrap_or_default()
 }
+
+/// All supported archive extensions.
+pub const ALL_SUPPORTED_EXTENSIONS: &[&str] = &["zip", "cbz", "cbr", "rar", "pdf", "epub"];

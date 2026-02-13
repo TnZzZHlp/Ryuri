@@ -3,11 +3,11 @@
 //! This module provides database access for content and chapter operations.
 
 use chrono::Utc;
-use sqlx::{Pool, Sqlite};
 use rust_i18n::t;
+use sqlx::{Pool, Sqlite};
 
 use crate::error::{AppError, Result};
-use crate::models::{Chapter, Content, ContentType, NewChapter, NewContent};
+use crate::models::{Chapter, Content, NewChapter, NewContent};
 
 /// Repository for content database operations.
 pub struct ContentRepository;
@@ -16,20 +16,15 @@ impl ContentRepository {
     /// Create a new content in the database.
     pub async fn create(pool: &Pool<Sqlite>, new_content: NewContent) -> Result<Content> {
         let now = Utc::now().to_rfc3339();
-        let content_type_str = match new_content.content_type {
-            ContentType::Comic => "Comic",
-            ContentType::Novel => "Novel",
-        };
 
         let result = sqlx::query(
             r#"
-            INSERT INTO contents (library_id, scan_path_id, content_type, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO contents (library_id, scan_path_id, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(new_content.library_id)
         .bind(new_content.scan_path_id)
-        .bind(content_type_str)
         .bind(&new_content.title)
         .bind(&new_content.folder_path)
         .bind(new_content.chapter_count)
@@ -50,8 +45,11 @@ impl ContentRepository {
             Err(e) => {
                 if e.to_string().contains("UNIQUE constraint failed") {
                     Err(AppError::BadRequest(
-                        t!("content.folder_path_exists_msg", path = new_content.folder_path)
-                            .to_string(),
+                        t!(
+                            "content.folder_path_exists_msg",
+                            path = new_content.folder_path
+                        )
+                        .to_string(),
                     ))
                 } else {
                     Err(AppError::Database(e))
@@ -64,7 +62,7 @@ impl ContentRepository {
     pub async fn find_by_id(pool: &Pool<Sqlite>, id: i64) -> Result<Option<Content>> {
         sqlx::query_as::<_, Content>(
             r#"
-            SELECT id, library_id, scan_path_id, content_type, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
+            SELECT id, library_id, scan_path_id, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
             FROM contents
             WHERE id = ?
             "#,
@@ -83,7 +81,7 @@ impl ContentRepository {
     ) -> Result<Option<Content>> {
         sqlx::query_as::<_, Content>(
             r#"
-            SELECT id, library_id, scan_path_id, content_type, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
+            SELECT id, library_id, scan_path_id, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
             FROM contents
             WHERE library_id = ? AND folder_path = ?
             "#,
@@ -99,7 +97,7 @@ impl ContentRepository {
     pub async fn list_by_library(pool: &Pool<Sqlite>, library_id: i64) -> Result<Vec<Content>> {
         sqlx::query_as::<_, Content>(
             r#"
-            SELECT id, library_id, scan_path_id, content_type, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
+            SELECT id, library_id, scan_path_id, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
             FROM contents
             WHERE library_id = ?
             ORDER BY title
@@ -115,7 +113,7 @@ impl ContentRepository {
     pub async fn list_by_scan_path(pool: &Pool<Sqlite>, scan_path_id: i64) -> Result<Vec<Content>> {
         sqlx::query_as::<_, Content>(
             r#"
-            SELECT id, library_id, scan_path_id, content_type, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
+            SELECT id, library_id, scan_path_id, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
             FROM contents
             WHERE scan_path_id = ?
             ORDER BY title
@@ -136,7 +134,7 @@ impl ContentRepository {
         let search_pattern = format!("%{}%", query);
         sqlx::query_as::<_, Content>(
             r#"
-            SELECT id, library_id, scan_path_id, content_type, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
+            SELECT id, library_id, scan_path_id, title, folder_path, chapter_count, thumbnail, metadata, created_at, updated_at
             FROM contents
             WHERE library_id = ? AND title LIKE ?
             ORDER BY title
@@ -324,13 +322,14 @@ impl ChapterRepository {
     pub async fn create(pool: &Pool<Sqlite>, new_chapter: NewChapter) -> Result<Chapter> {
         let result = sqlx::query(
             r#"
-            INSERT INTO chapters (content_id, title, file_path, sort_order, page_count, size)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO chapters (content_id, title, file_path, file_type, sort_order, page_count, size)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(new_chapter.content_id)
         .bind(&new_chapter.title)
         .bind(&new_chapter.file_path)
+        .bind(&new_chapter.file_type)
         .bind(new_chapter.sort_order)
         .bind(new_chapter.page_count)
         .bind(new_chapter.size)
@@ -347,8 +346,11 @@ impl ChapterRepository {
             Err(e) => {
                 if e.to_string().contains("UNIQUE constraint failed") {
                     Err(AppError::BadRequest(
-                        t!("content.chapter_path_exists_msg", path = new_chapter.file_path)
-                            .to_string(),
+                        t!(
+                            "content.chapter_path_exists_msg",
+                            path = new_chapter.file_path
+                        )
+                        .to_string(),
                     ))
                 } else {
                     Err(AppError::Database(e))
@@ -374,7 +376,7 @@ impl ChapterRepository {
     pub async fn find_by_id(pool: &Pool<Sqlite>, id: i64) -> Result<Option<Chapter>> {
         sqlx::query_as::<_, Chapter>(
             r#"
-            SELECT id, content_id, title, file_path, sort_order, page_count, size
+            SELECT id, content_id, title, file_path, file_type, sort_order, page_count, size
             FROM chapters
             WHERE id = ?
             "#,
@@ -389,7 +391,7 @@ impl ChapterRepository {
     pub async fn list_by_content(pool: &Pool<Sqlite>, content_id: i64) -> Result<Vec<Chapter>> {
         sqlx::query_as::<_, Chapter>(
             r#"
-            SELECT id, content_id, title, file_path, sort_order, page_count, size
+            SELECT id, content_id, title, file_path, file_type, sort_order, page_count, size
             FROM chapters
             WHERE content_id = ?
             ORDER BY sort_order
