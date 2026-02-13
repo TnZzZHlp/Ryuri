@@ -8,7 +8,7 @@ use sqlx::{Pool, Sqlite};
 use std::path::Path;
 
 use crate::error::{AppError, Result};
-use crate::extractors::{ComicArchiveExtractor, NovelArchiveExtractor, PdfExtractor};
+use crate::extractors::{ArchiveExtractor, EpubExtractor, PdfExtractor};
 use crate::models::{Chapter, Content};
 use crate::repository::content::{ChapterRepository, ContentRepository};
 
@@ -98,11 +98,11 @@ impl ContentService {
 
         // List files/images/sections in the archive
         let files = if chapter.is_text_based() {
-            NovelArchiveExtractor::list_files(archive_path)?
+            EpubExtractor::list_files(archive_path)?
         } else if PdfExtractor::is_supported(archive_path) {
             PdfExtractor::list_files(archive_path)?
         } else {
-            ComicArchiveExtractor::list_files(archive_path)?
+            ArchiveExtractor::list_files(archive_path)?
         };
 
         // Validate page index
@@ -116,12 +116,12 @@ impl ContentService {
 
         // Extract and return the content
         if chapter.is_text_based() {
-            let text = NovelArchiveExtractor::extract_file(archive_path, file_name)?;
+            let text = EpubExtractor::extract_file(archive_path, file_name)?;
             Ok(text.into_bytes())
         } else if PdfExtractor::is_supported(archive_path) {
             PdfExtractor::extract_file(archive_path, file_name)
         } else {
-            ComicArchiveExtractor::extract_file(archive_path, file_name)
+            ArchiveExtractor::extract_file(archive_path, file_name)
         }
     }
 
@@ -165,7 +165,7 @@ impl ContentService {
         let archive_path = Path::new(&chapter.file_path);
 
         // Extract all text from the chapter archive
-        NovelArchiveExtractor::extract_all_text(archive_path)
+        EpubExtractor::extract_all_text(archive_path)
     }
 
     /// Get the page count for a specific chapter.
@@ -193,11 +193,11 @@ impl ContentService {
 
         // Branch based on file type
         if chapter.is_text_based() {
-            NovelArchiveExtractor::chapter_count(archive_path)
+            EpubExtractor::chapter_count(archive_path)
         } else if PdfExtractor::is_supported(archive_path) {
             PdfExtractor::page_count(archive_path)
         } else {
-            ComicArchiveExtractor::page_count(archive_path)
+            ArchiveExtractor::page_count(archive_path)
         }
     }
 

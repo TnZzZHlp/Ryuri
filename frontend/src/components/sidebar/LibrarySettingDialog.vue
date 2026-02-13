@@ -148,7 +148,7 @@ function handlePathSelect(path: string) {
                     <Label for="watch-mode">{{ t('library.watch_mode_label') }}</Label>
                     <p class="text-xs text-muted-foreground">{{ t('library.watch_mode_help') }}</p>
                 </div>
-                <Switch id="watch-mode" v-model:checked="watchMode" />
+                <Switch id="watch-mode" v-model="watchMode" />
             </div>
 
             <!-- Scan Paths -->
@@ -157,7 +157,8 @@ function handlePathSelect(path: string) {
                 <div class="flex gap-2">
                     <Input v-model="newPath" :placeholder="t('library.scan_path_placeholder')" class="flex-1"
                         @keyup.enter="handleAddPath" />
-                    <Button variant="outline" size="icon" @click="showPathSelector = true" :title="t('library.path_select_tooltip')">
+                    <Button variant="outline" size="icon" @click="showPathSelector = true"
+                        :title="t('library.path_select_tooltip')">
                         <FolderOpen class="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="icon" @click="handleAddPath" :disabled="!newPath.trim()">
@@ -200,9 +201,5 @@ function handlePathSelect(path: string) {
         </DialogFooter>
     </DialogContent>
 
-    <PathSelector
-        v-model:open="showPathSelector"
-        :initial-path="newPath"
-        @select="handlePathSelect"
-    />
+    <PathSelector v-model:open="showPathSelector" :initial-path="newPath" @select="handlePathSelect" />
 </template>

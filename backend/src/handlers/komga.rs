@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{AppError, Result},
-    extractors::ComicArchiveExtractor,
+    extractors::ArchiveExtractor,
     models::{Chapter, Content},
     repository::{
         content::{ChapterRepository, ContentRepository},
@@ -438,7 +438,7 @@ pub async fn get_page_list(
     // Try to list files, if it fails, fallback to simple counter if page_count > 0
     let mut pages = Vec::new();
 
-    match ComicArchiveExtractor::list_files(archive_path) {
+    match ArchiveExtractor::list_files(archive_path) {
         Ok(images) => {
             for (i, name) in images.iter().enumerate() {
                 pages.push(PageDto {
@@ -498,7 +498,7 @@ pub async fn get_page(
     let archive_path = Path::new(&chapter.file_path);
 
     // We need to list files to get the name at index.
-    let images = ComicArchiveExtractor::list_files(archive_path)?;
+    let images = ArchiveExtractor::list_files(archive_path)?;
 
     if page_index >= images.len() {
         return Err(AppError::NotFound(
@@ -507,7 +507,7 @@ pub async fn get_page(
     }
 
     let image_name = &images[page_index];
-    let image_data = ComicArchiveExtractor::extract_file(archive_path, image_name)?;
+    let image_data = ArchiveExtractor::extract_file(archive_path, image_name)?;
 
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_TYPE, "image/jpeg".parse().unwrap());
