@@ -70,7 +70,10 @@ pub async fn get(
 /// DELETE /api/contents/{id}
 ///
 /// Deletes a content and all associated chapters.
-pub async fn delete(State(state): State<AppState>, Path(content_id): Path<i64>) -> Result<Json<()>> {
+pub async fn delete(
+    State(state): State<AppState>,
+    Path(content_id): Path<i64>,
+) -> Result<Json<()>> {
     ContentService::delete_content(&state.pool, content_id).await?;
     Ok(Json(()))
 }
@@ -140,9 +143,9 @@ fn detect_image_type(data: &[u8]) -> &'static str {
 #[derive(Debug, Deserialize)]
 pub struct ChapterTextParams {
     /// The content ID.
-    pub id: i64,
+    pub content_id: i64,
     /// The chapter index (0-based).
-    pub chapter: i32,
+    pub chapter_id: i32,
 }
 
 /// Response for chapter text.
@@ -159,7 +162,8 @@ pub async fn get_chapter_text(
     State(state): State<AppState>,
     Path(params): Path<ChapterTextParams>,
 ) -> Result<Json<ChapterTextResponse>> {
-    let text = ContentService::get_chapter_text(&state.pool, params.id, params.chapter).await?;
+    let text =
+        ContentService::get_chapter_text(&state.pool, params.content_id, params.chapter_id).await?;
     Ok(Json(ChapterTextResponse { text }))
 }
 
@@ -182,13 +186,9 @@ pub async fn update(
     Path(content_id): Path<i64>,
     Json(request): Json<UpdateContentRequest>,
 ) -> Result<Json<ContentResponse>> {
-    let content = ContentService::update_content(
-        &state.pool,
-        content_id,
-        request.title,
-        request.metadata,
-    )
-    .await?;
+    let content =
+        ContentService::update_content(&state.pool, content_id, request.title, request.metadata)
+            .await?;
     Ok(Json(ContentResponse::from(content)))
 }
 

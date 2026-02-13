@@ -6,7 +6,7 @@ import { createReaderApi } from "@/api/reader";
 import { createProgressApi } from "@/api/progress";
 import { createContentApi } from "@/api/content";
 import { ApiClient } from "@/api/client";
-import type { Chapter } from "@/api/types";
+import type { Chapter, ContentType } from "@/api/types";
 import { useDebounceFn } from "@vueuse/core";
 
 export type ReaderMode = "scroll" | "paged";
@@ -34,18 +34,25 @@ export const useReaderStore = defineStore("reader", () => {
     const endOfChapter = ref(false);
     const pages = ref<number[]>([]); // Buffer for scroll mode
     const readerMode = ref<ReaderMode>(
-        (localStorage.getItem("reader_mode") as ReaderMode) || "paged"
+        (localStorage.getItem("reader_mode") as ReaderMode) || "paged",
     );
     const currentPage = ref(0); // For paged mode (also tracks current reading pos in scroll)
     const PRELOAD_BUFFER = 5;
 
+    // Novel-specific state
+    const contentType = ref<ContentType | null>(null);
+    const chapterText = ref<string>("");
+    const textLoading = ref(false);
+
     // Computed
+    const isNovel = computed(() => contentType.value === "Novel");
+
     const currentChapter = computed(() =>
-        chapters.value.find((c) => c.id === currentChapterId.value)
+        chapters.value.find((c) => c.id === currentChapterId.value),
     );
 
     const currentChapterIndex = computed(() =>
-        chapters.value.findIndex((c) => c.id === currentChapterId.value)
+        chapters.value.findIndex((c) => c.id === currentChapterId.value),
     );
 
     const prevChapter = computed(() => {
@@ -105,10 +112,24 @@ export const useReaderStore = defineStore("reader", () => {
             await progressApi.updateChapterProgress(
                 currentChapterId.value,
                 pageIndex,
-                percentage
+                percentage,
             );
         } catch (e) {
             console.warn("Failed to save progress", e);
+        }
+    }, 1000);
+
+    const saveNovelProgress = useDebounceFn(async (percentage: number) => {
+        if (!currentChapterId.value) return;
+
+        try {
+            await progressApi.updateChapterProgress(
+                currentChapterId.value,
+                0,
+                Math.min(100, percentage),
+            );
+        } catch (e) {
+            console.warn("Failed to save novel progress", e);
         }
     }, 1000);
 
@@ -123,7 +144,7 @@ export const useReaderStore = defineStore("reader", () => {
         const url = readerApi.getPageImage(
             currentContentId.value,
             currentChapter.value.id,
-            pageIndex
+            pageIndex,
         );
 
         pageUrls.value.set(pageIndex, url);
@@ -131,6 +152,20 @@ export const useReaderStore = defineStore("reader", () => {
         // Preload image in background
         const img = new Image();
         img.src = url;
+    };
+
+    const loadChapterText = async (contentId: number, chapterIndex: number) => {
+        textLoading.value = true;
+        chapterText.value = "";
+        try {
+            const response = await readerApi.getChapterText(
+                contentId,
+                chapterIndex,
+            );
+            chapterText.value = response.text;
+        } finally {
+            textLoading.value = false;
+        }
     };
 
     const loadChapter = async (contentId: number, chapterId: number) => {
@@ -146,6 +181,7 @@ export const useReaderStore = defineStore("reader", () => {
             loadingPages.value.clear();
             endOfChapter.value = false;
             pages.value = [];
+            chapterText.value = "";
         }
 
         currentContentId.value = contentId;
@@ -153,6 +189,12 @@ export const useReaderStore = defineStore("reader", () => {
         loading.value = true;
 
         try {
+            // Fetch content type if not loaded
+            if (contentType.value === null) {
+                const contentData = await contentApi.get(contentId);
+                contentType.value = contentData.content_type;
+            }
+
             // Load chapters list if needed
             if (contentStore.chapters.get(contentId)) {
                 chapters.value = contentStore.chapters.get(contentId)!;
@@ -164,52 +206,60 @@ export const useReaderStore = defineStore("reader", () => {
             // Fetch Progress
             let startPage = 0;
             try {
-                const progresses = await progressApi.getChapterProgress(
-                    chapterId
+                const progresses =
+                    await progressApi.getChapterProgress(chapterId);
+                const progress = progresses.find(
+                    (p) => p.chapter_id === chapterId,
                 );
-                const progress = progresses.find(p => p.chapter_id === chapterId);
                 if (progress) {
                     startPage = progress.position;
                 }
-            } catch (e) {
+            } catch {
                 // Ignore progress load errors
             }
 
             currentPage.value = startPage;
 
-            // Start loading initial pages
-            loading.value = false;
-
-            if (readerMode.value === "scroll") {
-                const initialPages = [];
-                // We want to have all pages from 0 up to the current position + buffer available in the list
-                // so the user can scroll up.
-                const endPage = startPage + PRELOAD_BUFFER;
-
-                for (let i = 0; i <= endPage; i++) {
-                    if (
-                        currentChapter.value &&
-                        i >= currentChapter.value.page_count
-                    )
-                        break;
-                    initialPages.push(i);
+            // Branch based on content type
+            if (isNovel.value) {
+                // Novel: load chapter text
+                const chapterIndex = chapters.value.findIndex(
+                    (c) => c.id === chapterId,
+                );
+                if (chapterIndex !== -1) {
+                    await loadChapterText(contentId, chapterIndex);
                 }
-
-                if (initialPages.length === 0) initialPages.push(0);
-                pages.value = initialPages;
-
-                // Load pages around the startPage
-                // We prioritize startPage and forward buffer
-                for (let i = 0; i < PRELOAD_BUFFER; i++) {
-                    loadPage(startPage + i);
-                }
-
-                // Optionally load a few previous pages to ensure smooth upward scrolling
-                if (startPage > 0) loadPage(startPage - 1);
+                loading.value = false;
             } else {
-                loadPage(startPage);
-                for (let i = 1; i <= PRELOAD_BUFFER; i++) {
-                    loadPage(startPage + i);
+                // Comic: load page images
+                loading.value = false;
+
+                if (readerMode.value === "scroll") {
+                    const initialPages = [];
+                    const endPage = startPage + PRELOAD_BUFFER;
+
+                    for (let i = 0; i <= endPage; i++) {
+                        if (
+                            currentChapter.value &&
+                            i >= currentChapter.value.page_count
+                        )
+                            break;
+                        initialPages.push(i);
+                    }
+
+                    if (initialPages.length === 0) initialPages.push(0);
+                    pages.value = initialPages;
+
+                    for (let i = 0; i < PRELOAD_BUFFER; i++) {
+                        loadPage(startPage + i);
+                    }
+
+                    if (startPage > 0) loadPage(startPage - 1);
+                } else {
+                    loadPage(startPage);
+                    for (let i = 1; i <= PRELOAD_BUFFER; i++) {
+                        loadPage(startPage + i);
+                    }
                 }
             }
         } catch (e) {
@@ -233,7 +283,13 @@ export const useReaderStore = defineStore("reader", () => {
         readerMode,
         currentPage,
 
+        // Novel state
+        contentType,
+        chapterText,
+        textLoading,
+
         // Computed
+        isNovel,
         currentChapter,
         currentChapterIndex,
         prevChapter,
@@ -241,8 +297,10 @@ export const useReaderStore = defineStore("reader", () => {
 
         // Actions
         loadChapter,
+        loadChapterText,
         loadPage,
         saveProgress,
+        saveNovelProgress,
         setMode,
 
         // Constants
