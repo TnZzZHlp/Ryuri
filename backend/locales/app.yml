@@ -372,3 +372,15 @@ archive.invalid_entry_index:
 bangumi.subject_not_found:
   en: "Bangumi subject %{id} not found"
   zh-CN: "未找到 Bangumi 条目 %{id}"
+archive.pdf_open_failed:
+  en: "Failed to open PDF file: %{error}"
+  zh-CN: "打开 PDF 文件失败: %{error}"
+archive.pdf_page_failed:
+  en: "Failed to load PDF page: %{error}"
+  zh-CN: "加载 PDF 页面失败: %{error}"
+archive.pdf_render_failed:
+  en: "Failed to render PDF page: %{error}"
+  zh-CN: "渲染 PDF 页面失败: %{error}"
+archive.invalid_pdf_page:
+  en: "Invalid PDF page name: %{file}"
+  zh-CN: "无效的 PDF 页面名称: %{file}"

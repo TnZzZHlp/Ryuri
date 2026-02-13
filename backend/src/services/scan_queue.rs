@@ -17,7 +17,9 @@ use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
-use crate::extractors::{ComicArchiveExtractor, NovelArchiveExtractor, natural_sort_key};
+use crate::extractors::{
+    ComicArchiveExtractor, NovelArchiveExtractor, PdfExtractor, natural_sort_key,
+};
 use crate::models::{
     Chapter, Content, ContentType, NewChapter, NewContent, QueuedTask, ScanPath, ScanTask,
     TaskPriority, TaskResult, TaskStatus,
@@ -176,10 +178,10 @@ impl ScanService {
                 {
                     match self.rescan_content_chapters(&content, &folder_path).await {
                         Ok(added_chapters) => {
-                             result.added_chapters.extend(added_chapters);
+                            result.added_chapters.extend(added_chapters);
                         }
                         Err(e) => {
-                             error!(folder_path = ?folder_path, error = %e, "{}", t!("scan.rescan_failed"));
+                            error!(folder_path = ?folder_path, error = %e, "{}", t!("scan.rescan_failed"));
                         }
                     }
                 }
@@ -226,7 +228,8 @@ impl ScanService {
 
             if path.is_file()
                 && (ComicArchiveExtractor::is_supported(&path)
-                    || NovelArchiveExtractor::is_supported(&path))
+                    || NovelArchiveExtractor::is_supported(&path)
+                    || PdfExtractor::is_supported(&path))
             {
                 return Ok(true);
             }
@@ -327,7 +330,11 @@ impl ScanService {
     }
 
     /// Rescan existing content to detect added/removed chapters.
-    async fn rescan_content_chapters(&self, content: &Content, folder_path: &Path) -> Result<Vec<crate::models::AddedChapter>> {
+    async fn rescan_content_chapters(
+        &self,
+        content: &Content,
+        folder_path: &Path,
+    ) -> Result<Vec<crate::models::AddedChapter>> {
         // Detect content type and find chapters
         let (content_type, disk_chapters) = self.detect_content_type_and_chapters(folder_path)?;
         let total_chapters = disk_chapters.len() as i32;
@@ -470,7 +477,7 @@ impl ScanService {
             let path = entry.path();
 
             if path.is_file() {
-                if ComicArchiveExtractor::is_supported(&path) {
+                if ComicArchiveExtractor::is_supported(&path) || PdfExtractor::is_supported(&path) {
                     comic_files.push(path);
                 } else if NovelArchiveExtractor::is_supported(&path) {
                     novel_files.push(path);
@@ -511,13 +518,20 @@ impl ScanService {
 
             // Calculate page count based on content type
             let page_count = match content_type {
-                ContentType::Comic => match ComicArchiveExtractor::page_count(&path) {
-                    Ok(count) => count as i32,
-                    Err(e) => {
-                        warn!(path = ?path, error = %e, "{}", t!("scan.calc_comic_page_count_failed"));
-                        0
+                ContentType::Comic => {
+                    let count_result = if PdfExtractor::is_supported(&path) {
+                        PdfExtractor::page_count(&path)
+                    } else {
+                        ComicArchiveExtractor::page_count(&path)
+                    };
+                    match count_result {
+                        Ok(count) => count as i32,
+                        Err(e) => {
+                            warn!(path = ?path, error = %e, "{}", t!("scan.calc_comic_page_count_failed"));
+                            0
+                        }
                     }
-                },
+                }
                 ContentType::Novel => match NovelArchiveExtractor::chapter_count(&path) {
                     Ok(count) => count as i32,
                     Err(e) => {
@@ -565,7 +579,10 @@ impl ScanService {
         let mut comic_files: Vec<PathBuf> = entries
             .filter_map(|e| e.ok())
             .map(|e| e.path())
-            .filter(|p| p.is_file() && ComicArchiveExtractor::is_supported(p))
+            .filter(|p| {
+                p.is_file()
+                    && (ComicArchiveExtractor::is_supported(p) || PdfExtractor::is_supported(p))
+            })
             .collect();
 
         if comic_files.is_empty() {
@@ -580,7 +597,11 @@ impl ScanService {
         let first_chapter = &comic_files[0];
 
         // Extract the first image from the first chapter
-        let image_data = ComicArchiveExtractor::extract_first_image(first_chapter)?;
+        let image_data = if PdfExtractor::is_supported(first_chapter) {
+            PdfExtractor::extract_first_image(first_chapter)?
+        } else {
+            ComicArchiveExtractor::extract_first_image(first_chapter)?
+        };
 
         // Resize and compress the thumbnail
         let thumbnail = self.compress_thumbnail(&image_data)?;
