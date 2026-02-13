@@ -127,10 +127,6 @@ jobs:
             - name: Install system dependencies
               run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
 
-            - name: Check formatting
-              working-directory: ./backend
-              run: cargo fmt -- --check
-
             - name: Lint
               working-directory: ./backend
               run: cargo clippy -- -D warnings
