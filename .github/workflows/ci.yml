@@ -49,7 +49,7 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
-                  node-version: "latest"
+                  node-version: '22'
 
             - name: Cache dependencies
               uses: actions/cache@v4
@@ -64,7 +64,7 @@ jobs:
             - name: Install pnpm
               uses: pnpm/action-setup@v4
               with:
-                  version: latest
+                  version: 10
 
             - name: Install dependencies
               run: pnpm install
@@ -75,18 +75,44 @@ jobs:
             - name: Build
               run: pnpm build
 
+            - name: Test
+              run: npx vitest run
+
     backend:
         name: Backend CI
         needs: changes
         if: ${{ needs.changes.outputs.backend == 'true' }}
         runs-on: ubuntu-latest
-        defaults:
-            run:
-                working-directory: ./backend
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+
+            - name: Cache pnpm dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.pnpm-store
+                      frontend/node_modules
+                  key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+                  restore-keys: |
+                      ${{ runner.os }}-pnpm-
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10
+
+            - name: Build Frontend
+              working-directory: ./frontend
+              run: |
+                  pnpm install
+                  pnpm build
 
             - name: Cache Rust dependencies
               uses: actions/cache@v4
@@ -94,7 +120,7 @@ jobs:
                   path: |
                       ~/.cargo/registry
                       ~/.cargo/git
-                      target
+                      backend/target
                   key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
                   restore-keys: |
                       ${{ runner.os }}-cargo-
@@ -105,11 +131,18 @@ jobs:
             - name: Install system dependencies
               run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
 
+            - name: Check formatting
+              working-directory: ./backend
+              run: cargo fmt -- --check
+
             - name: Lint
+              working-directory: ./backend
               run: cargo clippy -- -D warnings
 
             - name: Build
+              working-directory: ./backend
               run: cargo build --release
 
             - name: Test
+              working-directory: ./backend
               run: cargo test
