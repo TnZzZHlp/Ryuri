@@ -23,7 +23,7 @@ FROM rust:1-bookworm AS backend-builder
 WORKDIR /app
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y pkg-config libssl-dev libfontconfig1-dev
+RUN apt-get update && apt-get install -y pkg-config libssl-dev libfontconfig1-dev libclang-dev
 
 # Copy VERSION file first
 COPY VERSION .
