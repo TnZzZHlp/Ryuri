@@ -8,7 +8,7 @@ use sqlx::{Pool, Sqlite};
 use std::path::Path;
 
 use crate::error::{AppError, Result};
-use crate::extractors::{ArchiveExtractor, EpubExtractor, PdfExtractor};
+use crate::extractors::{ArchiveExtractor, PdfExtractor};
 use crate::models::{Chapter, Content};
 use crate::repository::content::{ChapterRepository, ContentRepository};
 
@@ -87,19 +87,17 @@ impl ContentService {
                 AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
             })?;
 
-        // Verify this is an image-based or text-based chapter
-        if !chapter.is_image_based() && !chapter.is_text_based() {
+        // Verify this is an image-based chapter
+        if !chapter.is_image_based() {
             return Err(AppError::BadRequest(
-                "Cannot get page from non-image-based or non-text-based chapter".to_string(),
+                "Cannot get page from non-image-based chapter".to_string(),
             ));
         }
 
         let archive_path = Path::new(&chapter.file_path);
 
-        // List files/images/sections in the archive
-        let files = if chapter.is_text_based() {
-            EpubExtractor::list_files(archive_path)?
-        } else if PdfExtractor::is_supported(archive_path) {
+        // List files/images in the archive
+        let files = if PdfExtractor::is_supported(archive_path) {
             PdfExtractor::list_files(archive_path)?
         } else {
             ArchiveExtractor::list_files(archive_path)?
@@ -115,57 +113,107 @@ impl ContentService {
         let file_name = &files[page_index as usize];
 
         // Extract and return the content
-        if chapter.is_text_based() {
-            let text = EpubExtractor::extract_file(archive_path, file_name)?;
-            Ok(text.into_bytes())
-        } else if PdfExtractor::is_supported(archive_path) {
+        if PdfExtractor::is_supported(archive_path) {
             PdfExtractor::extract_file(archive_path, file_name)
         } else {
             ArchiveExtractor::extract_file(archive_path, file_name)
         }
     }
 
-    /// Get the text content of a novel chapter.
+    /// Get the raw file bytes of a chapter.
     ///
     /// # Arguments
     /// * `pool` - Database connection pool
     /// * `content_id` - ID of the content
-    /// * `chapter_index` - 0-based index of the chapter
+    /// * `chapter_id` - ID of the chapter
     ///
     /// # Returns
-    /// The text content of the chapter.
-    pub async fn get_chapter_text(
+    /// A tuple of (file_bytes, file_type) for the chapter file.
+    pub async fn get_chapter_file(
         pool: &Pool<Sqlite>,
         content_id: i64,
-        chapter_index: i32,
-    ) -> Result<String> {
-        // Get the content
+        chapter_id: i64,
+    ) -> Result<(Vec<u8>, String)> {
+        // Get the content to verify it exists
         let _content = Self::get_content(pool, content_id).await?;
 
         // Get the chapters
         let chapters = ChapterRepository::list_by_content(pool, content_id).await?;
 
-        // Validate chapter index
-        if chapter_index < 0 || chapter_index as usize >= chapters.len() {
-            let chapter_id = chapter_index as i64; // Approximation for error message
-            return Err(AppError::NotFound(
-                t!("content.chapter_not_found", id = chapter_id).to_string(),
-            ));
-        }
+        // Find the chapter by id
+        let chapter = chapters
+            .iter()
+            .find(|c| c.id == chapter_id)
+            .ok_or_else(|| {
+                AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
+            })?;
 
-        let chapter = &chapters[chapter_index as usize];
+        let file_path = Path::new(&chapter.file_path);
 
-        // Verify this is a text-based chapter
+        // Read the raw file
+        let data = tokio::fs::read(file_path)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to read chapter file: {}", e)))?;
+
+        Ok((data, chapter.file_type.clone()))
+    }
+
+    /// Get a resource from within an EPUB chapter archive.
+    ///
+    /// This extracts individual files (XHTML, images, CSS, fonts, etc.)
+    /// from the EPUB ZIP, enabling on-demand rendering.
+    pub async fn get_epub_resource(
+        pool: &Pool<Sqlite>,
+        content_id: i64,
+        chapter_id: i64,
+        resource_path: &str,
+    ) -> Result<Vec<u8>> {
+        let _content = Self::get_content(pool, content_id).await?;
+
+        let chapters = ChapterRepository::list_by_content(pool, content_id).await?;
+        let chapter = chapters
+            .iter()
+            .find(|c| c.id == chapter_id)
+            .ok_or_else(|| {
+                AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
+            })?;
+
         if !chapter.is_text_based() {
             return Err(AppError::BadRequest(
-                "Cannot get text from non-text-based chapter".to_string(),
+                "EPUB resource access is only available for EPUB chapters".to_string(),
             ));
         }
 
         let archive_path = Path::new(&chapter.file_path);
+        ArchiveExtractor::extract_resource_bytes(archive_path, resource_path)
+    }
 
-        // Extract all text from the chapter archive
-        EpubExtractor::extract_all_text(archive_path)
+    /// Get the spine (reading order) from an EPUB chapter archive.
+    ///
+    /// Returns a list of spine entries with resolved file paths and MIME types.
+    pub async fn get_epub_spine(
+        pool: &Pool<Sqlite>,
+        content_id: i64,
+        chapter_id: i64,
+    ) -> Result<Vec<crate::extractors::SpineEntry>> {
+        let _content = Self::get_content(pool, content_id).await?;
+
+        let chapters = ChapterRepository::list_by_content(pool, content_id).await?;
+        let chapter = chapters
+            .iter()
+            .find(|c| c.id == chapter_id)
+            .ok_or_else(|| {
+                AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
+            })?;
+
+        if !chapter.is_text_based() {
+            return Err(AppError::BadRequest(
+                "EPUB spine is only available for EPUB chapters".to_string(),
+            ));
+        }
+
+        let archive_path = Path::new(&chapter.file_path);
+        ArchiveExtractor::get_epub_spine(archive_path)
     }
 
     /// Get the page count for a specific chapter.
@@ -193,7 +241,7 @@ impl ContentService {
 
         // Branch based on file type
         if chapter.is_text_based() {
-            EpubExtractor::chapter_count(archive_path)
+            ArchiveExtractor::page_count(archive_path)
         } else if PdfExtractor::is_supported(archive_path) {
             PdfExtractor::page_count(archive_path)
         } else {

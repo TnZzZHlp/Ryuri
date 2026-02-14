@@ -17,7 +17,7 @@ use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
-use crate::extractors::{ArchiveExtractor, EpubExtractor, PdfExtractor, natural_sort_key};
+use crate::extractors::{ArchiveExtractor, PdfExtractor, natural_sort_key};
 use crate::models::{
     Chapter, Content, NewChapter, NewContent, QueuedTask, ScanPath, ScanTask, TaskPriority,
     TaskResult, TaskStatus, file_type_from_path,
@@ -225,9 +225,7 @@ impl ScanService {
             let path = entry.path();
 
             if path.is_file()
-                && (ArchiveExtractor::is_supported(&path)
-                    || EpubExtractor::is_supported(&path)
-                    || PdfExtractor::is_supported(&path))
+                && (ArchiveExtractor::is_supported(&path) || PdfExtractor::is_supported(&path))
             {
                 return Ok(true);
             }
@@ -465,9 +463,7 @@ impl ScanService {
             let path = entry.path();
 
             if path.is_file()
-                && (ArchiveExtractor::is_supported(&path)
-                    || PdfExtractor::is_supported(&path)
-                    || EpubExtractor::is_supported(&path))
+                && (ArchiveExtractor::is_supported(&path) || PdfExtractor::is_supported(&path))
             {
                 files.push(path);
             }
@@ -497,8 +493,8 @@ impl ScanService {
             let file_type = file_type_from_path(&path);
 
             // Calculate page count based on file type
-            let page_count = if EpubExtractor::is_supported(&path) {
-                match EpubExtractor::chapter_count(&path) {
+            let page_count = if ArchiveExtractor::is_epub(&path) {
+                match ArchiveExtractor::page_count(&path) {
                     Ok(count) => count as i32,
                     Err(e) => {
                         warn!(path = ?path, error = %e, "{}", t!("scan.calc_novel_chapter_count_failed"));
@@ -549,7 +545,7 @@ impl ScanService {
         // Check if there are any epub files (try novel thumbnail first for epub content)
         let has_epub = std::fs::read_dir(folder_path)?
             .filter_map(|e| e.ok())
-            .any(|e| EpubExtractor::is_supported(&e.path()));
+            .any(|e| ArchiveExtractor::is_epub(&e.path()));
 
         if has_epub {
             // Try novel thumbnail (cover image or epub embedded cover)

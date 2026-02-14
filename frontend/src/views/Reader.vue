@@ -43,8 +43,11 @@ const {
     prevChapter,
     nextChapter,
     isNovel,
-    chapterText,
-    textLoading
+    epubHtmlContent,
+    epubSpineLoading,
+    epubCurrentSpineIndex,
+    epubSpine,
+    epubHasNext,
 } = storeToRefs(readerStore)
 
 // State
@@ -84,10 +87,10 @@ const renderedPages = computed(() => {
     return pagesList
 })
 
-// Novel text paragraphs
-const textParagraphs = computed(() => {
-    if (!chapterText.value) return []
-    return chapterText.value.split('\n').filter(p => p.trim().length > 0)
+// EPUB novel reading progress
+const epubProgress = computed(() => {
+    if (epubSpine.value.length === 0) return 0
+    return ((epubCurrentSpineIndex.value + 1) / epubSpine.value.length) * 100
 })
 
 // Methods
@@ -150,7 +153,7 @@ const initObserver = () => {
     pageRefs.forEach(el => observer?.observe(el))
 }
 
-const setPageRef = (el: any, page: number) => {
+const setPageRef = (el: unknown, page: number) => {
     if (el) {
         const htmlEl = el as HTMLElement
         if (pageRefs.get(page) !== htmlEl) {
@@ -181,14 +184,21 @@ const updateProgress = () => {
     if (!containerRef.value) return
 
     if (isNovel.value) {
-        // Novel: track scroll percentage
+        // Novel: track scroll percentage within the current spine page
         const scrollTop = containerRef.value.scrollTop
         const docHeight = containerRef.value.scrollHeight
         const winHeight = containerRef.value.clientHeight
         const total = docHeight - winHeight
-        const percentage = total > 0 ? (scrollTop / total) * 100 : 0
-        readingProgress.value = percentage
-        readerStore.saveNovelProgress(percentage)
+        const scrollPercent = total > 0 ? (scrollTop / total) * 100 : 0
+
+        // Combine spine position + scroll position within page
+        if (epubSpine.value.length > 0) {
+            const spinePercent = (epubCurrentSpineIndex.value / epubSpine.value.length) * 100
+            const pageContribution = (1 / epubSpine.value.length) * (scrollPercent / 100) * 100
+            readingProgress.value = spinePercent + pageContribution
+        } else {
+            readingProgress.value = scrollPercent
+        }
     } else if (readerMode.value === 'scroll') {
         const scrollTop = containerRef.value.scrollTop
         const docHeight = containerRef.value.scrollHeight
@@ -201,14 +211,16 @@ const updateProgress = () => {
 const loadData = async () => {
     try {
         await readerStore.loadChapter(contentId.value, chapterId.value)
-        if (!isNovel.value && readerMode.value === 'scroll') {
-            nextTick(() => {
-                initObserver()
-                // If we have progress, scroll to it
-                if (currentPage.value > 0) {
-                    scrollToPage(currentPage.value)
-                }
-            })
+        if (!isNovel.value) {
+            if (readerMode.value === 'scroll') {
+                nextTick(() => {
+                    initObserver()
+                    // If we have progress, scroll to it
+                    if (currentPage.value > 0) {
+                        scrollToPage(currentPage.value)
+                    }
+                })
+            }
         }
     } catch {
         toast.error(t('reader.loading_fail'))
@@ -286,6 +298,23 @@ const handlePageClick = (e: MouseEvent) => {
     }
 }
 
+const handleEpubClick = (e: MouseEvent) => {
+    const width = window.innerWidth
+    const x = e.clientX
+
+    if (x < width * 0.3) {
+        readerStore.epubPrevPage()
+        containerRef.value?.scrollTo(0, 0)
+        showControls.value = false
+    } else if (x > width * 0.7) {
+        readerStore.epubNextPage()
+        containerRef.value?.scrollTo(0, 0)
+        showControls.value = false
+    } else {
+        toggleControls()
+    }
+}
+
 // Watchers
 watch(() => route.params.chapterId, () => {
     readingProgress.value = 0
@@ -308,6 +337,11 @@ watch(readerMode, (newMode) => {
     }
 })
 
+// Update progress bar when epub spine index changes
+watch(epubCurrentSpineIndex, () => {
+    readingProgress.value = epubProgress.value
+})
+
 const preventSelection = (e: Event) => {
     // Allow text selection in novel mode
     if (isNovel.value) return
@@ -328,11 +362,13 @@ onUnmounted(() => {
 
 const handleKeydown = (e: KeyboardEvent) => {
     if (isNovel.value) {
-        // Novel mode: left/right for chapter navigation, Escape to exit
+        // Novel mode: left/right for spine page navigation
         if (e.key === 'ArrowLeft') {
-            if (prevChapter.value) navigateToChapter(prevChapter.value)
+            readerStore.epubPrevPage()
+            containerRef.value?.scrollTo(0, 0)
         } else if (e.key === 'ArrowRight') {
-            if (nextChapter.value) navigateToChapter(nextChapter.value)
+            readerStore.epubNextPage()
+            containerRef.value?.scrollTo(0, 0)
         } else if (e.key === 'Escape') {
             router.push(`/content/${contentId.value}`)
         }
@@ -371,35 +407,24 @@ const handleKeydown = (e: KeyboardEvent) => {
 
         <!-- Reader Content -->
 
-        <!-- Novel Text Reader Mode -->
-        <div v-if="isNovel" class="novel-reader mx-auto max-w-3xl min-h-screen px-6 md:px-12 py-20"
-            @click="toggleControls">
-            <div v-if="loading || textLoading" class="flex items-center justify-center h-screen">
+        <!-- Novel EPUB Reader Mode (Custom Renderer) -->
+        <div v-if="isNovel" class="epub-reader-wrapper min-h-screen w-full" @click="handleEpubClick">
+            <div v-if="loading || epubSpineLoading" class="flex items-center justify-center h-screen">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
             </div>
 
-            <div v-else-if="chapterText" class="novel-text-content">
-                <p v-for="(paragraph, index) in textParagraphs" :key="index" class="novel-paragraph">
-                    {{ paragraph }}
-                </p>
+            <div v-else class="epub-content-container mx-auto max-w-3xl px-6 py-12">
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div class="epub-body" v-html="epubHtmlContent"></div>
 
-                <!-- End of Chapter Navigation -->
-                <div class="py-16 flex flex-col items-center gap-4 w-full border-t border-white/10 mt-12">
+                <!-- Spine page navigation at bottom -->
+                <div v-if="!epubHasNext && nextChapter" class="py-12 flex flex-col items-center gap-4">
                     <p class="text-gray-400">{{ t('reader.end_of_chapter') }}</p>
-                    <div class="flex gap-4">
-                        <Button v-if="prevChapter" variant="secondary" @click.stop="navigateToChapter(prevChapter)">
-                            <ChevronLeft class="mr-2 h-4 w-4" /> {{ t('reader.prev_chapter') }}
-                        </Button>
-                        <Button v-if="nextChapter" variant="default" @click.stop="navigateToChapter(nextChapter)">
-                            {{ t('reader.next_chapter') }}
-                            <ChevronRight class="ml-2 h-4 w-4" />
-                        </Button>
-                    </div>
+                    <Button variant="default" @click.stop="navigateToChapter(nextChapter)">
+                        {{ t('reader.next_chapter') }}
+                        <ChevronRight class="ml-2 h-4 w-4" />
+                    </Button>
                 </div>
-            </div>
-
-            <div v-else class="flex items-center justify-center h-screen text-gray-400">
-                <p>{{ t('reader.text_load_fail') }}</p>
             </div>
         </div>
 
@@ -517,7 +542,7 @@ const handleKeydown = (e: KeyboardEvent) => {
             <div class="flex flex-col items-center">
                 <span class="text-xs text-gray-400">
                     <template v-if="isNovel">
-                        {{ `${currentChapterIndex + 1} / ${chapters.length}` }}
+                        {{ `${epubCurrentSpineIndex + 1} / ${epubSpine.length}` }}
                     </template>
                     <template v-else>
                         {{ readerMode === 'paged' ? (currentPage + 1) + ' / ' + (currentChapter?.page_count || '?') :
@@ -542,25 +567,80 @@ const handleKeydown = (e: KeyboardEvent) => {
 </template>
 
 <style scoped>
-.novel-reader {
+/* Custom EPUB body styling */
+.epub-content-container {
     font-family: 'Georgia', 'Noto Serif SC', 'Source Han Serif CN', serif;
-}
-
-.novel-text-content {
-    color: #e0ddd5;
     line-height: 2;
-    font-size: 1.125rem;
+    color: #e0ddd5;
 }
 
-.novel-paragraph {
-    text-indent: 2em;
-    margin-bottom: 0.75em;
+/* Style the injected EPUB HTML content */
+.epub-body :deep(p) {
+    color: #e0ddd5;
+    margin-bottom: 1em;
 }
 
-@media (max-width: 768px) {
-    .novel-text-content {
-        font-size: 1rem;
-        line-height: 1.9;
-    }
+.epub-body :deep(h1),
+.epub-body :deep(h2),
+.epub-body :deep(h3),
+.epub-body :deep(h4),
+.epub-body :deep(h5),
+.epub-body :deep(h6) {
+    color: #ffffff;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.epub-body :deep(a) {
+    color: #8ab4f8;
+}
+
+.epub-body :deep(img) {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1em auto;
+}
+
+.epub-body :deep(span),
+.epub-body :deep(div),
+.epub-body :deep(li),
+.epub-body :deep(td),
+.epub-body :deep(th),
+.epub-body :deep(blockquote) {
+    color: #e0ddd5;
+}
+
+.epub-body :deep(blockquote) {
+    border-left: 3px solid #555;
+    padding-left: 1em;
+    margin-left: 0;
+    font-style: italic;
+}
+
+.epub-body :deep(pre),
+.epub-body :deep(code) {
+    background: #1a1a1a;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.epub-body :deep(hr) {
+    border: none;
+    border-top: 1px solid #444;
+    margin: 2em 0;
+}
+
+.epub-body :deep(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+}
+
+.epub-body :deep(td),
+.epub-body :deep(th) {
+    border: 1px solid #444;
+    padding: 0.5em;
 }
 </style>

@@ -4,11 +4,9 @@
 //! including ZIP, CBZ, CBR, RAR for compressed archives, EPUB for novels, and PDF.
 
 pub mod archive;
-pub mod epub;
 pub mod pdf;
 
-pub use archive::ArchiveExtractor;
-pub use epub::EpubExtractor;
+pub use archive::{ArchiveExtractor, SpineEntry};
 pub use pdf::PdfExtractor;
 
 /// Generates a natural sort key for a string.

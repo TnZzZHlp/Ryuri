@@ -6,7 +6,7 @@ import { createReaderApi } from "@/api/reader";
 import { createProgressApi } from "@/api/progress";
 import { createContentApi } from "@/api/content";
 import { ApiClient } from "@/api/client";
-import type { Chapter } from "@/api/types";
+import type { Chapter, EpubSpineItem } from "@/api/types";
 import { useDebounceFn } from "@vueuse/core";
 
 export type ReaderMode = "scroll" | "paged";
@@ -39,9 +39,11 @@ export const useReaderStore = defineStore("reader", () => {
     const currentPage = ref(0); // For paged mode (also tracks current reading pos in scroll)
     const PRELOAD_BUFFER = 5;
 
-    // Novel-specific state
-    const chapterText = ref<string>("");
-    const textLoading = ref(false);
+    // EPUB-specific state
+    const epubSpine = ref<EpubSpineItem[]>([]);
+    const epubCurrentSpineIndex = ref(0);
+    const epubHtmlContent = ref("");
+    const epubSpineLoading = ref(false);
 
     // Computed
     const isNovel = computed(() => currentChapter.value?.file_type === "epub");
@@ -70,6 +72,11 @@ export const useReaderStore = defineStore("reader", () => {
         }
         return null;
     });
+
+    const epubHasNext = computed(
+        () => epubCurrentSpineIndex.value < epubSpine.value.length - 1,
+    );
+    const epubHasPrev = computed(() => epubCurrentSpineIndex.value > 0);
 
     // Actions
     const setMode = (mode: ReaderMode) => {
@@ -153,17 +160,129 @@ export const useReaderStore = defineStore("reader", () => {
         img.src = url;
     };
 
-    const loadChapterText = async (contentId: number, chapterIndex: number) => {
-        textLoading.value = true;
-        chapterText.value = "";
+    /**
+     * Rewrite relative URLs in EPUB XHTML content to point at the backend resource endpoint.
+     * Handles src, href, xlink:href attributes and url() in inline styles.
+     */
+    const rewriteEpubUrls = (
+        html: string,
+        contentId: number,
+        chapterId: number,
+        currentResourcePath: string,
+    ): string => {
+        // Determine the base directory of the current spine resource
+        const lastSlash = currentResourcePath.lastIndexOf("/");
+        const baseDir =
+            lastSlash >= 0
+                ? currentResourcePath.substring(0, lastSlash + 1)
+                : "";
+
+        const resolveUrl = (relativeUrl: string): string => {
+            // Skip absolute URLs, data URIs, and fragment-only refs
+            if (
+                relativeUrl.startsWith("http://") ||
+                relativeUrl.startsWith("https://") ||
+                relativeUrl.startsWith("data:") ||
+                relativeUrl.startsWith("#") ||
+                relativeUrl.startsWith("mailto:")
+            ) {
+                return relativeUrl;
+            }
+
+            // Resolve relative path against base directory
+            let resolved = baseDir + relativeUrl;
+
+            // Normalize path (collapse ../ segments)
+            const parts = resolved.split("/");
+            const normalized: string[] = [];
+            for (const part of parts) {
+                if (part === "..") {
+                    normalized.pop();
+                } else if (part !== "." && part !== "") {
+                    normalized.push(part);
+                }
+            }
+            resolved = normalized.join("/");
+
+            return readerApi.getEpubResourceUrl(contentId, chapterId, resolved);
+        };
+
+        // Rewrite src, href, xlink:href attributes
+        let result = html.replace(
+            /((?:src|href|xlink:href)\s*=\s*)(["'])((?:(?!\2).)+)\2/gi,
+            (_match, prefix: string, quote: string, url: string) => {
+                return `${prefix}${quote}${resolveUrl(url)}${quote}`;
+            },
+        );
+
+        // Rewrite url() references in inline styles
+        result = result.replace(
+            /url\(\s*(["']?)((?:(?!\1\)).)+)\1\s*\)/gi,
+            (_match, quote: string, url: string) => {
+                return `url(${quote}${resolveUrl(url)}${quote})`;
+            },
+        );
+
+        return result;
+    };
+
+    /**
+     * Load an EPUB spine page by index, fetching its XHTML content and rewriting URLs.
+     */
+    const loadEpubSpinePage = async (index: number) => {
+        if (!currentContentId.value || !currentChapterId.value) return;
+        if (index < 0 || index >= epubSpine.value.length) return;
+
+        epubSpineLoading.value = true;
+        epubCurrentSpineIndex.value = index;
+        const spineItem = epubSpine.value[index];
+        if (!spineItem) return;
+
         try {
-            const response = await readerApi.getChapterText(
-                contentId,
-                chapterIndex,
+            // Fetch the XHTML content via the resource endpoint
+            const url = readerApi.getEpubResourceUrl(
+                currentContentId.value,
+                currentChapterId.value,
+                spineItem.path,
             );
-            chapterText.value = response.text;
+            const response = await fetch(url);
+            let html = await response.text();
+
+            // Rewrite internal URLs
+            html = rewriteEpubUrls(
+                html,
+                currentContentId.value,
+                currentChapterId.value,
+                spineItem.path,
+            );
+
+            // Extract body content from the XHTML
+            const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+            epubHtmlContent.value = bodyMatch?.[1] ?? html;
+
+            // Save progress
+            const percentage =
+                epubSpine.value.length > 0
+                    ? ((index + 1) / epubSpine.value.length) * 100
+                    : 0;
+            saveNovelProgress(percentage);
+        } catch (e) {
+            console.error("Failed to load EPUB spine page:", e);
+            epubHtmlContent.value = `<p style="color: #ff6b6b;">Failed to load content</p>`;
         } finally {
-            textLoading.value = false;
+            epubSpineLoading.value = false;
+        }
+    };
+
+    const epubNextPage = () => {
+        if (epubHasNext.value) {
+            loadEpubSpinePage(epubCurrentSpineIndex.value + 1);
+        }
+    };
+
+    const epubPrevPage = () => {
+        if (epubHasPrev.value) {
+            loadEpubSpinePage(epubCurrentSpineIndex.value - 1);
         }
     };
 
@@ -180,7 +299,9 @@ export const useReaderStore = defineStore("reader", () => {
             loadingPages.value.clear();
             endOfChapter.value = false;
             pages.value = [];
-            chapterText.value = "";
+            epubSpine.value = [];
+            epubHtmlContent.value = "";
+            epubCurrentSpineIndex.value = 0;
         }
 
         currentContentId.value = contentId;
@@ -215,12 +336,20 @@ export const useReaderStore = defineStore("reader", () => {
 
             // Branch based on content type
             if (isNovel.value) {
-                // Novel: load chapter text
-                const chapterIndex = chapters.value.findIndex(
-                    (c) => c.id === chapterId,
-                );
-                if (chapterIndex !== -1) {
-                    await loadChapterText(contentId, chapterIndex);
+                // Novel EPUB: fetch spine and load first page
+                if (currentChapter.value) {
+                    try {
+                        epubSpine.value = await readerApi.getEpubSpine(
+                            contentId,
+                            currentChapter.value.id,
+                        );
+                        // Load the first spine page
+                        if (epubSpine.value.length > 0) {
+                            await loadEpubSpinePage(0);
+                        }
+                    } catch (e) {
+                        console.error("Failed to load EPUB spine:", e);
+                    }
                 }
                 loading.value = false;
             } else {
@@ -276,9 +405,11 @@ export const useReaderStore = defineStore("reader", () => {
         readerMode,
         currentPage,
 
-        // Novel state
-        chapterText,
-        textLoading,
+        // EPUB state
+        epubSpine,
+        epubCurrentSpineIndex,
+        epubHtmlContent,
+        epubSpineLoading,
 
         // Computed
         isNovel,
@@ -286,11 +417,15 @@ export const useReaderStore = defineStore("reader", () => {
         currentChapterIndex,
         prevChapter,
         nextChapter,
+        epubHasNext,
+        epubHasPrev,
 
         // Actions
         loadChapter,
-        loadChapterText,
         loadPage,
+        loadEpubSpinePage,
+        epubNextPage,
+        epubPrevPage,
         saveProgress,
         saveNovelProgress,
         setMode,

@@ -12,8 +12,8 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use std::borrow::Cow;
 use rust_i18n::t;
+use std::borrow::Cow;
 
 use crate::error::AppError;
 use crate::models::{JwtClaims, User};
@@ -77,15 +77,18 @@ pub async fn auth_middleware(
         .and_then(|value| value.to_str().ok())
     {
         if let Some(api_key) = ApiKeyRepository::get_by_key(&state.pool, api_key_header).await?
-            && let Some(user) = UserRepository::find_by_id(&state.pool, api_key.user_id).await? {
-                let auth_user = AuthUser::from(user);
-                req.extensions_mut().insert(auth_user);
-                return Ok(next.run(req).await);
-            }
+            && let Some(user) = UserRepository::find_by_id(&state.pool, api_key.user_id).await?
+        {
+            let auth_user = AuthUser::from(user);
+            req.extensions_mut().insert(auth_user);
+            return Ok(next.run(req).await);
+        }
         // If API key is invalid, we don't return error immediately, we fall back to JWT check
         // or maybe we should return error? Usually if explicit auth method is provided and fails, we fail.
         // But for now let's strict fail if header is present but invalid.
-        return Err(AppError::Unauthorized(t!("auth.invalid_api_key").to_string()));
+        return Err(AppError::Unauthorized(
+            t!("auth.invalid_api_key").to_string(),
+        ));
     }
 
     // 2. Prefer Authorization: Bearer <token>. If absent, optionally accept `?token=`
@@ -104,11 +107,8 @@ pub async fn auth_middleware(
         // Only allow query token for safe, cacheable-ish image reads.
         // We intentionally scope this to image endpoints to avoid broad token-in-URL usage.
         let method = req.method().clone();
-        let path = req.uri().path();
-        let is_image_resource = path.starts_with("/api/contents/")
-            && (path.contains("/pages/") || path.ends_with("/thumbnail"));
 
-        if !matches!(method, Method::GET | Method::HEAD) || !is_image_resource {
+        if !matches!(method, Method::GET | Method::HEAD) {
             tracing::warn!("{}", t!("auth.missing_auth_header_log"));
             return Err(AppError::Unauthorized(
                 t!("auth.missing_auth_header").to_string(),
@@ -117,9 +117,7 @@ pub async fn auth_middleware(
 
         let query = req.uri().query().unwrap_or("");
         let token = extract_query_param(query, "token").ok_or_else(|| {
-            tracing::warn!(
-                "{}", t!("auth.missing_auth_header_and_token_log")
-            );
+            tracing::warn!("{}", t!("auth.missing_auth_header_and_token_log"));
             AppError::Unauthorized(t!("auth.missing_auth_header").to_string())
         })?;
 
@@ -179,10 +177,10 @@ where
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         // Extract AuthUser from request extensions
-        parts.extensions.get::<AuthUser>().cloned().ok_or_else(|| {
-            AppError::Unauthorized(
-                t!("auth.missing_authentication").to_string(),
-            )
-        })
+        parts
+            .extensions
+            .get::<AuthUser>()
+            .cloned()
+            .ok_or_else(|| AppError::Unauthorized(t!("auth.missing_authentication").to_string()))
     }
 }

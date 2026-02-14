@@ -8,7 +8,6 @@
 //! - PUT /api/contents/{id}/metadata - Update content metadata
 //! - GET /api/contents/{id}/chapters - List chapters for a content
 //! - GET /api/contents/{id}/chapters/{chapter}/pages/{page} - Get a comic page
-//! - GET /api/contents/{id}/chapters/{chapter}/text - Get novel chapter text
 
 use axum::{
     Json,
@@ -17,7 +16,7 @@ use axum::{
     http::{Response, StatusCode, header},
     response::IntoResponse,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::error::Result;
 use crate::models::{Chapter, ContentResponse};
@@ -139,32 +138,108 @@ fn detect_image_type(data: &[u8]) -> &'static str {
     }
 }
 
-/// Path parameters for chapter text requests.
+/// Path parameters for chapter file requests.
 #[derive(Debug, Deserialize)]
-pub struct ChapterTextParams {
+pub struct ChapterFileParams {
     /// The content ID.
     pub content_id: i64,
-    /// The chapter index (0-based).
-    pub chapter_id: i32,
+    /// The chapter ID.
+    pub chapter_id: i64,
 }
 
-/// Response for chapter text.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChapterTextResponse {
-    /// The text content of the chapter.
-    pub text: String,
-}
-
-/// GET /api/contents/{id}/chapters/{chapter}/text
+/// GET /api/contents/{content_id}/chapters/{chapter_id}/file
 ///
-/// Returns the text content of a novel chapter.
-pub async fn get_chapter_text(
+/// Returns the raw file bytes of a chapter (e.g. EPUB).
+pub async fn get_chapter_file(
     State(state): State<AppState>,
-    Path(params): Path<ChapterTextParams>,
-) -> Result<Json<ChapterTextResponse>> {
-    let text =
-        ContentService::get_chapter_text(&state.pool, params.content_id, params.chapter_id).await?;
-    Ok(Json(ChapterTextResponse { text }))
+    Path(params): Path<ChapterFileParams>,
+) -> Result<impl IntoResponse> {
+    let (data, file_type) =
+        ContentService::get_chapter_file(&state.pool, params.content_id, params.chapter_id).await?;
+
+    let content_type = match file_type.as_str() {
+        "epub" => "application/epub+zip",
+        "pdf" => "application/pdf",
+        _ => "application/octet-stream",
+    };
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CACHE_CONTROL, "public, max-age=86400")
+        .body(Body::from(data))?)
+}
+
+/// Path parameters for EPUB resource requests.
+#[derive(Debug, Deserialize)]
+pub struct EpubResourceParams {
+    /// The content ID.
+    pub content_id: i64,
+    /// The chapter ID.
+    pub chapter_id: i64,
+    /// The resource path within the EPUB ZIP (wildcard capture).
+    pub resource_path: String,
+}
+
+/// GET /api/contents/{content_id}/chapters/{chapter_id}/epub/{*resource_path}
+///
+/// Returns an individual resource file from within an EPUB archive.
+/// Used by the frontend to fetch XHTML, images, CSS, fonts, etc. on demand.
+pub async fn get_epub_resource(
+    State(state): State<AppState>,
+    Path(params): Path<EpubResourceParams>,
+) -> Result<impl IntoResponse> {
+    let data = ContentService::get_epub_resource(
+        &state.pool,
+        params.content_id,
+        params.chapter_id,
+        &params.resource_path,
+    )
+    .await?;
+
+    let content_type = mime_from_path(&params.resource_path);
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CACHE_CONTROL, "public, max-age=86400")
+        .body(Body::from(data))?)
+}
+
+/// GET /api/contents/{content_id}/chapters/{chapter_id}/epub-spine
+///
+/// Returns the EPUB spine (reading order) with resolved file paths and MIME types.
+pub async fn get_epub_spine(
+    State(state): State<AppState>,
+    Path(params): Path<ChapterFileParams>,
+) -> Result<Json<Vec<crate::extractors::SpineEntry>>> {
+    let spine =
+        ContentService::get_epub_spine(&state.pool, params.content_id, params.chapter_id).await?;
+    Ok(Json(spine))
+}
+
+/// Determine MIME type from a file path's extension.
+fn mime_from_path(path: &str) -> &'static str {
+    let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "xhtml" | "xml" => "application/xhtml+xml",
+        "html" | "htm" => "text/html",
+        "css" => "text/css",
+        "js" => "application/javascript",
+        "json" => "application/json",
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "webp" => "image/webp",
+        "woff" => "font/woff",
+        "woff2" => "font/woff2",
+        "ttf" => "font/ttf",
+        "otf" => "font/otf",
+        "ncx" => "application/x-dtbncx+xml",
+        "opf" => "application/oebps-package+xml",
+        _ => "application/octet-stream",
+    }
 }
 
 /// Request body for content update.

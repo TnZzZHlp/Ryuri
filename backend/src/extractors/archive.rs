@@ -1,12 +1,14 @@
-//! Archive extractor for ZIP, CBZ, CBR, RAR formats.
+//! Archive extractor for ZIP, CBZ, CBR, RAR, and EPUB formats.
 //!
-//! This module provides functionality to extract images from compressed archive files.
+//! This module provides functionality to extract content from compressed archive files.
 //! Supported formats:
 //! - ZIP/CBZ: Standard ZIP archives (CBZ is just ZIP with a different extension)
 //! - CBR/RAR: RAR archives
+//! - EPUB: Electronic publication format (ZIP with specific structure)
 
 use crate::error::{AppError, Result};
 use rust_i18n::t;
+use serde::Serialize;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -16,13 +18,22 @@ use super::natural_sort_key;
 /// Supported image extensions for comics.
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "bmp"];
 
-/// Archive extractor supporting ZIP, CBZ, CBR, and RAR formats.
+/// A single item in the EPUB spine (reading order).
+#[derive(Debug, Clone, Serialize)]
+pub struct SpineEntry {
+    /// Path of the resource within the EPUB ZIP archive.
+    pub path: String,
+    /// MIME type of the resource.
+    pub mime_type: String,
+}
+
+/// Archive extractor supporting ZIP, CBZ, CBR, RAR, and EPUB formats.
 pub struct ArchiveExtractor;
 
 impl ArchiveExtractor {
     /// Returns the supported archive extensions.
     pub fn supported_extensions() -> &'static [&'static str] {
-        &["zip", "cbz", "cbr", "rar"]
+        &["zip", "cbz", "cbr", "rar", "epub"]
     }
 
     /// Checks if a file extension is supported.
@@ -33,7 +44,16 @@ impl ArchiveExtractor {
             .unwrap_or(false)
     }
 
+    /// Checks if a file is an EPUB.
+    pub fn is_epub(path: &Path) -> bool {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_lowercase() == "epub")
+            .unwrap_or(false)
+    }
+
     /// Lists all image files in the archive, sorted by filename.
+    /// For EPUB files, lists spine items (chapter idrefs) in reading order.
     pub fn list_files(archive_path: &Path) -> Result<Vec<String>> {
         let ext = archive_path
             .extension()
@@ -44,6 +64,7 @@ impl ArchiveExtractor {
         match ext.as_str() {
             "zip" | "cbz" => Self::list_zip_files(archive_path),
             "cbr" | "rar" => Self::list_rar_files(archive_path),
+            "epub" => Self::list_epub_files(archive_path),
             _ => Err(AppError::Archive(
                 t!("archive.unsupported_comic_format", extension = ext).to_string(),
             )),
@@ -51,6 +72,7 @@ impl ArchiveExtractor {
     }
 
     /// Extracts a specific file from the archive.
+    /// For EPUB, extracts text content (stripped of HTML) from a spine item.
     pub fn extract_file(archive_path: &Path, file_name: &str) -> Result<Vec<u8>> {
         let ext = archive_path
             .extension()
@@ -77,12 +99,66 @@ impl ArchiveExtractor {
     }
 
     /// Gets the page count (number of images) in the archive.
+    /// For EPUB, returns the number of spine items.
     pub fn page_count(archive_path: &Path) -> Result<usize> {
         let files = Self::list_files(archive_path)?;
         Ok(files.len())
     }
 
-    // ZIP/CBZ implementation
+    // ── EPUB-specific methods ─────────────────────────────────────────────
+
+    /// Returns the EPUB spine as a list of resolved file paths and MIME types.
+    ///
+    /// Maps spine idrefs through `doc.resources` to get actual ZIP paths.
+    pub fn get_epub_spine(archive_path: &Path) -> Result<Vec<SpineEntry>> {
+        let doc = epub::doc::EpubDoc::new(archive_path).map_err(|e| {
+            AppError::Archive(t!("archive.epub_open_failed", error = e).to_string())
+        })?;
+
+        let mut entries = Vec::new();
+        for item in &doc.spine {
+            if let Some(resource) = doc.resources.get(&item.idref) {
+                entries.push(SpineEntry {
+                    path: resource.path.to_string_lossy().to_string(),
+                    mime_type: resource.mime.clone(),
+                });
+            }
+        }
+
+        Ok(entries)
+    }
+
+    /// Extracts raw bytes of a resource from within the EPUB ZIP archive.
+    ///
+    /// This is used for serving individual EPUB resources (XHTML, images, CSS,
+    /// fonts, etc.) to the frontend for on-demand rendering.
+    pub fn extract_resource_bytes(archive_path: &Path, resource_path: &str) -> Result<Vec<u8>> {
+        let file = File::open(archive_path).map_err(|e| {
+            AppError::Archive(t!("archive.epub_open_failed", error = e).to_string())
+        })?;
+        let mut archive = zip::ZipArchive::new(file).map_err(|e| {
+            AppError::Archive(t!("archive.epub_open_failed", error = e).to_string())
+        })?;
+
+        let mut entry = archive.by_name(resource_path).map_err(|_| {
+            AppError::NotFound(
+                t!("archive.chapter_not_found_in_epub", file = resource_path).to_string(),
+            )
+        })?;
+
+        let mut buf = Vec::with_capacity(entry.size() as usize);
+        entry.read_to_end(&mut buf).map_err(|e| {
+            AppError::Archive(format!(
+                "Failed to read EPUB resource '{}': {}",
+                resource_path, e
+            ))
+        })?;
+
+        Ok(buf)
+    }
+
+    // ── ZIP/CBZ implementation ────────────────────────────────────────────
+
     fn list_zip_files(archive_path: &Path) -> Result<Vec<String>> {
         let file = File::open(archive_path)?;
         let mut archive = zip::ZipArchive::new(file)
@@ -121,7 +197,7 @@ impl ArchiveExtractor {
         Ok(buffer)
     }
 
-    // RAR/CBR implementation
+    // ── RAR/CBR implementation ────────────────────────────────────────────
 
     fn list_rar_files(archive_path: &Path) -> Result<Vec<String>> {
         let archive = unrar::Archive::new(archive_path)
@@ -206,6 +282,21 @@ impl ArchiveExtractor {
         ))
     }
 
+    // ── EPUB implementation ───────────────────────────────────────────────
+
+    fn list_epub_files(archive_path: &Path) -> Result<Vec<String>> {
+        let doc = epub::doc::EpubDoc::new(archive_path).map_err(|e| {
+            AppError::Archive(t!("archive.epub_open_failed", error = e).to_string())
+        })?;
+
+        // Get the spine (reading order) from the EPUB
+        // SpineItem has an idref field that we use as the identifier
+        let files: Vec<String> = doc.spine.iter().map(|item| item.idref.clone()).collect();
+        Ok(files)
+    }
+
+    // ── Helper methods ────────────────────────────────────────────────────
+
     /// Checks if a filename is an image file based on extension.
     fn is_image_file(name: &str) -> bool {
         let lower = name.to_lowercase();
@@ -233,5 +324,14 @@ mod tests {
         assert!(exts.contains(&"cbz"));
         assert!(exts.contains(&"cbr"));
         assert!(exts.contains(&"rar"));
+        assert!(exts.contains(&"epub"));
+    }
+
+    #[test]
+    fn test_is_epub() {
+        assert!(ArchiveExtractor::is_epub(Path::new("book.epub")));
+        assert!(ArchiveExtractor::is_epub(Path::new("/path/to/book.EPUB")));
+        assert!(!ArchiveExtractor::is_epub(Path::new("comic.cbz")));
+        assert!(!ArchiveExtractor::is_epub(Path::new("archive.zip")));
     }
 }
