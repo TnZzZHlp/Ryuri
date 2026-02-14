@@ -16,7 +16,8 @@ Ryuri is a self-hosted comic/manga reader with:
 ```bash
 pnpm install                    # Install dependencies
 pnpm dev                        # Dev server (proxies /api to localhost:3000)
-pnpm build                      # Build for production
+pnpm build                      # Build for production (runs vue-tsc -b && vite build)
+pnpm preview                    # Preview production build
 pnpm vue-tsc -b --noEmit        # Type check only
 ```
 
@@ -28,8 +29,11 @@ cargo build --release           # Build release binary
 cargo test                      # Run all tests
 cargo test <test_name>          # Single test (e.g., cargo test auth::tests::login)
 cargo test --test <props_file>  # Property tests (e.g., cargo test --test auth_props)
+cargo test -- --test-threads=1  # Run tests sequentially (for DB tests)
 cargo clippy                    # Lint
 cargo clippy -- -D warnings     # Lint (treat warnings as errors)
+cargo fmt                       # Format code
+cargo fmt -- --check            # Check formatting without changes
 ```
 
 ### Full Production Build
@@ -66,6 +70,7 @@ cd backend && cargo build --release
 ### Rust (Backend)
 
 - **Indentation**: 4 spaces (rustfmt default)
+- **Edition**: Rust 2024
 - **Documentation**:
     - Module-level: `//!` at top of file
     - Item-level: `///` with examples where helpful
@@ -83,14 +88,17 @@ cd backend && cargo build --release
     - Return `Result<T, AppError>` from handlers
     - Use `?` operator for propagation
     - Custom `AppError` enum in `error.rs`
+- **Database**: Use SQLx with SQLite; run queries in repository layer
 
 ### Testing
 
 #### Backend
 
-- Unit tests: `#[cfg(test)]` modules
+- Unit tests: `#[cfg(test)]` modules within source files
 - Integration tests: `tests/` directory
 - Property tests: `proptest!` macro
+- Run DB tests sequentially: `cargo test -- --test-threads=1`
+- Test utilities available via `test-utils` feature flag
 
 ## Project Structure
 
@@ -136,9 +144,10 @@ Backend requires:
 
 ### Frontend
 
-- Vue 3.5, Vue Router 4, Pinia 3
+- Vue 3.5, Vue Router 5, Pinia 3
 - Tailwind CSS 4, shadcn-vue, reka-ui
 - Zod 4, @vueuse/core, vue-i18n
+- Vitest for testing
 
 ### Backend
 
