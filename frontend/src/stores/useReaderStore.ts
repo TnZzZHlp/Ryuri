@@ -286,6 +286,21 @@ export const useReaderStore = defineStore("reader", () => {
         }
     };
 
+    const loadMorePages = () => {
+        const maxPage = Math.max(...pages.value);
+        const nextPage = maxPage + 1;
+
+        if (
+            currentChapter.value &&
+            nextPage < currentChapter.value.page_count &&
+            !pages.value.includes(nextPage) &&
+            !failedPages.value.has(nextPage)
+        ) {
+            pages.value.push(nextPage);
+            loadPage(nextPage);
+        }
+    };
+
     const loadChapter = async (contentId: number, chapterId: number) => {
         // Reset state if chapter changed
         if (
@@ -423,6 +438,7 @@ export const useReaderStore = defineStore("reader", () => {
         // Actions
         loadChapter,
         loadPage,
+        loadMorePages,
         loadEpubSpinePage,
         epubNextPage,
         epubPrevPage,
