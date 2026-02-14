@@ -5,7 +5,9 @@ import { useReaderStore } from '@/stores/useReaderStore'
 import { toast } from 'vue-sonner'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import { Dialog } from '@/components/ui/dialog'
 import ReaderControls from './ReaderControls.vue'
+import ReaderSettingsDialog from './ReaderSettingsDialog.vue'
 import ComicReader from './ComicReader.vue'
 import EpubReader from './EpubReader.vue'
 import type { Chapter } from '@/api/types'
@@ -22,6 +24,7 @@ const {
     endOfChapter,
     pages,
     readerMode,
+    preloadBuffer,
     currentPage,
     currentChapter,
     currentChapterIndex,
@@ -45,6 +48,7 @@ const props = defineProps<Props>()
 
 // State
 const showControls = ref(true)
+const showSettingsDialog = ref(false)
 const readingProgress = ref(0)
 
 // Refs
@@ -83,6 +87,14 @@ const navigateToChapter = (chapter: Chapter) => {
 
 const navigateBack = () => {
     router.push(`/library/${props.libraryId}/content/${props.contentId}`)
+}
+
+const openSettings = () => {
+    showSettingsDialog.value = true
+}
+
+const closeSettings = () => {
+    showSettingsDialog.value = false
 }
 
 const toggleControls = () => {
@@ -177,7 +189,6 @@ const handleKeydown = (e: KeyboardEvent) => {
 }
 
 const preventSelection = (e: Event) => {
-    if (isNovel.value) return
     e.preventDefault()
 }
 
@@ -213,7 +224,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div ref="containerRef" class="fixed inset-0 bg-black text-white overflow-auto" @scroll="updateProgress">
+    <div ref="containerRef" class="fixed inset-0 bg-black text-white overflow-auto select-none" @scroll="updateProgress">
         <!-- EPUB Reader -->
         <EpubReader
             v-if="isNovel"
@@ -241,7 +252,7 @@ onUnmounted(() => {
             :reader-mode="readerMode"
             :pages="pages"
             :loading="loading"
-            :preload-buffer="readerStore.PRELOAD_BUFFER"
+            :preload-buffer="preloadBuffer"
             :end-of-chapter="endOfChapter"
             :prev-chapter="prevChapter"
             :next-chapter="nextChapter"
@@ -271,6 +282,20 @@ onUnmounted(() => {
             @navigate-back="navigateBack"
             @navigate-to-chapter="navigateToChapter"
             @set-mode="readerStore.setMode"
+            @open-settings="openSettings"
         />
+
+        <!-- Settings Dialog -->
+        <Dialog :open="showSettingsDialog" @update:open="showSettingsDialog = $event">
+            <ReaderSettingsDialog
+                :reader-mode="readerMode"
+                :preload-buffer="preloadBuffer"
+                :min-preload-buffer="readerStore.MIN_PRELOAD_BUFFER"
+                :max-preload-buffer="readerStore.MAX_PRELOAD_BUFFER"
+                @close="closeSettings"
+                @update:reader-mode="readerStore.setMode"
+                @update:preload-buffer="readerStore.setPreloadBuffer"
+            />
+        </Dialog>
     </div>
 </template>

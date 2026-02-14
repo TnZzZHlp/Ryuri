@@ -1,21 +1,12 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button'
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
     ArrowLeft,
     ChevronLeft,
     ChevronRight,
     Settings,
-    AlignJustify,
-    Columns,
 } from 'lucide-vue-next'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ReaderProgress from './ReaderProgress.vue'
 import type { Chapter } from '@/api/types'
@@ -43,7 +34,20 @@ const emit = defineEmits<{
     navigateBack: []
     navigateToChapter: [chapter: Chapter]
     setMode: [mode: 'scroll' | 'paged']
+    openSettings: []
 }>()
+
+const pageProgressText = computed(() => {
+    if (props.isNovel) {
+        const total = props.epubSpineLength
+        const current = total > 0 ? props.epubCurrentSpineIndex + 1 : 0
+        return `${current} / ${total || '?'}`
+    }
+
+    const total = props.currentChapter?.page_count || 0
+    const current = total > 0 ? props.currentPage + 1 : 0
+    return `${current} / ${total || '?'}`
+})
 </script>
 
 <template>
@@ -61,28 +65,15 @@ const emit = defineEmits<{
             </h1>
         </div>
 
-        <!-- Settings Menu (hidden for novels) -->
-        <DropdownMenu v-if="!isNovel">
-            <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="icon">
-                    <Settings class="h-5 w-5 text-white" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{{ t('reader.reading_mode') }}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem @click="emit('setMode', 'scroll')">
-                    <AlignJustify class="mr-2 h-4 w-4" />
-                    <span>{{ t('reader.mode_scroll') }}</span>
-                    <span v-if="readerMode === 'scroll'" class="ml-auto text-xs">✓</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem @click="emit('setMode', 'paged')">
-                    <Columns class="mr-2 h-4 w-4" />
-                    <span>{{ t('reader.mode_paged') }}</span>
-                    <span v-if="readerMode === 'paged'" class="ml-auto text-xs">✓</span>
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+        <!-- Settings Button -->
+        <Button
+            variant="ghost"
+            size="icon"
+            @click="emit('openSettings')"
+            class="text-white hover:bg-white/10"
+        >
+            <Settings class="h-5 w-5" />
+        </Button>
     </div>
 
     <!-- Bottom Bar (Navigation) -->
@@ -104,15 +95,7 @@ const emit = defineEmits<{
 
         <div class="flex flex-col items-center">
             <span class="text-xs text-gray-400">
-                <template v-if="isNovel">
-                    {{ `${epubCurrentSpineIndex + 1} / ${epubSpineLength}` }}
-                </template>
-                <template v-else>
-                    {{ readerMode === 'paged' 
-                        ? (currentPage + 1) + ' / ' + (props.currentChapter?.page_count || '?')
-                        : `${currentChapterIndex + 1} / ${chapters.length}` 
-                    }}
-                </template>
+                {{ pageProgressText }}
             </span>
         </div>
 

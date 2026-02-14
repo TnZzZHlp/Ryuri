@@ -144,10 +144,14 @@
         "reading_mode": "阅读模式",
         "mode_scroll": "滚动 (Webtoon)",
         "mode_paged": "翻页",
+        "preload_pages": "预加载页数",
+        "preload_pages_help": "向前预加载的页数，范围：{min}-{max}。",
         "prev": "上一章",
         "next": "下一章",
         "text_loading": "正在加载文本...",
-        "text_load_fail": "加载章节文本失败"
+        "text_load_fail": "加载章节文本失败",
+        "settings_title": "阅读器设置",
+        "close_btn": "关闭"
     },
     "scan_queue": {
         "title": "扫描队列",

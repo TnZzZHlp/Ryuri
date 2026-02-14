@@ -28,7 +28,6 @@ cargo build --release           # Build release binary
 cargo test                      # Run all tests
 cargo test <test_name>          # Single test (e.g., cargo test auth::tests::login)
 cargo test --test <props_file>  # Property tests (e.g., cargo test --test auth_props)
-cargo fmt                       # Format code
 cargo clippy                    # Lint
 cargo clippy -- -D warnings     # Lint (treat warnings as errors)
 ```
@@ -37,7 +36,7 @@ cargo clippy -- -D warnings     # Lint (treat warnings as errors)
 
 ```bash
 cd frontend && pnpm install && pnpm build
-cd ../backend && cargo build --release
+cd backend && cargo build --release
 # Binary: backend/target/release/backend
 ```
 
@@ -46,8 +45,8 @@ cd ../backend && cargo build --release
 ### TypeScript/Vue (Frontend)
 
 - **Indentation**: 4 spaces
-- **Quotes**: Single quotes
-- **Semicolons**: No semicolons
+- **Quotes**: Single quotes (preferred), though some files use double quotes
+- **Semicolons**: No semicolons (though occasionally appear after imports)
 - **Vue Components**:
     - Use `<script setup lang="ts">` (Composition API)
     - Props interface named `Props`
@@ -86,11 +85,6 @@ cd ../backend && cargo build --release
     - Custom `AppError` enum in `error.rs`
 
 ### Testing
-
-#### Frontend (Vitest)
-
-- Configured in `vitest.config.ts` (Node environment, globals enabled)
-- Tests alongside source or in `__tests__`
 
 #### Backend
 

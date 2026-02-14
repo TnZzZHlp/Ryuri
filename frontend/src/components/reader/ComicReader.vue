@@ -138,6 +138,13 @@ const setPageRef = (el: unknown, page: number) => {
     }
 }
 
+const preloadFromPage = (page: number) => {
+    emit('loadPage', page)
+    for (let i = 1; i <= props.preloadBuffer; i++) {
+        emit('loadPage', page + i)
+    }
+}
+
 const nextPage = () => {
     if (props.endOfChapter) {
         if (props.nextChapter) emit('navigateToChapter', props.nextChapter)
@@ -156,10 +163,7 @@ const nextPage = () => {
     }
 
     emit('setCurrentPage', next)
-    emit('loadPage', next)
-    for (let i = 1; i <= props.preloadBuffer; i++) {
-        emit('loadPage', next + i)
-    }
+    preloadFromPage(next)
     containerRef.value?.scrollTo(0, 0)
     emit('saveProgress', next)
 }
@@ -168,7 +172,7 @@ const prevPage = () => {
     if (props.currentPage > 0) {
         const prev = props.currentPage - 1
         emit('setCurrentPage', prev)
-        emit('loadPage', prev)
+        preloadFromPage(prev)
         containerRef.value?.scrollTo(0, 0)
         emit('saveProgress', prev)
     } else if (props.prevChapter) {
