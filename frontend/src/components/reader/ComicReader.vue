@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import type { Chapter } from '@/api/types'
@@ -233,7 +234,7 @@ defineExpose({
     <div v-if="readerMode === 'scroll'" ref="containerRef" class="mx-auto max-w-4xl min-h-screen"
         @click="$emit('pageClick', $event)" @scroll="$emit('scroll')">
         <div v-if="loading" class="flex items-center justify-center h-screen">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            <Spinner class="size-12 text-white" />
         </div>
 
         <div v-else class="flex flex-col items-center pb-24">
@@ -243,7 +244,7 @@ defineExpose({
                     @load="$emit('scroll')" alt="Comic page" />
                 <div v-else :data-page-index="page" :ref="(el) => setPageRef(el, page)"
                     class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+                    <Spinner class="size-8 text-gray-600" />
                 </div>
             </template>
 
@@ -268,7 +269,7 @@ defineExpose({
     <div v-else ref="containerRef" class="h-screen w-full flex items-center justify-center overflow-hidden"
         @click="$emit('pageClick', $event)">
         <div v-if="loading" class="flex items-center justify-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            <Spinner class="size-12 text-white" />
         </div>
 
         <div v-else-if="showPagedEndOfChapter" class="flex flex-col items-center gap-6 p-8">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { rewriteCssUrlsWithBase } from '@/lib/utils'
 import { ChevronRight } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
@@ -335,7 +336,7 @@ defineExpose({
         @click="$emit('click', $event)"
     >
         <div v-if="loading || epubSpineLoading" class="flex items-center justify-center h-screen">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            <Spinner class="size-12 text-white" />
         </div>
 
         <div v-else class="epub-content-container mx-auto max-w-3xl px-6 py-12">

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Folder, ChevronUp, HardDrive, Loader2 } from 'lucide-vue-next'
+import { Folder, ChevronUp, HardDrive } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import {
     Dialog,
     DialogContent,
@@ -160,7 +161,7 @@ function formatPathDisplay(path: string) {
             <div class="flex-1 border rounded-md h-[300px] overflow-y-auto">
                 <div class="p-2 space-y-1">
                     <div v-if="loading" class="flex items-center justify-center py-8">
-                        <Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />
+                        <Spinner class="size-6 text-muted-foreground" />
                     </div>
 
                     <template v-else>
