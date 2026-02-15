@@ -221,6 +221,55 @@ const renderEpubContent = async () => {
     shadowRoot.replaceChildren(fragment)
 }
 
+const findFragmentTarget = (fragment: string): Element | null => {
+    const shadowRoot = shadowRootRef.value
+    if (!shadowRoot) return null
+
+    const normalizedFragment = fragment.replace(/^#/, '').trim()
+    if (!normalizedFragment) return null
+
+    const escapedFragment =
+        typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+            ? CSS.escape(normalizedFragment)
+            : normalizedFragment.replace(/["\\]/g, '\\$&')
+
+    const byId = shadowRoot.querySelector(`#${escapedFragment}`)
+    if (byId) return byId
+
+    const byName = shadowRoot.querySelector(`[name="${escapedFragment}"]`)
+    if (byName) return byName
+
+    const decoded = decodeURIComponent(normalizedFragment)
+    if (decoded !== normalizedFragment) {
+        const decodedEscaped =
+            typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+                ? CSS.escape(decoded)
+                : decoded.replace(/["\\]/g, '\\$&')
+        return shadowRoot.querySelector(`#${decodedEscaped}`) || shadowRoot.querySelector(`[name="${decodedEscaped}"]`)
+    }
+
+    return null
+}
+
+const scrollToFragment = async (fragment: string): Promise<boolean> => {
+    const normalizedFragment = fragment.replace(/^#/, '').trim()
+    if (!normalizedFragment) {
+        containerRef.value?.scrollTo(0, 0)
+        return true
+    }
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+        const target = findFragmentTarget(normalizedFragment)
+        if (target) {
+            target.scrollIntoView({ block: 'start', behavior: 'auto' })
+            return true
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    return false
+}
+
 // Progress calculation for epub
 const epubProgress = computed(() => {
     if (props.epubSpine.length === 0) return 0
@@ -275,6 +324,7 @@ defineExpose({
     containerRef,
     epubProgress,
     updateProgress,
+    scrollToFragment,
 })
 </script>
 

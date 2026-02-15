@@ -151,7 +151,10 @@
         "text_loading": "正在加载文本...",
         "text_load_fail": "加载章节文本失败",
         "settings_title": "阅读器设置",
-        "close_btn": "关闭"
+        "close_btn": "关闭",
+        "toc_title": "目录",
+        "toc_loading": "正在加载目录...",
+        "toc_empty": "暂无目录"
     },
     "scan_queue": {
         "title": "扫描队列",

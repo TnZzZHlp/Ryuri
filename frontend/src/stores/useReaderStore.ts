@@ -6,8 +6,15 @@ import { createReaderApi } from "@/api/reader";
 import { createProgressApi } from "@/api/progress";
 import { createContentApi } from "@/api/content";
 import { ApiClient } from "@/api/client";
-import { isSkippableResourceUrl, resolveRelativeUrlWithBaseQuery } from "@/lib/utils";
-import type { Chapter, EpubSpineItem } from "@/api/types";
+import {
+    isLooseEpubPathMatch,
+    isSkippableResourceUrl,
+    normalizeEpubPath,
+    resolveRelativeUrlWithBaseQuery,
+    splitEpubSrc,
+} from "@/lib/utils";
+import { parseEpubToc } from "@/lib/epubTocParser";
+import type { Chapter, EpubSpineItem, EpubTocItem } from "@/api/types";
 import { useDebounceFn } from "@vueuse/core";
 
 export type ReaderMode = "scroll" | "paged";
@@ -61,20 +68,24 @@ export const useReaderStore = defineStore("reader", () => {
 
     // EPUB-specific state
     const epubSpine = ref<EpubSpineItem[]>([]);
+    const epubToc = ref<EpubTocItem[]>([]);
     const epubCurrentSpineIndex = ref(0);
     const epubHtmlContent = ref("");
     const epubStylesheets = ref<string[]>([]);
     const epubInlineStyles = ref<string[]>([]);
     const epubSpineLoading = ref(false);
+    const epubTocLoading = ref(false);
     const epubSpineContentCache = ref<Map<number, EpubSpineContent>>(new Map());
+    const epubTocCache = ref<Map<number, EpubTocItem[]>>(new Map());
     const epubSpinePrefetching = ref<Set<number>>(new Set());
-    const epubSpineInFlightFetches = ref<Map<number, Promise<EpubSpineContent>>>(
-        new Map(),
-    );
+    const epubSpineInFlightFetches = ref<
+        Map<number, Promise<EpubSpineContent>>
+    >(new Map());
     const epubResourcePrefetched = new Set<string>();
     const epubResourcePrefetching = new Map<string, Promise<void>>();
     const epubStylesheetAnalysisPrefetching = new Map<string, Promise<void>>();
     let epubLoadRequestId = 0;
+    let epubTocRequestId = 0;
     let epubChapterGeneration = 0;
 
     // Computed
@@ -166,7 +177,10 @@ export const useReaderStore = defineStore("reader", () => {
 
         const maxPage = currentChapter.value.page_count - 1;
         const startPage = Math.max(0, currentPage.value - 1);
-        const endPage = Math.min(maxPage, currentPage.value + preloadBuffer.value);
+        const endPage = Math.min(
+            maxPage,
+            currentPage.value + preloadBuffer.value,
+        );
         const nextPages: number[] = [];
 
         for (let i = startPage; i <= endPage; i++) {
@@ -352,7 +366,9 @@ export const useReaderStore = defineStore("reader", () => {
             urls.add(normalized);
         };
 
-        doc.querySelectorAll("img[src], source[src], audio[src], video[src], track[src]").forEach((el) => {
+        doc.querySelectorAll(
+            "img[src], source[src], audio[src], video[src], track[src]",
+        ).forEach((el) => {
             addUrl(el.getAttribute("src"));
         });
 
@@ -397,7 +413,8 @@ export const useReaderStore = defineStore("reader", () => {
 
         stylesheetUrls.forEach((stylesheetUrl) => {
             prefetchEpubResource(stylesheetUrl, generation);
-            const existing = epubStylesheetAnalysisPrefetching.get(stylesheetUrl);
+            const existing =
+                epubStylesheetAnalysisPrefetching.get(stylesheetUrl);
             if (existing) return;
 
             const prefetchPromise = fetch(stylesheetUrl)
@@ -407,16 +424,12 @@ export const useReaderStore = defineStore("reader", () => {
 
                     const cssText = await response.text();
                     const cssUrlPattern = /url\(\s*(["']?)(.*?)\1\s*\)/gi;
-                    let match: RegExpExecArray | null = cssUrlPattern.exec(
-                        cssText,
-                    );
+                    let match: RegExpExecArray | null =
+                        cssUrlPattern.exec(cssText);
 
                     while (match) {
                         const candidate = match[2]?.trim();
-                        if (
-                            candidate &&
-                            !isSkippableResourceUrl(candidate)
-                        ) {
+                        if (candidate && !isSkippableResourceUrl(candidate)) {
                             const resolved = resolveRelativeUrlWithBaseQuery(
                                 candidate,
                                 stylesheetUrl,
@@ -550,7 +563,10 @@ export const useReaderStore = defineStore("reader", () => {
         for (let i = 1; i <= preloadBuffer.value; i++) {
             const targets = [fromIndex + i, fromIndex - i];
             for (const preloadIndex of targets) {
-                if (preloadIndex < 0 || preloadIndex >= epubSpine.value.length) {
+                if (
+                    preloadIndex < 0 ||
+                    preloadIndex >= epubSpine.value.length
+                ) {
                     continue;
                 }
                 if (epubSpineContentCache.value.has(preloadIndex)) continue;
@@ -608,6 +624,87 @@ export const useReaderStore = defineStore("reader", () => {
         }
     };
 
+    const loadEpubToc = async (contentId: number, chapterId: number) => {
+        const cachedToc = epubTocCache.value.get(chapterId);
+        if (cachedToc) {
+            epubToc.value = cachedToc;
+            epubTocLoading.value = false;
+            return;
+        }
+
+        const requestId = ++epubTocRequestId;
+        epubTocLoading.value = true;
+        try {
+            const fetchResource = async (path: string): Promise<string> => {
+                const url = readerApi.getEpubResourceUrl(
+                    contentId,
+                    chapterId,
+                    path,
+                );
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(
+                        `Failed to fetch EPUB resource: ${response.status}`,
+                    );
+                }
+                return response.text();
+            };
+            const toc = await parseEpubToc(fetchResource);
+            if (requestId !== epubTocRequestId) return;
+            epubToc.value = toc;
+            epubTocCache.value.set(chapterId, toc);
+        } catch (e) {
+            if (requestId === epubTocRequestId) {
+                epubToc.value = [];
+            }
+            console.warn("Failed to load EPUB TOC:", e);
+        } finally {
+            if (requestId === epubTocRequestId) {
+                epubTocLoading.value = false;
+            }
+        }
+    };
+
+    const findEpubSpineIndexByPath = (targetPath: string): number => {
+        const normalizedTarget =
+            normalizeEpubPath(targetPath).split("?")[0] ?? "";
+        if (!normalizedTarget) return -1;
+
+        const exactIndex = epubSpine.value.findIndex((item) => {
+            const spinePath = normalizeEpubPath(item.path).split("?")[0] ?? "";
+            return spinePath === normalizedTarget;
+        });
+        if (exactIndex >= 0) return exactIndex;
+
+        const looseIndex = epubSpine.value.findIndex((item) => {
+            const spinePath = normalizeEpubPath(item.path).split("?")[0] ?? "";
+            return isLooseEpubPathMatch(spinePath, normalizedTarget);
+        });
+        return looseIndex;
+    };
+
+    const jumpToEpubTocEntry = async (
+        entry: EpubTocItem,
+    ): Promise<string | undefined> => {
+        const splitSrc = splitEpubSrc(entry.src || "");
+        const entryPath = normalizeEpubPath(splitSrc.path).split("?")[0] ?? "";
+        const fragment =
+            splitSrc.fragment?.replace(/^#/, "").trim() || undefined;
+
+        if (!entryPath) {
+            return fragment;
+        }
+
+        const targetIndex = findEpubSpineIndexByPath(entryPath);
+        if (targetIndex < 0) {
+            console.warn(`EPUB TOC target not found in spine: ${entryPath}`);
+            return fragment;
+        }
+
+        await loadEpubSpinePage(targetIndex);
+        return fragment;
+    };
+
     const epubNextPage = () => {
         if (epubHasNext.value) {
             loadEpubSpinePage(epubCurrentSpineIndex.value + 1);
@@ -649,10 +746,12 @@ export const useReaderStore = defineStore("reader", () => {
             endOfChapter.value = false;
             pages.value = [];
             epubSpine.value = [];
+            epubToc.value = [];
             epubHtmlContent.value = "";
             epubStylesheets.value = [];
             epubInlineStyles.value = [];
             epubCurrentSpineIndex.value = 0;
+            epubTocLoading.value = false;
             epubSpineContentCache.value.clear();
             epubSpinePrefetching.value.clear();
             epubSpineInFlightFetches.value.clear();
@@ -703,6 +802,7 @@ export const useReaderStore = defineStore("reader", () => {
                             contentId,
                             currentChapter.value.id,
                         );
+                        void loadEpubToc(contentId, currentChapter.value.id);
                         // Resume from saved spine position
                         if (epubSpine.value.length > 0) {
                             let startSpineIndex = Math.min(
@@ -787,11 +887,13 @@ export const useReaderStore = defineStore("reader", () => {
 
         // EPUB state
         epubSpine,
+        epubToc,
         epubCurrentSpineIndex,
         epubHtmlContent,
         epubStylesheets,
         epubInlineStyles,
         epubSpineLoading,
+        epubTocLoading,
 
         // Computed
         isNovel,
@@ -807,6 +909,8 @@ export const useReaderStore = defineStore("reader", () => {
         loadPage,
         loadMorePages,
         loadEpubSpinePage,
+        loadEpubToc,
+        jumpToEpubTocEntry,
         epubNextPage,
         epubPrevPage,
         saveProgress,

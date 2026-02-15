@@ -78,3 +78,45 @@ export function rewriteCssUrlsWithBase(
 
   return rewritten
 }
+
+export function splitEpubSrc(src: string): { path: string; fragment?: string } {
+  const [pathPart, fragmentPart] = src.split("#", 2)
+  const path = normalizeEpubPath(pathPart ?? "")
+  const fragment = fragmentPart?.trim() ? fragmentPart.trim() : undefined
+  return { path, fragment }
+}
+
+export function normalizeEpubPath(path: string): string {
+  const raw = (path ?? "").trim().replace(/\\/g, "/")
+  if (!raw) return ""
+  if (raw.includes("://")) return raw
+
+  const queryIndex = raw.indexOf("?")
+  const pathPart = queryIndex >= 0 ? raw.slice(0, queryIndex) : raw
+  const queryPart = queryIndex >= 0 ? raw.slice(queryIndex + 1) : undefined
+  const segments: string[] = []
+  for (const segment of pathPart.split("/")) {
+    if (!segment || segment === ".") continue
+    if (segment === "..") {
+      segments.pop()
+      continue
+    }
+    segments.push(segment)
+  }
+
+  const normalized = segments.join("/")
+  if (!queryPart) return normalized
+  return `${normalized}?${queryPart}`
+}
+
+export function isLooseEpubPathMatch(left: string, right: string): boolean {
+  const leftNormalized = normalizeEpubPath(left)
+  const rightNormalized = normalizeEpubPath(right)
+  if (!leftNormalized || !rightNormalized) return false
+  if (leftNormalized === rightNormalized) return true
+
+  return (
+    leftNormalized.endsWith(`/${rightNormalized}`) ||
+    rightNormalized.endsWith(`/${leftNormalized}`)
+  )
+}

@@ -151,7 +151,10 @@
         "text_loading": "Loading text...",
         "text_load_fail": "Failed to load chapter text",
         "settings_title": "Reader Settings",
-        "close_btn": "Close"
+        "close_btn": "Close",
+        "toc_title": "Table of Contents",
+        "toc_loading": "Loading table of contents...",
+        "toc_empty": "No table of contents available"
     },
     "scan_queue": {
         "title": "Scan Queue",

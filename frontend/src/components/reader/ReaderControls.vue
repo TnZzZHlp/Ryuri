@@ -4,6 +4,7 @@ import {
     ArrowLeft,
     ChevronLeft,
     ChevronRight,
+    ListTree,
     Settings,
 } from 'lucide-vue-next'
 import { computed } from 'vue'
@@ -35,6 +36,7 @@ const emit = defineEmits<{
     navigateToChapter: [chapter: Chapter]
     setMode: [mode: 'scroll' | 'paged']
     openSettings: []
+    toggleToc: []
 }>()
 
 const pageProgressText = computed(() => {
@@ -64,6 +66,16 @@ const pageProgressText = computed(() => {
                 {{ currentChapter?.title || t('reader.chapter_title_fallback', { index: currentChapterIndex + 1 }) }}
             </h1>
         </div>
+
+        <Button
+            v-if="isNovel"
+            variant="ghost"
+            size="icon"
+            @click="emit('toggleToc')"
+            class="text-white hover:bg-white/10"
+        >
+            <ListTree class="h-5 w-5" />
+        </Button>
 
         <!-- Settings Button -->
         <Button

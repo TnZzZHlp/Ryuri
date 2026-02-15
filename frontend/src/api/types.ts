@@ -212,6 +212,16 @@ export interface EpubSpineItem {
 }
 
 /**
+ * A single item in the EPUB table of contents.
+ */
+export interface EpubTocItem {
+    title: string;
+    src: string;
+    playOrder?: number;
+    children: EpubTocItem[];
+}
+
+/**
  * Request to update content information.
  */
 export interface UpdateContentRequest {

@@ -10,7 +10,9 @@ import ReaderControls from './ReaderControls.vue'
 import ReaderSettingsDialog from './ReaderSettingsDialog.vue'
 import ComicReader from './ComicReader.vue'
 import EpubReader from './EpubReader.vue'
+import EpubTocPanel from './EpubTocPanel.vue'
 import type { Chapter } from '@/api/types'
+import type { EpubTocItem } from '@/api/types'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -35,6 +37,8 @@ const {
     epubStylesheets,
     epubInlineStyles,
     epubSpineLoading,
+    epubToc,
+    epubTocLoading,
     epubCurrentSpineIndex,
     epubSpine,
 } = storeToRefs(readerStore)
@@ -51,6 +55,7 @@ const props = defineProps<Props>()
 // State
 const showControls = ref(true)
 const showSettingsDialog = ref(false)
+const showTocPanel = ref(false)
 const readingProgress = ref(0)
 
 // Refs
@@ -61,6 +66,11 @@ const epubReaderRef = ref<InstanceType<typeof EpubReader> | null>(null)
 const epubProgress = computed(() => {
     if (epubSpine.value.length === 0) return 0
     return ((epubCurrentSpineIndex.value + 1) / epubSpine.value.length) * 100
+})
+
+const currentEpubSpinePath = computed(() => {
+    const current = epubSpine.value[epubCurrentSpineIndex.value]
+    return current?.path || ''
 })
 
 // Methods
@@ -97,6 +107,14 @@ const openSettings = () => {
 
 const closeSettings = () => {
     showSettingsDialog.value = false
+}
+
+const toggleTocPanel = () => {
+    showTocPanel.value = !showTocPanel.value
+}
+
+const closeTocPanel = () => {
+    showTocPanel.value = false
 }
 
 const toggleControls = () => {
@@ -154,6 +172,19 @@ const handleEpubClick = (e: MouseEvent) => {
     }
 }
 
+const handleEpubTocSelect = async (entry: EpubTocItem) => {
+    const fragment = await readerStore.jumpToEpubTocEntry(entry)
+    closeTocPanel()
+
+    if (!fragment) {
+        epubReaderRef.value?.containerRef?.scrollTo(0, 0)
+        return
+    }
+
+    await nextTick()
+    await epubReaderRef.value?.scrollToFragment(fragment)
+}
+
 // Keyboard handling
 const handleKeydown = (e: KeyboardEvent) => {
     if (isNovel.value) {
@@ -203,6 +234,7 @@ watch(
     () => props.chapterId,
     () => {
         readingProgress.value = 0
+        closeTocPanel()
         loadData()
     },
 )
@@ -292,6 +324,17 @@ onUnmounted(() => {
             @navigate-to-chapter="navigateToChapter"
             @set-mode="readerStore.setMode"
             @open-settings="openSettings"
+            @toggle-toc="toggleTocPanel"
+        />
+
+        <EpubTocPanel
+            v-if="isNovel"
+            :show="showTocPanel"
+            :items="epubToc"
+            :loading="epubTocLoading"
+            :current-spine-path="currentEpubSpinePath"
+            @close="closeTocPanel"
+            @select="handleEpubTocSelect"
         />
 
         <!-- Settings Dialog -->
