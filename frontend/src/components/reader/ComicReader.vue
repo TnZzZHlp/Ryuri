@@ -30,6 +30,7 @@ const emit = defineEmits<{
     loadPage: [page: number]
     loadMorePages: []
     navigateToChapter: [chapter: Chapter]
+    navigateBack: []
     saveProgress: [page: number]
 }>()
 
@@ -58,6 +59,11 @@ const renderedPages = computed(() => {
     }
 
     return pagesList
+})
+
+const showPagedEndOfChapter = computed(() => {
+    if (!props.chapter) return false
+    return props.currentPage >= props.chapter.page_count
 })
 
 // Methods
@@ -146,17 +152,20 @@ const preloadFromPage = (page: number) => {
 }
 
 const nextPage = () => {
-    if (props.endOfChapter) {
+    if (!props.chapter || props.chapter.page_count <= 0) return
+
+    if (props.currentPage >= props.chapter.page_count) {
         if (props.nextChapter) emit('navigateToChapter', props.nextChapter)
         return
     }
 
-    const next = props.currentPage + 1
-
-    if (props.chapter && next >= props.chapter.page_count) {
-        emit('setCurrentPage', props.currentPage)
+    const lastPageIndex = props.chapter.page_count - 1
+    if (props.currentPage >= lastPageIndex) {
+        emit('setCurrentPage', props.chapter.page_count)
         return
     }
+
+    const next = props.currentPage + 1
 
     if (props.failedPages.has(next)) {
         return
@@ -221,34 +230,19 @@ defineExpose({
 
 <template>
     <!-- Scroll Mode -->
-    <div
-        v-if="readerMode === 'scroll'"
-        ref="containerRef"
-        class="mx-auto max-w-4xl min-h-screen"
-        @click="$emit('pageClick', $event)"
-        @scroll="$emit('scroll')"
-    >
+    <div v-if="readerMode === 'scroll'" ref="containerRef" class="mx-auto max-w-4xl min-h-screen"
+        @click="$emit('pageClick', $event)" @scroll="$emit('scroll')">
         <div v-if="loading" class="flex items-center justify-center h-screen">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
         </div>
 
         <div v-else class="flex flex-col items-center pb-24">
             <template v-for="page in pages" :key="page">
-                <img
-                    v-if="pageUrls.has(page)"
-                    :src="pageUrls.get(page)"
-                    :data-page-index="page"
-                    :ref="(el) => setPageRef(el, page)"
-                    class="w-full h-auto object-contain max-h-screen mb-1"
-                    @load="$emit('scroll')"
-                    alt="Comic page"
-                />
-                <div
-                    v-else
-                    :data-page-index="page"
-                    :ref="(el) => setPageRef(el, page)"
-                    class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1"
-                >
+                <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)" :data-page-index="page"
+                    :ref="(el) => setPageRef(el, page)" class="w-full h-auto object-contain max-h-screen mb-1"
+                    @load="$emit('scroll')" alt="Comic page" />
+                <div v-else :data-page-index="page" :ref="(el) => setPageRef(el, page)"
+                    class="w-full aspect-2/3 flex items-center justify-center bg-gray-900 mb-1">
                     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
                 </div>
             </template>
@@ -257,7 +251,8 @@ defineExpose({
             <div v-if="endOfChapter" class="py-12 flex flex-col items-center gap-4 w-full">
                 <p class="text-gray-400">{{ t('reader.end_of_chapter') }}</p>
                 <div class="flex gap-4">
-                    <Button v-if="prevChapter" variant="secondary" @click.stop="$emit('navigateToChapter', prevChapter)">
+                    <Button v-if="prevChapter" variant="secondary"
+                        @click.stop="$emit('navigateToChapter', prevChapter)">
                         <ChevronLeft class="mr-2 h-4 w-4" /> {{ t('reader.prev_chapter') }}
                     </Button>
                     <Button v-if="nextChapter" variant="default" @click.stop="$emit('navigateToChapter', nextChapter)">
@@ -270,47 +265,30 @@ defineExpose({
     </div>
 
     <!-- Paged Mode -->
-    <div
-        v-else
-        ref="containerRef"
-        class="h-screen w-full flex items-center justify-center overflow-hidden"
-        @click="$emit('pageClick', $event)"
-    >
+    <div v-else ref="containerRef" class="h-screen w-full flex items-center justify-center overflow-hidden"
+        @click="$emit('pageClick', $event)">
         <div v-if="loading" class="flex items-center justify-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
         </div>
 
-        <div v-else-if="endOfChapter" class="flex flex-col items-center gap-6 p-8">
+        <div v-else-if="showPagedEndOfChapter" class="flex flex-col items-center gap-6 p-8">
             <p class="text-xl text-gray-400">{{ t('reader.end_of_chapter') }}</p>
             <div class="flex flex-col gap-4 min-w-50">
-                <Button
-                    v-if="nextChapter"
-                    size="lg"
-                    variant="default"
-                    @click.stop="$emit('navigateToChapter', nextChapter)"
-                >
+                <Button v-if="nextChapter" size="lg" variant="default"
+                    @click.stop="$emit('navigateToChapter', nextChapter)">
                     {{ t('reader.next_chapter') }}
                     <ChevronRight class="ml-2 h-4 w-4" />
                 </Button>
-                <Button
-                    v-if="prevChapter"
-                    variant="secondary"
-                    @click.stop="$emit('navigateToChapter', prevChapter)"
-                >
-                    <ChevronLeft class="mr-2 h-4 w-4" /> {{ t('reader.prev_chapter') }}
+                <Button variant="secondary" @click.stop="$emit('navigateBack')">
+                    {{ t('reader.exit_to_content') }}
                 </Button>
             </div>
         </div>
 
         <div v-else class="relative h-full w-full flex items-center justify-center">
             <template v-for="page in renderedPages" :key="page">
-                <img
-                    v-if="pageUrls.has(page)"
-                    :src="pageUrls.get(page)"
-                    v-show="page === currentPage"
-                    class="max-w-full max-h-full object-contain"
-                    alt="Comic page"
-                />
+                <img v-if="pageUrls.has(page)" :src="pageUrls.get(page)" v-show="page === currentPage"
+                    class="max-w-full max-h-full object-contain" alt="Comic page" />
             </template>
         </div>
     </div>

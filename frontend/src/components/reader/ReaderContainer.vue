@@ -101,16 +101,18 @@ const toggleControls = () => {
     showControls.value = !showControls.value
 }
 
+const clampProgress = (value: number) => Math.min(100, Math.max(0, value))
+
 const updateProgress = () => {
     if (isNovel.value) {
-        readingProgress.value = epubReaderRef.value?.updateProgress() || epubProgress.value
+        readingProgress.value = clampProgress(epubReaderRef.value?.updateProgress() || epubProgress.value)
     } else if (readerMode.value === 'scroll' && comicReaderRef.value?.containerRef) {
         const container = comicReaderRef.value.containerRef
         const scrollTop = container.scrollTop
         const docHeight = container.scrollHeight
         const winHeight = container.clientHeight
         const total = docHeight - winHeight
-        readingProgress.value = total > 0 ? (scrollTop / total) * 100 : 0
+        readingProgress.value = clampProgress(total > 0 ? (scrollTop / total) * 100 : 0)
     }
 }
 
@@ -203,12 +205,12 @@ watch(
 
 watch(currentPage, (newPage) => {
     if (!isNovel.value && readerMode.value === 'paged' && currentChapter.value && currentChapter.value.page_count > 0) {
-        readingProgress.value = ((newPage + 1) / currentChapter.value.page_count) * 100
+        readingProgress.value = clampProgress(((newPage + 1) / currentChapter.value.page_count) * 100)
     }
 })
 
 watch(epubCurrentSpineIndex, () => {
-    readingProgress.value = epubProgress.value
+    readingProgress.value = clampProgress(epubProgress.value)
 })
 
 onMounted(() => {
@@ -262,6 +264,7 @@ onUnmounted(() => {
             @load-page="readerStore.loadPage"
             @load-more-pages="readerStore.loadMorePages"
             @navigate-to-chapter="navigateToChapter"
+            @navigate-back="navigateBack"
             @save-progress="readerStore.saveProgress"
         />
 

@@ -45,7 +45,7 @@ const pageProgressText = computed(() => {
     }
 
     const total = props.currentChapter?.page_count || 0
-    const current = total > 0 ? props.currentPage + 1 : 0
+    const current = total > 0 ? Math.min(props.currentPage + 1, total) : 0
     return `${current} / ${total || '?'}`
 })
 </script>
