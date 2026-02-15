@@ -32,6 +32,8 @@ const {
     nextChapter,
     isNovel,
     epubHtmlContent,
+    epubStylesheets,
+    epubInlineStyles,
     epubSpineLoading,
     epubCurrentSpineIndex,
     epubSpine,
@@ -105,7 +107,9 @@ const clampProgress = (value: number) => Math.min(100, Math.max(0, value))
 
 const updateProgress = () => {
     if (isNovel.value) {
-        readingProgress.value = clampProgress(epubReaderRef.value?.updateProgress() || epubProgress.value)
+        const progress = clampProgress(epubReaderRef.value?.updateProgress() || epubProgress.value)
+        readingProgress.value = progress
+        readerStore.saveNovelProgress(epubCurrentSpineIndex.value, progress)
     } else if (readerMode.value === 'scroll' && comicReaderRef.value?.containerRef) {
         const container = comicReaderRef.value.containerRef
         const scrollTop = container.scrollTop
@@ -233,6 +237,8 @@ onUnmounted(() => {
             ref="epubReaderRef"
             :chapter="currentChapter"
             :epub-html-content="epubHtmlContent"
+            :epub-stylesheets="epubStylesheets"
+            :epub-inline-styles="epubInlineStyles"
             :epub-spine="epubSpine"
             :epub-current-spine-index="epubCurrentSpineIndex"
             :epub-spine-loading="epubSpineLoading"

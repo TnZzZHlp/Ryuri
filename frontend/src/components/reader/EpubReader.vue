@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Button } from '@/components/ui/button'
+import { rewriteCssUrlsWithBase } from '@/lib/utils'
 import { ChevronRight } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import type { Chapter, EpubSpineItem } from '@/api/types'
@@ -10,6 +11,8 @@ const { t } = useI18n()
 interface Props {
     chapter: Chapter | undefined
     epubHtmlContent: string
+    epubStylesheets: string[]
+    epubInlineStyles: string[]
     epubSpine: EpubSpineItem[]
     epubCurrentSpineIndex: number
     epubSpineLoading: boolean
@@ -26,8 +29,197 @@ const emit = defineEmits<{
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
+const shadowHostRef = ref<HTMLElement | null>(null)
+const shadowRootRef = ref<ShadowRoot | null>(null)
 
 const epubHasNext = computed(() => props.epubCurrentSpineIndex < props.epubSpine.length - 1)
+
+const fallbackShadowStyles = `
+:host {
+    display: block;
+    color: #e0ddd5;
+    font-family: 'Georgia', 'Noto Serif SC', 'Source Han Serif CN', serif;
+    line-height: 2;
+}
+
+:host *,
+:host *::before,
+:host *::after {
+    box-sizing: border-box;
+}
+
+.epub-content-container {
+    color: #e0ddd5;
+}
+
+.epub-body p {
+    color: #e0ddd5;
+    margin-bottom: 1em;
+}
+
+.epub-body h1,
+.epub-body h2,
+.epub-body h3,
+.epub-body h4,
+.epub-body h5,
+.epub-body h6 {
+    color: #ffffff;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.epub-body a {
+    color: #8ab4f8;
+}
+
+.epub-body img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1em auto;
+}
+
+.epub-body span,
+.epub-body div,
+.epub-body li,
+.epub-body td,
+.epub-body th,
+.epub-body blockquote {
+    color: #e0ddd5;
+}
+
+.epub-body blockquote {
+    border-left: 3px solid #555;
+    padding-left: 1em;
+    margin-left: 0;
+    font-style: italic;
+}
+
+.epub-body pre,
+.epub-body code {
+    background: #1a1a1a;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.epub-body hr {
+    border: none;
+    border-top: 1px solid #444;
+    margin: 2em 0;
+}
+
+.epub-body table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+}
+
+.epub-body td,
+.epub-body th {
+    border: 1px solid #444;
+    padding: 0.5em;
+}
+`
+
+const ensureShadowRoot = (): ShadowRoot | null => {
+    if (!shadowHostRef.value) return null
+    if (!shadowRootRef.value || shadowRootRef.value.host !== shadowHostRef.value) {
+        shadowRootRef.value = shadowHostRef.value.shadowRoot || shadowHostRef.value.attachShadow({ mode: 'open' })
+    }
+    return shadowRootRef.value
+}
+
+const stylesheetContentCache = new Map<string, Promise<string>>()
+let renderRequestId = 0
+
+const rewriteStylesheetCssUrls = (cssText: string, stylesheetHref: string) => {
+    return rewriteCssUrlsWithBase(cssText, stylesheetHref)
+}
+
+const fetchStylesheetText = (stylesheetHref: string): Promise<string> => {
+    const cachedPromise = stylesheetContentCache.get(stylesheetHref)
+    if (cachedPromise) return cachedPromise
+
+    const fetchPromise = fetch(stylesheetHref)
+        .then(async (response) => {
+            if (!response.ok) {
+                throw new Error(`Failed to fetch stylesheet: ${response.status}`)
+            }
+            const cssText = await response.text()
+            return rewriteStylesheetCssUrls(cssText, stylesheetHref)
+        })
+        .catch((e) => {
+            console.warn(`Failed to load EPUB stylesheet: ${stylesheetHref}`, e)
+            throw e
+        })
+
+    stylesheetContentCache.set(stylesheetHref, fetchPromise)
+    return fetchPromise
+}
+
+const renderEpubContent = async () => {
+    const requestId = ++renderRequestId
+    const shadowRoot = ensureShadowRoot()
+    if (!shadowRoot) return
+
+    const stylesheets = await Promise.all(
+        props.epubStylesheets.map(async (href) => {
+            const stylesheetHref = href.trim()
+            if (!stylesheetHref) return null
+
+            try {
+                const cssText = await fetchStylesheetText(stylesheetHref)
+                return { cssText, href: stylesheetHref, useLinkFallback: false }
+            } catch {
+                return { cssText: '', href: stylesheetHref, useLinkFallback: true }
+            }
+        }),
+    )
+
+    if (requestId !== renderRequestId) return
+
+    const fragment = document.createDocumentFragment()
+
+    const fallbackStyle = document.createElement('style')
+    fallbackStyle.textContent = fallbackShadowStyles
+    fragment.appendChild(fallbackStyle)
+
+    stylesheets.forEach((stylesheet) => {
+        if (!stylesheet) return
+        if (stylesheet.useLinkFallback) {
+            const link = document.createElement('link')
+            link.rel = 'stylesheet'
+            link.href = stylesheet.href
+            fragment.appendChild(link)
+            return
+        }
+
+        const style = document.createElement('style')
+        style.textContent = stylesheet.cssText
+        fragment.appendChild(style)
+    })
+
+    props.epubInlineStyles.forEach((cssText) => {
+        const styleText = cssText.trim()
+        if (!styleText) return
+        const style = document.createElement('style')
+        style.textContent = styleText
+        fragment.appendChild(style)
+    })
+
+    const contentContainer = document.createElement('div')
+    contentContainer.className = 'epub-content-container'
+
+    const body = document.createElement('div')
+    body.className = 'epub-body'
+    body.innerHTML = props.epubHtmlContent
+
+    contentContainer.appendChild(body)
+    fragment.appendChild(contentContainer)
+
+    shadowRoot.replaceChildren(fragment)
+}
 
 // Progress calculation for epub
 const epubProgress = computed(() => {
@@ -53,6 +245,32 @@ const updateProgress = () => {
     return scrollPercent
 }
 
+watch(
+    () => [props.epubHtmlContent, props.epubStylesheets, props.epubInlineStyles],
+    () => {
+        void renderEpubContent()
+    },
+    { immediate: true, deep: true },
+)
+
+watch(
+    () => props.chapter?.id,
+    () => {
+        renderRequestId += 1
+        stylesheetContentCache.clear()
+    },
+)
+
+watch(
+    () => [props.loading, props.epubSpineLoading, shadowHostRef.value],
+    ([loading, spineLoading]) => {
+        if (!loading && !spineLoading) {
+            void renderEpubContent()
+        }
+    },
+    { immediate: true },
+)
+
 defineExpose({
     containerRef,
     epubProgress,
@@ -71,8 +289,7 @@ defineExpose({
         </div>
 
         <div v-else class="epub-content-container mx-auto max-w-3xl px-6 py-12">
-            <!-- eslint-disable-next-line vue/no-v-html -->
-            <div class="epub-body" v-html="epubHtmlContent"></div>
+            <div ref="shadowHostRef" class="epub-shadow-host"></div>
 
             <!-- Spine page navigation at bottom -->
             <div v-if="!epubHasNext && nextChapter" class="py-12 flex flex-col items-center gap-4">
@@ -87,80 +304,8 @@ defineExpose({
 </template>
 
 <style scoped>
-/* Custom EPUB body styling */
-.epub-content-container {
-    font-family: 'Georgia', 'Noto Serif SC', 'Source Han Serif CN', serif;
-    line-height: 2;
-    color: #e0ddd5;
-}
-
-/* Style the injected EPUB HTML content */
-.epub-body :deep(p) {
-    color: #e0ddd5;
-    margin-bottom: 1em;
-}
-
-.epub-body :deep(h1),
-.epub-body :deep(h2),
-.epub-body :deep(h3),
-.epub-body :deep(h4),
-.epub-body :deep(h5),
-.epub-body :deep(h6) {
-    color: #ffffff;
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-}
-
-.epub-body :deep(a) {
-    color: #8ab4f8;
-}
-
-.epub-body :deep(img) {
-    max-width: 100%;
-    height: auto;
+.epub-shadow-host {
     display: block;
-    margin: 1em auto;
-}
-
-.epub-body :deep(span),
-.epub-body :deep(div),
-.epub-body :deep(li),
-.epub-body :deep(td),
-.epub-body :deep(th),
-.epub-body :deep(blockquote) {
-    color: #e0ddd5;
-}
-
-.epub-body :deep(blockquote) {
-    border-left: 3px solid #555;
-    padding-left: 1em;
-    margin-left: 0;
-    font-style: italic;
-}
-
-.epub-body :deep(pre),
-.epub-body :deep(code) {
-    background: #1a1a1a;
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
-    font-size: 0.9em;
-}
-
-.epub-body :deep(hr) {
-    border: none;
-    border-top: 1px solid #444;
-    margin: 2em 0;
-}
-
-.epub-body :deep(table) {
-    border-collapse: collapse;
     width: 100%;
-    margin: 1em 0;
-}
-
-.epub-body :deep(td),
-.epub-body :deep(th) {
-    border: 1px solid #444;
-    padding: 0.5em;
 }
 </style>

@@ -6,10 +6,17 @@ import { createReaderApi } from "@/api/reader";
 import { createProgressApi } from "@/api/progress";
 import { createContentApi } from "@/api/content";
 import { ApiClient } from "@/api/client";
+import { isSkippableResourceUrl, resolveRelativeUrlWithBaseQuery } from "@/lib/utils";
 import type { Chapter, EpubSpineItem } from "@/api/types";
 import { useDebounceFn } from "@vueuse/core";
 
 export type ReaderMode = "scroll" | "paged";
+
+interface EpubSpineContent {
+    body: string;
+    stylesheets: string[];
+    inlineStyles: string[];
+}
 
 export const useReaderStore = defineStore("reader", () => {
     const MIN_PRELOAD_BUFFER = 1;
@@ -56,14 +63,17 @@ export const useReaderStore = defineStore("reader", () => {
     const epubSpine = ref<EpubSpineItem[]>([]);
     const epubCurrentSpineIndex = ref(0);
     const epubHtmlContent = ref("");
+    const epubStylesheets = ref<string[]>([]);
+    const epubInlineStyles = ref<string[]>([]);
     const epubSpineLoading = ref(false);
-    const epubSpineBodyCache = ref<Map<number, string>>(new Map());
+    const epubSpineContentCache = ref<Map<number, EpubSpineContent>>(new Map());
     const epubSpinePrefetching = ref<Set<number>>(new Set());
-    const epubSpineInFlightFetches = ref<Map<number, Promise<string>>>(
+    const epubSpineInFlightFetches = ref<Map<number, Promise<EpubSpineContent>>>(
         new Map(),
     );
     const epubResourcePrefetched = new Set<string>();
     const epubResourcePrefetching = new Map<string, Promise<void>>();
+    const epubStylesheetAnalysisPrefetching = new Map<string, Promise<void>>();
     let epubLoadRequestId = 0;
     let epubChapterGeneration = 0;
 
@@ -183,19 +193,22 @@ export const useReaderStore = defineStore("reader", () => {
         }
     }, 1000);
 
-    const saveNovelProgress = useDebounceFn(async (percentage: number) => {
-        if (!currentChapterId.value) return;
+    const saveNovelProgress = useDebounceFn(
+        async (position: number, percentage: number) => {
+            if (!currentChapterId.value) return;
 
-        try {
-            await progressApi.updateChapterProgress(
-                currentChapterId.value,
-                0,
-                Math.min(100, percentage),
-            );
-        } catch (e) {
-            console.warn("Failed to save novel progress", e);
-        }
-    }, 1000);
+            try {
+                await progressApi.updateChapterProgress(
+                    currentChapterId.value,
+                    Math.max(0, Math.floor(position)),
+                    Math.min(100, Math.max(0, percentage)),
+                );
+            } catch (e) {
+                console.warn("Failed to save novel progress", e);
+            }
+        },
+        1000,
+    );
 
     const loadPage = (pageIndex: number) => {
         if (!currentContentId.value || !currentChapter.value) return;
@@ -331,6 +344,7 @@ export const useReaderStore = defineStore("reader", () => {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
         const urls = new Set<string>();
+        const stylesheetUrls = new Set<string>();
         const addUrl = (url: string | null | undefined) => {
             if (!url) return;
             const normalized = url.trim();
@@ -343,7 +357,11 @@ export const useReaderStore = defineStore("reader", () => {
         });
 
         doc.querySelectorAll("link[rel~='stylesheet'][href]").forEach((el) => {
-            addUrl(el.getAttribute("href"));
+            const stylesheetUrl = el.getAttribute("href");
+            if (!stylesheetUrl) return;
+            const normalized = stylesheetUrl.trim();
+            if (!normalized) return;
+            stylesheetUrls.add(normalized);
         });
 
         doc.querySelectorAll("[srcset]").forEach((el) => {
@@ -377,13 +395,98 @@ export const useReaderStore = defineStore("reader", () => {
             cssUrlPattern.lastIndex = 0;
         });
 
+        stylesheetUrls.forEach((stylesheetUrl) => {
+            prefetchEpubResource(stylesheetUrl, generation);
+            const existing = epubStylesheetAnalysisPrefetching.get(stylesheetUrl);
+            if (existing) return;
+
+            const prefetchPromise = fetch(stylesheetUrl)
+                .then(async (response) => {
+                    if (generation !== epubChapterGeneration) return;
+                    if (!response.ok) return;
+
+                    const cssText = await response.text();
+                    const cssUrlPattern = /url\(\s*(["']?)(.*?)\1\s*\)/gi;
+                    let match: RegExpExecArray | null = cssUrlPattern.exec(
+                        cssText,
+                    );
+
+                    while (match) {
+                        const candidate = match[2]?.trim();
+                        if (
+                            candidate &&
+                            !isSkippableResourceUrl(candidate)
+                        ) {
+                            const resolved = resolveRelativeUrlWithBaseQuery(
+                                candidate,
+                                stylesheetUrl,
+                            );
+                            if (resolved) {
+                                prefetchEpubResource(resolved, generation);
+                            }
+                        }
+                        match = cssUrlPattern.exec(cssText);
+                    }
+                })
+                .catch((e) => {
+                    console.warn(
+                        `Failed to analyze EPUB stylesheet resources: ${stylesheetUrl}`,
+                        e,
+                    );
+                })
+                .finally(() => {
+                    if (
+                        epubStylesheetAnalysisPrefetching.get(stylesheetUrl) ===
+                        prefetchPromise
+                    ) {
+                        epubStylesheetAnalysisPrefetching.delete(stylesheetUrl);
+                    }
+                });
+
+            epubStylesheetAnalysisPrefetching.set(
+                stylesheetUrl,
+                prefetchPromise,
+            );
+        });
+
         urls.forEach((url) => prefetchEpubResource(url, generation));
     };
 
-    const fetchEpubSpineBody = async (
+    const extractEpubSpineContent = (
+        rewrittenHtml: string,
+    ): EpubSpineContent => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(rewrittenHtml, "text/html");
+
+        const stylesheets: string[] = [];
+        const seenStylesheets = new Set<string>();
+        doc.querySelectorAll("link[rel~='stylesheet'][href]").forEach((el) => {
+            const href = el.getAttribute("href")?.trim();
+            if (!href || seenStylesheets.has(href)) return;
+            seenStylesheets.add(href);
+            stylesheets.push(href);
+        });
+
+        const inlineStyles: string[] = [];
+        doc.querySelectorAll("head style").forEach((el) => {
+            const cssText = el.textContent?.trim();
+            if (!cssText) return;
+            inlineStyles.push(cssText);
+        });
+
+        const body = doc.body?.innerHTML ?? rewrittenHtml;
+
+        return {
+            body,
+            stylesheets,
+            inlineStyles,
+        };
+    };
+
+    const fetchEpubSpineContent = async (
         index: number,
         generation = epubChapterGeneration,
-    ): Promise<string> => {
+    ): Promise<EpubSpineContent> => {
         if (generation !== epubChapterGeneration) {
             throw new Error("Stale EPUB fetch context");
         }
@@ -394,8 +497,8 @@ export const useReaderStore = defineStore("reader", () => {
             throw new Error(`EPUB spine index out of range: ${index}`);
         }
 
-        const cachedBody = epubSpineBodyCache.value.get(index);
-        if (cachedBody) return cachedBody;
+        const cachedContent = epubSpineContentCache.value.get(index);
+        if (cachedContent) return cachedContent;
         const inFlight = epubSpineInFlightFetches.value.get(index);
         if (inFlight) return inFlight;
 
@@ -421,15 +524,14 @@ export const useReaderStore = defineStore("reader", () => {
             );
             prefetchEpubResourcesFromHtml(rewrittenHtml, generation);
 
-            const bodyMatch = rewrittenHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-            const body = bodyMatch?.[1] ?? rewrittenHtml;
+            const content = extractEpubSpineContent(rewrittenHtml);
 
             if (generation !== epubChapterGeneration) {
                 throw new Error("Stale EPUB fetch context");
             }
 
-            epubSpineBodyCache.value.set(index, body);
-            return body;
+            epubSpineContentCache.value.set(index, content);
+            return content;
         })().finally(() => {
             if (epubSpineInFlightFetches.value.get(index) === fetchPromise) {
                 epubSpineInFlightFetches.value.delete(index);
@@ -451,11 +553,11 @@ export const useReaderStore = defineStore("reader", () => {
                 if (preloadIndex < 0 || preloadIndex >= epubSpine.value.length) {
                     continue;
                 }
-                if (epubSpineBodyCache.value.has(preloadIndex)) continue;
+                if (epubSpineContentCache.value.has(preloadIndex)) continue;
                 if (epubSpinePrefetching.value.has(preloadIndex)) continue;
 
                 epubSpinePrefetching.value.add(preloadIndex);
-                void fetchEpubSpineBody(preloadIndex, generation)
+                void fetchEpubSpineContent(preloadIndex, generation)
                     .catch((e) => {
                         console.warn(
                             `Failed to preload EPUB spine page ${preloadIndex}:`,
@@ -478,22 +580,26 @@ export const useReaderStore = defineStore("reader", () => {
         epubCurrentSpineIndex.value = index;
 
         try {
-            const body = await fetchEpubSpineBody(index);
+            const content = await fetchEpubSpineContent(index);
             if (requestId !== epubLoadRequestId) return;
-            epubHtmlContent.value = body;
+            epubHtmlContent.value = content.body;
+            epubStylesheets.value = content.stylesheets;
+            epubInlineStyles.value = content.inlineStyles;
 
             // Save progress
             const percentage =
                 epubSpine.value.length > 0
                     ? ((index + 1) / epubSpine.value.length) * 100
                     : 0;
-            saveNovelProgress(percentage);
+            saveNovelProgress(index, percentage);
 
             preloadEpubSpineAround(index);
         } catch (e) {
             console.error("Failed to load EPUB spine page:", e);
             if (requestId === epubLoadRequestId) {
                 epubHtmlContent.value = `<p style="color: #ff6b6b;">Failed to load content</p>`;
+                epubStylesheets.value = [];
+                epubInlineStyles.value = [];
             }
         } finally {
             if (requestId === epubLoadRequestId) {
@@ -544,12 +650,15 @@ export const useReaderStore = defineStore("reader", () => {
             pages.value = [];
             epubSpine.value = [];
             epubHtmlContent.value = "";
+            epubStylesheets.value = [];
+            epubInlineStyles.value = [];
             epubCurrentSpineIndex.value = 0;
-            epubSpineBodyCache.value.clear();
+            epubSpineContentCache.value.clear();
             epubSpinePrefetching.value.clear();
             epubSpineInFlightFetches.value.clear();
             epubResourcePrefetched.clear();
             epubResourcePrefetching.clear();
+            epubStylesheetAnalysisPrefetching.clear();
             epubChapterGeneration += 1;
         }
 
@@ -568,6 +677,7 @@ export const useReaderStore = defineStore("reader", () => {
 
             // Fetch Progress
             let startPage = 0;
+            let startPercentage = 0;
             try {
                 const progresses =
                     await progressApi.getChapterProgress(chapterId);
@@ -576,6 +686,7 @@ export const useReaderStore = defineStore("reader", () => {
                 );
                 if (progress) {
                     startPage = progress.position;
+                    startPercentage = progress.percentage;
                 }
             } catch {
                 // Ignore progress load errors
@@ -592,10 +703,28 @@ export const useReaderStore = defineStore("reader", () => {
                             contentId,
                             currentChapter.value.id,
                         );
-                        // Load the first spine page
+                        // Resume from saved spine position
                         if (epubSpine.value.length > 0) {
-                            await loadEpubSpinePage(0);
-                            preloadEpubSpineAround(0);
+                            let startSpineIndex = Math.min(
+                                Math.max(0, startPage),
+                                epubSpine.value.length - 1,
+                            );
+                            if (startSpineIndex === 0 && startPercentage > 0) {
+                                const percentageIndex = Math.floor(
+                                    (Math.min(
+                                        100,
+                                        Math.max(0, startPercentage),
+                                    ) /
+                                        100) *
+                                        epubSpine.value.length,
+                                );
+                                startSpineIndex = Math.min(
+                                    Math.max(0, percentageIndex),
+                                    epubSpine.value.length - 1,
+                                );
+                            }
+                            await loadEpubSpinePage(startSpineIndex);
+                            preloadEpubSpineAround(startSpineIndex);
                         }
                     } catch (e) {
                         console.error("Failed to load EPUB spine:", e);
@@ -660,6 +789,8 @@ export const useReaderStore = defineStore("reader", () => {
         epubSpine,
         epubCurrentSpineIndex,
         epubHtmlContent,
+        epubStylesheets,
+        epubInlineStyles,
         epubSpineLoading,
 
         // Computed
