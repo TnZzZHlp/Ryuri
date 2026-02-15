@@ -3,8 +3,8 @@
 //! This module provides database access for user-related operations.
 
 use chrono::Utc;
-use sqlx::{Pool, Sqlite};
 use rust_i18n::t;
+use sqlx::{Pool, Sqlite};
 
 use crate::error::{AppError, Result};
 use crate::models::{NewUser, User};

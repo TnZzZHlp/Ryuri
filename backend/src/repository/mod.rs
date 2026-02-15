@@ -2,8 +2,8 @@
 //!
 //! This module contains repository implementations for interacting with the SQLite database.
 
+pub mod apikey;
 pub mod content;
 pub mod library;
 pub mod progress;
 pub mod user;
-pub mod apikey;

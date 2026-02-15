@@ -1,9 +1,9 @@
-use axum::{extract::Query, Json};
-use serde::{Deserialize, Serialize};
-use std::path::Path;
-use std::fs;
+use crate::error::{AppError, Result};
+use axum::{Json, extract::Query};
 use rust_i18n::t;
-use crate::error::{Result, AppError};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 pub struct ListDirectoriesQuery {
@@ -21,7 +21,7 @@ pub async fn list_directories(
     Query(query): Query<ListDirectoriesQuery>,
 ) -> Result<Json<Vec<DirectoryEntry>>> {
     let path_str = query.path.unwrap_or_default();
-    
+
     // Windows logic: if path is empty, list drives
     if cfg!(target_os = "windows") && path_str.is_empty() {
         let mut drives = Vec::new();
@@ -48,12 +48,16 @@ pub async fn list_directories(
     };
 
     if !path.exists() {
-        return Err(AppError::NotFound(t!("filesystem.path_not_found", path = path.display()).to_string()));
+        return Err(AppError::NotFound(
+            t!("filesystem.path_not_found", path = path.display()).to_string(),
+        ));
     }
 
     // Check if it's a directory
     if !path.is_dir() {
-        return Err(AppError::BadRequest(t!("filesystem.path_not_dir", path = path.display()).to_string()));
+        return Err(AppError::BadRequest(
+            t!("filesystem.path_not_dir", path = path.display()).to_string(),
+        ));
     }
 
     let parent = path.parent().map(|p| p.to_string_lossy().to_string());
@@ -64,22 +68,23 @@ pub async fn list_directories(
         Ok(entries) => {
             for entry in entries.flatten() {
                 if let Ok(file_type) = entry.file_type()
-                    && file_type.is_dir() {
-                        let name = entry.file_name().to_string_lossy().to_string();
-                        dirs.push(DirectoryEntry {
-                            name,
-                            path: entry.path().to_string_lossy().to_string(),
-                            parent: parent.clone(),
-                        });
-                    }
+                    && file_type.is_dir()
+                {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    dirs.push(DirectoryEntry {
+                        name,
+                        path: entry.path().to_string_lossy().to_string(),
+                        parent: parent.clone(),
+                    });
+                }
             }
         }
         Err(e) => {
-             // If we can't read the directory (permission denied, etc.), just return error
-             return Err(AppError::FileSystem(e));
+            // If we can't read the directory (permission denied, etc.), just return error
+            return Err(AppError::FileSystem(e));
         }
     }
-    
+
     // Sort by name case-insensitively for better UX
     dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
@@ -96,7 +101,7 @@ mod tests {
     async fn test_list_directories() {
         let dir = tempdir().unwrap();
         let dir_path = dir.path();
-        
+
         // Create subdirectories
         fs::create_dir(dir_path.join("sub1")).unwrap();
         fs::create_dir(dir_path.join("sub2")).unwrap();

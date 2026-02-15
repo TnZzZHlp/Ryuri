@@ -12,11 +12,13 @@ use serde::Serialize;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::sync::Arc;
 
 use super::natural_sort_key;
 
 /// Supported image extensions for comics.
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "bmp"];
+const READ_CHUNK_SIZE: usize = 64 * 1024;
 
 /// A single item in the EPUB spine (reading order).
 #[derive(Debug, Clone, Serialize)]
@@ -146,8 +148,8 @@ impl ArchiveExtractor {
             )
         })?;
 
-        let mut buf = Vec::with_capacity(entry.size() as usize);
-        entry.read_to_end(&mut buf).map_err(|e| {
+        let entry_size = entry.size();
+        let buf = Self::read_stream_to_vec(&mut entry, Some(entry_size)).map_err(|e| {
             AppError::Archive(format!(
                 "Failed to read EPUB resource '{}': {}",
                 resource_path, e
@@ -189,8 +191,8 @@ impl ArchiveExtractor {
             AppError::Archive(t!("archive.file_not_found", file = file_name).to_string())
         })?;
 
-        let mut buffer = Vec::new();
-        entry.read_to_end(&mut buffer).map_err(|e| {
+        let entry_size = entry.size();
+        let buffer = Self::read_stream_to_vec(&mut entry, Some(entry_size)).map_err(|e| {
             AppError::Archive(t!("archive.file_read_failed", error = e).to_string())
         })?;
 
@@ -200,24 +202,12 @@ impl ArchiveExtractor {
     // ── RAR/CBR implementation ────────────────────────────────────────────
 
     fn list_rar_files(archive_path: &Path) -> Result<Vec<String>> {
-        let archive = unrar::Archive::new(archive_path)
-            .open_for_listing()
-            .map_err(|e| AppError::Archive(t!("archive.rar_open_failed", error = e).to_string()))?;
-
-        let mut files: Vec<String> = Vec::new();
-        let entries = archive
+        let entries = Self::parse_rar_entries(archive_path)?;
+        let mut files: Vec<String> = entries
             .into_iter()
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(|e| {
-                AppError::Archive(t!("archive.rar_read_entries_failed", error = e).to_string())
-            })?;
-
-        for entry in entries {
-            let name = entry.filename.to_string_lossy().to_string();
-            if Self::is_image_file(&name) {
-                files.push(name);
-            }
-        }
+            .map(|entry| Self::normalize_rar_entry_name(&entry.name))
+            .filter(|name| Self::is_image_file(name))
+            .collect();
 
         // Sort files using natural sort order
         files.sort_by_key(|a| natural_sort_key(a));
@@ -225,61 +215,19 @@ impl ArchiveExtractor {
     }
 
     fn extract_rar_file(archive_path: &Path, file_name: &str) -> Result<Vec<u8>> {
-        // Create a temporary directory for extraction
-        let temp_dir = std::env::temp_dir().join(format!("comic_extract_{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&temp_dir)?;
+        let entries = Self::parse_rar_entries(archive_path)?;
+        let requested = Self::normalize_rar_entry_name(file_name);
+        let entry = entries
+            .iter()
+            .find(|entry| {
+                entry.name == file_name || Self::normalize_rar_entry_name(&entry.name) == requested
+            })
+            .ok_or_else(|| {
+                AppError::Archive(t!("archive.file_not_found", file = file_name).to_string())
+            })?;
 
-        let archive = unrar::Archive::new(archive_path)
-            .open_for_processing()
-            .map_err(|e| AppError::Archive(t!("archive.rar_open_failed", error = e).to_string()))?;
-
-        // Process entries to find and extract the target file
-        let mut current = archive;
-        loop {
-            match current.read_header() {
-                Ok(Some(header)) => {
-                    let name = header.entry().filename.to_string_lossy().to_string();
-                    if name == file_name {
-                        // Extract this file to temp directory
-                        let _next = header.extract_to(&temp_dir).map_err(|e| {
-                            AppError::Archive(
-                                t!("archive.rar_extract_failed", error = e).to_string(),
-                            )
-                        })?;
-
-                        // Read the extracted file
-                        let extracted_path = temp_dir.join(&name);
-                        let content = std::fs::read(&extracted_path).map_err(|e| {
-                            AppError::Archive(t!("archive.file_read_failed", error = e).to_string())
-                        })?;
-
-                        // Clean up temp directory
-                        let _ = std::fs::remove_dir_all(&temp_dir);
-
-                        return Ok(content);
-                    } else {
-                        // Skip this entry
-                        current = header.skip().map_err(|e| {
-                            AppError::Archive(t!("archive.rar_skip_failed", error = e).to_string())
-                        })?;
-                    }
-                }
-                Ok(None) => break,
-                Err(e) => {
-                    let _ = std::fs::remove_dir_all(&temp_dir);
-                    return Err(AppError::Archive(
-                        t!("archive.rar_read_entries_failed", error = e).to_string(),
-                    ));
-                }
-            }
-        }
-
-        // Clean up temp directory
-        let _ = std::fs::remove_dir_all(&temp_dir);
-
-        Err(AppError::Archive(
-            t!("archive.file_not_found", file = file_name).to_string(),
-        ))
+        Self::run_rar_future(entry.read_to_end())
+            .map_err(|e| AppError::Archive(t!("archive.rar_extract_failed", error = e).to_string()))
     }
 
     // ── EPUB implementation ───────────────────────────────────────────────
@@ -299,8 +247,74 @@ impl ArchiveExtractor {
 
     /// Checks if a filename is an image file based on extension.
     fn is_image_file(name: &str) -> bool {
-        let lower = name.to_lowercase();
+        let lower = Self::normalize_rar_entry_name(name).to_lowercase();
         IMAGE_EXTENSIONS.iter().any(|ext| lower.ends_with(ext))
+    }
+
+    /// Normalizes RAR entry names from parser output.
+    ///
+    /// `rar-stream` can return RAR4 unicode-special names with an embedded NUL
+    /// separator (`ansi_name\0encoded_suffix`); only the visible path portion
+    /// before NUL should be used for filtering and matching.
+    fn normalize_rar_entry_name(name: &str) -> String {
+        let visible = name.split('\0').next().unwrap_or(name);
+        visible.replace('\\', "/")
+    }
+
+    /// Reads from a stream incrementally to avoid one-shot full-file reads.
+    fn read_stream_to_vec<R: Read>(
+        reader: &mut R,
+        size_hint: Option<u64>,
+    ) -> std::io::Result<Vec<u8>> {
+        let mut output = size_hint
+            .and_then(|size| usize::try_from(size).ok())
+            .map_or_else(Vec::new, Vec::with_capacity);
+        let mut chunk = [0u8; READ_CHUNK_SIZE];
+
+        loop {
+            let read = reader.read(&mut chunk)?;
+            if read == 0 {
+                break;
+            }
+            output.extend_from_slice(&chunk[..read]);
+        }
+
+        Ok(output)
+    }
+
+    fn parse_rar_entries(archive_path: &Path) -> Result<Vec<rar_stream::InnerFile>> {
+        let path = archive_path.to_str().ok_or_else(|| {
+            AppError::Archive(t!("archive.rar_open_failed", error = "invalid path").to_string())
+        })?;
+        let media = rar_stream::LocalFileMedia::new(path)
+            .map_err(|e| AppError::Archive(t!("archive.rar_open_failed", error = e).to_string()))?;
+        let package = rar_stream::RarFilesPackage::new(vec![
+            Arc::new(media) as Arc<dyn rar_stream::FileMedia>
+        ]);
+
+        Self::run_rar_future(package.parse(rar_stream::ParseOptions::default())).map_err(|e| {
+            AppError::Archive(t!("archive.rar_read_entries_failed", error = e).to_string())
+        })
+    }
+
+    fn run_rar_future<T, F>(future: F) -> std::result::Result<T, rar_stream::RarError>
+    where
+        F: std::future::Future<Output = std::result::Result<T, rar_stream::RarError>>,
+    {
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            tokio::task::block_in_place(|| handle.block_on(future))
+        } else {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| {
+                    rar_stream::RarError::Io(std::io::Error::other(format!(
+                        "tokio runtime init failed: {}",
+                        e
+                    )))
+                })?;
+            runtime.block_on(future)
+        }
     }
 }
 
@@ -313,6 +327,10 @@ mod tests {
         assert!(ArchiveExtractor::is_image_file("test.jpg"));
         assert!(ArchiveExtractor::is_image_file("test.PNG"));
         assert!(ArchiveExtractor::is_image_file("folder/test.jpeg"));
+        assert!(ArchiveExtractor::is_image_file("folder\\test.jpeg"));
+        assert!(ArchiveExtractor::is_image_file(
+            "folder\\test.jpg\0ignored_binary_suffix"
+        ));
         assert!(!ArchiveExtractor::is_image_file("test.txt"));
         assert!(!ArchiveExtractor::is_image_file("test.xml"));
     }
@@ -333,5 +351,26 @@ mod tests {
         assert!(ArchiveExtractor::is_epub(Path::new("/path/to/book.EPUB")));
         assert!(!ArchiveExtractor::is_epub(Path::new("comic.cbz")));
         assert!(!ArchiveExtractor::is_epub(Path::new("archive.zip")));
+    }
+
+    #[test]
+    fn test_read_stream_to_vec() {
+        let data = vec![42u8; READ_CHUNK_SIZE * 2 + 123];
+        let mut cursor = std::io::Cursor::new(data.clone());
+        let output = ArchiveExtractor::read_stream_to_vec(&mut cursor, None).unwrap();
+
+        assert_eq!(output, data);
+    }
+
+    #[test]
+    fn test_normalize_rar_entry_name() {
+        assert_eq!(
+            ArchiveExtractor::normalize_rar_entry_name("dir\\image.jpg\0encoded_suffix"),
+            "dir/image.jpg"
+        );
+        assert_eq!(
+            ArchiveExtractor::normalize_rar_entry_name("dir/sub/image.png"),
+            "dir/sub/image.png"
+        );
     }
 }

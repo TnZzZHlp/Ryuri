@@ -9,9 +9,9 @@ use argon2::{
 };
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use rust_i18n::t;
 use sqlx::{Pool, Sqlite};
 use tracing::instrument;
-use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{JwtClaims, NewUser, UpdateUserRequest, User};
@@ -187,7 +187,9 @@ impl AuthService {
         // Get the current user
         let user = UserRepository::find_by_id(&self.pool, user_id)
             .await?
-            .ok_or_else(|| AppError::NotFound(t!("auth.user_not_found", id = user_id).to_string()))?;
+            .ok_or_else(|| {
+                AppError::NotFound(t!("auth.user_not_found", id = user_id).to_string())
+            })?;
 
         // Validate Password if changing (requires old_password)
         let password_hash = if let Some(new_password) = &req.password {

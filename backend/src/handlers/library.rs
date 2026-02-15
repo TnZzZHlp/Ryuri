@@ -14,9 +14,9 @@ use axum::{
     Json,
     extract::{Path, State},
 };
+use rust_i18n::t;
 use serde::Deserialize;
 use tracing::warn;
-use rust_i18n::t;
 
 use crate::error::Result;
 use crate::models::{
@@ -95,7 +95,11 @@ pub async fn update(
     // Update scheduler if scan_interval changed
     if let Some(interval) = new_scan_interval {
         if interval > 0 {
-            if let Err(e) = state.scheduler_service.schedule_scan(library_id, interval).await {
+            if let Err(e) = state
+                .scheduler_service
+                .schedule_scan(library_id, interval)
+                .await
+            {
                 warn!(library_id = library_id, error = %e, "{}", t!("library.update_schedule_failed"));
             }
         } else if let Err(e) = state.scheduler_service.cancel_scan(library_id).await {
@@ -120,7 +124,10 @@ pub async fn update(
 /// DELETE /api/libraries/{id}
 ///
 /// Deletes a library and all associated scan paths and contents.
-pub async fn delete(State(state): State<AppState>, Path(library_id): Path<i64>) -> Result<Json<()>> {
+pub async fn delete(
+    State(state): State<AppState>,
+    Path(library_id): Path<i64>,
+) -> Result<Json<()>> {
     // Stop scheduler before deleting
     if let Err(e) = state.scheduler_service.cancel_scan(library_id).await {
         warn!(library_id, error = %e, "{}", t!("library.cancel_scan_failed"));
@@ -196,7 +203,11 @@ pub async fn remove_path(
         .await?;
 
     // Refresh watch service to remove the path
-    if let Err(e) = state.watch_service.refresh_watching(params.library_id).await {
+    if let Err(e) = state
+        .watch_service
+        .refresh_watching(params.library_id)
+        .await
+    {
         warn!(library_id = params.library_id, error = %e, "{}", t!("library.refresh_watch_failed"));
     }
 

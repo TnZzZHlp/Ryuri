@@ -10,9 +10,9 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{ScanTask, TaskPriority};
@@ -40,7 +40,9 @@ pub async fn submit_scan(
     // Verify library exists
     let library = state.library_service.get(library_id).await?;
     if library.is_none() {
-        return Err(AppError::NotFound(t!("library.id_not_found", id = library_id).to_string()));
+        return Err(AppError::NotFound(
+            t!("library.id_not_found", id = library_id).to_string(),
+        ));
     }
 
     // Submit task with High priority (manual scan)
@@ -72,7 +74,9 @@ pub async fn get_task(
         .scan_queue_service
         .get_task(task_id)
         .await
-        .ok_or_else(|| AppError::NotFound(t!("scan_queue.task_not_found", id = task_id).to_string()))?;
+        .ok_or_else(|| {
+            AppError::NotFound(t!("scan_queue.task_not_found", id = task_id).to_string())
+        })?;
 
     Ok(Json(task))
 }
@@ -137,7 +141,9 @@ pub async fn cancel_task(
         .scan_queue_service
         .get_task(task_id)
         .await
-        .ok_or_else(|| AppError::NotFound(t!("scan_queue.task_not_found", id = task_id).to_string()))?;
+        .ok_or_else(|| {
+            AppError::NotFound(t!("scan_queue.task_not_found", id = task_id).to_string())
+        })?;
 
     Ok(Json(task))
 }

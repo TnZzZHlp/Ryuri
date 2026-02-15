@@ -39,7 +39,9 @@ pub async fn get_content_progress(
         .progress_service
         .get_content_progress(auth_user.user_id, content_id)
         .await?;
-    Ok(Json(progress.into_iter().map(ProgressResponse::from).collect()))
+    Ok(Json(
+        progress.into_iter().map(ProgressResponse::from).collect(),
+    ))
 }
 
 /// GET /api/progress/recent

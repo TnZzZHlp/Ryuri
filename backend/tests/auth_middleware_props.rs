@@ -54,7 +54,7 @@ async fn create_test_state(jwt_secret: String) -> AppState {
         auth: AuthConfig {
             jwt_secret,
             jwt_expiration_hours: 24,
-        }
+        },
     };
 
     AppState::new(pool, app_config)

@@ -3,13 +3,11 @@
 //! This module provides business logic for tracking user reading progress
 //! on chapters and calculating overall content progress.
 
-use sqlx::{Pool, Sqlite};
 use rust_i18n::t;
+use sqlx::{Pool, Sqlite};
 
 use crate::error::{AppError, Result};
-use crate::models::{
-    NewReadingProgress, ProgressResponse, ReadingProgress,
-};
+use crate::models::{NewReadingProgress, ProgressResponse, ReadingProgress};
 use crate::repository::content::ChapterRepository;
 use crate::repository::progress::ProgressRepository;
 
@@ -178,7 +176,9 @@ impl ProgressService {
                 AppError::NotFound(t!("content.chapter_not_found", id = chapter_id).to_string())
             })?;
 
-        let progresses = self.get_content_progress(user_id, chapter.content_id).await?;
+        let progresses = self
+            .get_content_progress(user_id, chapter.content_id)
+            .await?;
         Ok(progresses.into_iter().map(ProgressResponse::from).collect())
     }
 
@@ -190,7 +190,8 @@ impl ProgressService {
         user_id: i64,
         limit: i64,
     ) -> Result<Vec<crate::models::ContentResponse>> {
-        let contents = ProgressRepository::find_recent_contents_by_user(&self.pool, user_id, limit).await?;
+        let contents =
+            ProgressRepository::find_recent_contents_by_user(&self.pool, user_id, limit).await?;
         Ok(contents
             .into_iter()
             .map(crate::models::ContentResponse::from)

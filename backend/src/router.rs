@@ -3,9 +3,8 @@
 //! This module provides the router configuration for the Axum web server.
 
 use axum::{
-    middleware,
+    Router, middleware,
     routing::{delete, get, post},
-    Router,
 };
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -193,7 +192,7 @@ pub fn create_router_with_layers(state: AppState) -> Router {
 
 /// Add tracing layer with request logging only (no response logging in production).
 fn add_tracing_layer(router: Router) -> Router {
-    use tower_http::{trace::DefaultOnFailure, LatencyUnit};
+    use tower_http::{LatencyUnit, trace::DefaultOnFailure};
 
     let tracing = TraceLayer::new_for_http()
         .on_request(DefaultOnRequest::new().level(Level::INFO))

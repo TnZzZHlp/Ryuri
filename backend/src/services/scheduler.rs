@@ -6,13 +6,13 @@
 //! Requirements: 1.8, 5.2
 
 use chrono::{DateTime, Utc};
+use rust_i18n::t;
+use sqlx::{Pool, Sqlite};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, instrument, warn};
-use sqlx::{Pool, Sqlite};
-use rust_i18n::t;
 
 use crate::error::Result;
 use crate::models::TaskPriority;
