@@ -247,7 +247,8 @@ export const useReaderStore = defineStore("reader", () => {
 
     /**
      * Rewrite relative URLs in EPUB XHTML content to point at the backend resource endpoint.
-     * Handles src, href, xlink:href attributes and url() in inline styles.
+     * Uses DOM parsing to only rewrite actual element attributes, not text content
+     * (e.g. entity-encoded HTML inside <pre> blocks).
      */
     const rewriteEpubUrls = (
         html: string,
@@ -292,23 +293,65 @@ export const useReaderStore = defineStore("reader", () => {
             return readerApi.getEpubResourceUrl(contentId, chapterId, resolved);
         };
 
-        // Rewrite src, href, xlink:href attributes
-        let result = html.replace(
-            /((?:src|href|xlink:href)\s*=\s*)(["'])((?:(?!\2).)+)\2/gi,
-            (_match, prefix: string, quote: string, url: string) => {
-                return `${prefix}${quote}${resolveUrl(url)}${quote}`;
-            },
-        );
+        const rewriteCssUrls = (cssText: string): string => {
+            return cssText.replace(
+                /url\(\s*(["']?)((?:(?!\1\)).)+)\1\s*\)/gi,
+                (_match, quote: string, url: string) => {
+                    return `url(${quote}${resolveUrl(url)}${quote})`;
+                },
+            );
+        };
 
-        // Rewrite url() references in inline styles
-        result = result.replace(
-            /url\(\s*(["']?)((?:(?!\1\)).)+)\1\s*\)/gi,
-            (_match, quote: string, url: string) => {
-                return `url(${quote}${resolveUrl(url)}${quote})`;
-            },
-        );
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
 
-        return result;
+        const XLINK_NS = "http://www.w3.org/1999/xlink";
+
+        // Rewrite src and href attributes on actual elements
+        doc.querySelectorAll("[src], [href], [srcset]").forEach((el) => {
+            const src = el.getAttribute("src");
+            if (src) el.setAttribute("src", resolveUrl(src));
+
+            const href = el.getAttribute("href");
+            if (href) el.setAttribute("href", resolveUrl(href));
+
+            const xlinkHref = el.getAttributeNS(XLINK_NS, "href");
+            if (xlinkHref)
+                el.setAttributeNS(
+                    XLINK_NS,
+                    "xlink:href",
+                    resolveUrl(xlinkHref),
+                );
+
+            const srcset = el.getAttribute("srcset");
+            if (srcset) {
+                const rewritten = srcset
+                    .split(",")
+                    .map((entry) => {
+                        const parts = entry.trim().split(/\s+/);
+                        if (parts[0]) parts[0] = resolveUrl(parts[0]);
+                        return parts.join(" ");
+                    })
+                    .join(", ");
+                el.setAttribute("srcset", rewritten);
+            }
+        });
+
+        // Rewrite url() in inline style attributes
+        doc.querySelectorAll("[style]").forEach((el) => {
+            const style = el.getAttribute("style");
+            if (style) el.setAttribute("style", rewriteCssUrls(style));
+        });
+
+        // Rewrite url() in <style> elements
+        doc.querySelectorAll("style").forEach((el) => {
+            if (el.textContent) el.textContent = rewriteCssUrls(el.textContent);
+        });
+
+        // Reconstruct full HTML (head + body) so downstream extractors work
+        const headHtml = doc.head?.innerHTML ?? "";
+        const bodyHtml = doc.body?.innerHTML ?? html;
+        return `<html><head>${headHtml}</head><body>${bodyHtml}</body></html>`;
     };
 
     /**
