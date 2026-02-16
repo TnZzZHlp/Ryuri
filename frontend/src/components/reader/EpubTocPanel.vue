@@ -128,17 +128,13 @@ const handleSelect = (entry: FlatTocItem) => {
 </script>
 
 <template>
-    <div
-        v-if="show"
-        class="fixed top-16 right-0 bottom-16 w-[22rem] max-w-[90vw] bg-black/95 border-l border-white/10 shadow-2xl z-[60] flex flex-col"
-    >
+    <div v-if="show"
+        class="fixed top-16 right-0 bottom-16 w-88 max-w-[90vw] bg-black/95 border-l border-white/10 shadow-2xl z-60 flex flex-col">
         <div class="flex items-center justify-between p-4 border-b border-white/10">
             <h3 class="text-sm font-semibold text-white">{{ t('reader.toc_title') }}</h3>
-            <button
-                type="button"
+            <button type="button"
                 class="h-8 w-8 inline-flex items-center justify-center text-gray-300 hover:text-white hover:bg-white/10 rounded"
-                @click="emit('close')"
-            >
+                @click="emit('close')">
                 <X class="h-4 w-4" />
             </button>
         </div>
@@ -149,19 +145,12 @@ const handleSelect = (entry: FlatTocItem) => {
                 {{ t('reader.toc_empty') }}
             </div>
             <template v-else>
-                <button
-                    v-for="entry in visibleItems"
-                    :key="entry.key"
-                    type="button"
+                <button v-for="entry in visibleItems" :key="entry.key" type="button"
                     class="w-full text-left flex items-center gap-2 px-2 py-2 text-sm hover:bg-white/8 transition-colors"
                     :class="entry.isActive ? 'bg-white/10 text-white' : 'text-gray-200'"
-                    :style="{ paddingLeft: `${entry.depth * 16 + 8}px` }"
-                    @click="handleSelect(entry)"
-                >
-                    <span
-                        class="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-white/10"
-                        @click.stop="entry.hasChildren ? toggleExpand(entry.key) : undefined"
-                    >
+                    :style="{ paddingLeft: `${entry.depth * 16 + 8}px` }" @click="handleSelect(entry)">
+                    <span class="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-white/10"
+                        @click.stop="entry.hasChildren ? toggleExpand(entry.key) : undefined">
                         <ChevronDown v-if="entry.hasChildren && entry.isExpanded" class="h-4 w-4" />
                         <ChevronRight v-else-if="entry.hasChildren" class="h-4 w-4" />
                     </span>
