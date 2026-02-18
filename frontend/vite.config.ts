@@ -9,18 +9,18 @@ const version = fs.readFileSync(path.resolve(__dirname, "../VERSION"), "utf-8").
 
 // https://vite.dev/config/
 export default defineConfig({
-    define: {
-        __APP_VERSION__: JSON.stringify(version),
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
+  plugins: [vue(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
     },
-    plugins: [vue(), tailwindcss()],
-    resolve: {
-        alias: {
-            "@": path.resolve(__dirname, "./src"),
-        },
+  },
+  server: {
+    proxy: {
+      "/api": "http://127.0.0.1:3000",
     },
-    server: {
-        proxy:{
-            '/api': 'http://127.0.0.1:3000'
-        }
-    },
+  },
 });
