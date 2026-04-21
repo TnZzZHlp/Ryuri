@@ -28,37 +28,37 @@ Ryuri is a self-hosted comic and manga reader server designed for simplicity and
 
 ## Features
 
--   **Self-Hosted Library**: Organize your comics, manga, and ebooks (supports zip, rar, cbz, cbr, epub).
--   **Web Reader**: A modern, responsive web interface for reading on any device.
--   **Komga Compatibility**: Implements the Komga API, allowing you to use clients like [Mihon](https://github.com/mihonapp/mihon).
--   **Progress Tracking**: Automatically tracks your reading progress across devices.
--   **Content Scanning**: Efficiently scans your folders to update your library.
+- **Self-Hosted Library**: Organize your comics, manga, and ebooks (supports zip, cbz, epub).
+- **Web Reader**: A modern, responsive web interface for reading on any device.
+- **Komga Compatibility**: Implements the Komga API, allowing you to use clients like [Mihon](https://github.com/mihonapp/mihon).
+- **Progress Tracking**: Automatically tracks your reading progress across devices.
+- **Content Scanning**: Efficiently scans your folders to update your library.
 
 ## Tech Stack
 
 ### Backend
 
--   **Language**: Rust
--   **Framework**: [Axum](https://github.com/tokio-rs/axum)
--   **Database**: SQLite (via [SQLx](https://github.com/launchbadge/sqlx))
--   **Key Crates**: `tokio`, `tower-http`, `zip`, `rar`, `epub`
+- **Language**: Rust
+- **Framework**: [Axum](https://github.com/tokio-rs/axum)
+- **Database**: SQLite (via [SQLx](https://github.com/launchbadge/sqlx))
+- **Key Crates**: `tokio`, `tower-http`, `zip`, `epub`
 
 ### Frontend
 
--   **Framework**: [Vue.js 3](https://vuejs.org/)
--   **Build Tool**: [Vite](https://vitejs.dev/)
--   **Language**: TypeScript
--   **State Management**: [Pinia](https://pinia.vuejs.org/)
--   **Styling**: [Tailwind CSS](https://tailwindcss.com/)
--   **UI Components**: [shadcn-vue](https://www.shadcn-vue.com/)
+- **Framework**: [Vue.js 3](https://vuejs.org/)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Language**: TypeScript
+- **State Management**: [Pinia](https://pinia.vuejs.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components**: [shadcn-vue](https://www.shadcn-vue.com/)
 
 ## Getting Started
 
 ### Prerequisites
 
--   [Rust](https://www.rust-lang.org/tools/install) (latest stable)
--   [Node.js](https://nodejs.org/) (v18+ recommended)
--   [pnpm](https://pnpm.io/) (optional, but recommended for frontend)
+- [Rust](https://www.rust-lang.org/tools/install) (latest stable)
+- [Node.js](https://nodejs.org/) (v18+ recommended)
+- [pnpm](https://pnpm.io/) (optional, but recommended for frontend)
 
 ### Development Setup
 
@@ -115,12 +115,11 @@ If you prefer not to build from source, you can download pre-compiled binaries f
     ```
 
     **Important Environment Variables:**
-
-    -   `DATABASE_URL`: Specifies the database connection string, e.g., `sqlite:ryuri.db?mode=rwc`.
-    -   `JWT_SECRET`: **Crucial for security.** Replace with a strong, random string.
-    -   `HOST`: (Optional) The host address to bind to (default: `0.0.0.0`).
-    -   `PORT`: (Optional) The port to listen on (default: `3000`).
-    -   `JWT_EXPIRATION_HOURS`: (Optional) How long JWT tokens are valid (default: `24`).
+    - `DATABASE_URL`: Specifies the database connection string, e.g., `sqlite:ryuri.db?mode=rwc`.
+    - `JWT_SECRET`: **Crucial for security.** Replace with a strong, random string.
+    - `HOST`: (Optional) The host address to bind to (default: `0.0.0.0`).
+    - `PORT`: (Optional) The port to listen on (default: `3000`).
+    - `JWT_EXPIRATION_HOURS`: (Optional) How long JWT tokens are valid (default: `24`).
 
     The server will start, usually on `http://localhost:3000`.
 
@@ -178,12 +177,11 @@ To run Ryuri directly from the compiled binary, follow these steps:
     ```
 
     **Important Environment Variables:**
-
-    -   `DATABASE_URL`: Specifies the database connection string. For SQLite, `sqlite:ryuri.db?mode=rwc` will create a `ryuri.db` file in the current directory.
-    -   `JWT_SECRET`: **Crucial for security.** Replace `"your_secure_random_string_here"` with a long, random, and unique string. Without a persistent secret, user sessions will be invalidated on every restart.
-    -   `HOST`: (Optional) The host address to bind to (default: `0.0.0.0`).
-    -   `PORT`: (Optional) The port to listen on (default: `3000`).
-    -   `JWT_EXPIRATION_HOURS`: (Optional) How long JWT tokens are valid (default: `24`).
+    - `DATABASE_URL`: Specifies the database connection string. For SQLite, `sqlite:ryuri.db?mode=rwc` will create a `ryuri.db` file in the current directory.
+    - `JWT_SECRET`: **Crucial for security.** Replace `"your_secure_random_string_here"` with a long, random, and unique string. Without a persistent secret, user sessions will be invalidated on every restart.
+    - `HOST`: (Optional) The host address to bind to (default: `0.0.0.0`).
+    - `PORT`: (Optional) The port to listen on (default: `3000`).
+    - `JWT_EXPIRATION_HOURS`: (Optional) How long JWT tokens are valid (default: `24`).
 
     The server will start, usually on `http://localhost:3000`.
 
@@ -213,22 +211,20 @@ You can easily deploy Ryuri using the official Docker image.
     ```
 
     **Environment Variables:**
-
-    -   `DATABASE_URL`: Connection string for the database. Ensure it points to a location inside the volume (e.g., `/app/data`).
-    -   `JWT_SECRET`: (Optional) A secure random string for signing authentication tokens (default: random string generated on each startup).
-    -   `JWT_EXPIRATION_HOURS`: (Optional) Token expiration time in hours (default: 24).
+    - `DATABASE_URL`: Connection string for the database. Ensure it points to a location inside the volume (e.g., `/app/data`).
+    - `JWT_SECRET`: (Optional) A secure random string for signing authentication tokens (default: random string generated on each startup).
+    - `JWT_EXPIRATION_HOURS`: (Optional) Token expiration time in hours (default: 24).
 
     **Volumes:**
-
-    -   `/app/data`: Persistent storage for the database.
-    -   `/comics`: (Example) Mount your local comic directories here to add them to your Ryuri library.
+    - `/app/data`: Persistent storage for the database.
+    - `/comics`: (Example) Mount your local comic directories here to add them to your Ryuri library.
 
 ## API Documentation
 
 Ryuri provides a REST API for all frontend operations. Additionally, it exposes a Komga-compatible API layer under `/komga`.
 
--   **Standard API**: Used by the web frontend for library management, reading, and settings.
--   **Limited Komga API support**: Support the API required for the Komga plugin in the Mihon APP.
+- **Standard API**: Used by the web frontend for library management, reading, and settings.
+- **Limited Komga API support**: Support the API required for the Komga plugin in the Mihon APP.
 
 ## License
 

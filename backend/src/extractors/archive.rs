@@ -12,7 +12,6 @@ use serde::Serialize;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::sync::Arc;
 
 use super::natural_sort_key;
 
@@ -65,7 +64,6 @@ impl ArchiveExtractor {
 
         match ext.as_str() {
             "zip" | "cbz" => Self::list_zip_files(archive_path),
-            "cbr" | "rar" => Self::list_rar_files(archive_path),
             "epub" => Self::list_epub_files(archive_path),
             _ => Err(AppError::Archive(
                 t!("archive.unsupported_comic_format", extension = ext).to_string(),
@@ -84,7 +82,7 @@ impl ArchiveExtractor {
 
         match ext.as_str() {
             "zip" | "cbz" => Self::extract_zip_file(archive_path, file_name),
-            "cbr" | "rar" => Self::extract_rar_file(archive_path, file_name),
+            "epub" => Self::extract_resource_bytes(archive_path, file_name),
             _ => Err(AppError::Archive(
                 t!("archive.unsupported_comic_format", extension = ext).to_string(),
             )),
@@ -199,37 +197,6 @@ impl ArchiveExtractor {
         Ok(buffer)
     }
 
-    // ── RAR/CBR implementation ────────────────────────────────────────────
-
-    fn list_rar_files(archive_path: &Path) -> Result<Vec<String>> {
-        let entries = Self::parse_rar_entries(archive_path)?;
-        let mut files: Vec<String> = entries
-            .into_iter()
-            .map(|entry| Self::normalize_rar_entry_name(&entry.name))
-            .filter(|name| Self::is_image_file(name))
-            .collect();
-
-        // Sort files using natural sort order
-        files.sort_by_key(|a| natural_sort_key(a));
-        Ok(files)
-    }
-
-    fn extract_rar_file(archive_path: &Path, file_name: &str) -> Result<Vec<u8>> {
-        let entries = Self::parse_rar_entries(archive_path)?;
-        let requested = Self::normalize_rar_entry_name(file_name);
-        let entry = entries
-            .iter()
-            .find(|entry| {
-                entry.name == file_name || Self::normalize_rar_entry_name(&entry.name) == requested
-            })
-            .ok_or_else(|| {
-                AppError::Archive(t!("archive.file_not_found", file = file_name).to_string())
-            })?;
-
-        Self::run_rar_future(entry.read_to_end())
-            .map_err(|e| AppError::Archive(t!("archive.rar_extract_failed", error = e).to_string()))
-    }
-
     // ── EPUB implementation ───────────────────────────────────────────────
 
     fn list_epub_files(archive_path: &Path) -> Result<Vec<String>> {
@@ -247,18 +214,11 @@ impl ArchiveExtractor {
 
     /// Checks if a filename is an image file based on extension.
     fn is_image_file(name: &str) -> bool {
-        let lower = Self::normalize_rar_entry_name(name).to_lowercase();
+        // Normalize backslashes and strip NUL suffix for robust matching
+        let normalized = name.replace('\\', "/");
+        let visible = normalized.split('\0').next().unwrap_or(&normalized);
+        let lower = visible.to_lowercase();
         IMAGE_EXTENSIONS.iter().any(|ext| lower.ends_with(ext))
-    }
-
-    /// Normalizes RAR entry names from parser output.
-    ///
-    /// `rar-stream` can return RAR4 unicode-special names with an embedded NUL
-    /// separator (`ansi_name\0encoded_suffix`); only the visible path portion
-    /// before NUL should be used for filtering and matching.
-    fn normalize_rar_entry_name(name: &str) -> String {
-        let visible = name.split('\0').next().unwrap_or(name);
-        visible.replace('\\', "/")
     }
 
     /// Reads from a stream incrementally to avoid one-shot full-file reads.
@@ -280,41 +240,6 @@ impl ArchiveExtractor {
         }
 
         Ok(output)
-    }
-
-    fn parse_rar_entries(archive_path: &Path) -> Result<Vec<rar_stream::InnerFile>> {
-        let path = archive_path.to_str().ok_or_else(|| {
-            AppError::Archive(t!("archive.rar_open_failed", error = "invalid path").to_string())
-        })?;
-        let media = rar_stream::LocalFileMedia::new(path)
-            .map_err(|e| AppError::Archive(t!("archive.rar_open_failed", error = e).to_string()))?;
-        let package = rar_stream::RarFilesPackage::new(vec![
-            Arc::new(media) as Arc<dyn rar_stream::FileMedia>
-        ]);
-
-        Self::run_rar_future(package.parse(rar_stream::ParseOptions::default())).map_err(|e| {
-            AppError::Archive(t!("archive.rar_read_entries_failed", error = e).to_string())
-        })
-    }
-
-    fn run_rar_future<T, F>(future: F) -> std::result::Result<T, rar_stream::RarError>
-    where
-        F: std::future::Future<Output = std::result::Result<T, rar_stream::RarError>>,
-    {
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            tokio::task::block_in_place(|| handle.block_on(future))
-        } else {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|e| {
-                    rar_stream::RarError::Io(std::io::Error::other(format!(
-                        "tokio runtime init failed: {}",
-                        e
-                    )))
-                })?;
-            runtime.block_on(future)
-        }
     }
 }
 
@@ -340,8 +265,6 @@ mod tests {
         let exts = ArchiveExtractor::supported_extensions();
         assert!(exts.contains(&"zip"));
         assert!(exts.contains(&"cbz"));
-        assert!(exts.contains(&"cbr"));
-        assert!(exts.contains(&"rar"));
         assert!(exts.contains(&"epub"));
     }
 
@@ -360,17 +283,5 @@ mod tests {
         let output = ArchiveExtractor::read_stream_to_vec(&mut cursor, None).unwrap();
 
         assert_eq!(output, data);
-    }
-
-    #[test]
-    fn test_normalize_rar_entry_name() {
-        assert_eq!(
-            ArchiveExtractor::normalize_rar_entry_name("dir\\image.jpg\0encoded_suffix"),
-            "dir/image.jpg"
-        );
-        assert_eq!(
-            ArchiveExtractor::normalize_rar_entry_name("dir/sub/image.png"),
-            "dir/sub/image.png"
-        );
     }
 }

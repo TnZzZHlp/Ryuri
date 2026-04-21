@@ -22,7 +22,7 @@ Ryuri 是一个自托管的漫画和电子书阅读服务器，专注于简洁�
 
 ## 功能特性
 
-- **自托管库**: 整理您的漫画、电子书（支持 zip、rar、cbz、cbr、epub 格式）。
+- **自托管库**: 整理您的漫画、电子书（支持 zip、cbz、epub 格式）。
 - **网页阅读器**: 现代化、响应式的网页界面，可在任何设备上阅读。
 - **Komga 兼容性**: 实现了 Komga API，允许您使用如 [Mihon](https://github.com/mihonapp/mihon) 等客户端。
 - **进度追踪**: 自动跨设备追踪您的阅读进度。
@@ -35,7 +35,7 @@ Ryuri 是一个自托管的漫画和电子书阅读服务器，专注于简洁�
 - **语言**: Rust
 - **框架**: [Axum](https://github.com/tokio-rs/axum)
 - **数据库**: SQLite (通过 [SQLx](https://github.com/launchbadge/sqlx))
-- **核心依赖**: `tokio`, `tower-http`, `zip`, `rar`, `epub`
+- **核心依赖**: `tokio`, `tower-http`, `zip`, `epub`
 
 ### 前端
 
