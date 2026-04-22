@@ -348,6 +348,18 @@ archive.unsupported_comic_format:
 archive.no_images_found:
   en: "No images found in archive"
   zh-CN: "归档文件中未找到图片"
+archive.open_failed:
+  en: "Failed to open archive: %{error}"
+  zh-CN: "打开归档失败: %{error}"
+archive.read_entry_failed:
+  en: "Failed to read archive entry: %{error}"
+  zh-CN: "读取归档条目失败: %{error}"
+archive.epub_open_failed:
+  en: "Failed to open EPUB archive: %{error}"
+  zh-CN: "打开 EPUB 归档失败: %{error}"
+archive.chapter_not_found_in_epub:
+  en: "Resource not found in EPUB: %{file}"
+  zh-CN: "EPUB 中未找到资源: %{file}"
 archive.zip_open_failed:
   en: "Failed to open ZIP archive: %{error}"
   zh-CN: "打开 ZIP 归档失败: %{error}"

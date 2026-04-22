@@ -1078,7 +1078,7 @@ impl ScanQueueService {
             .collect();
 
         // Sort by created_at (asc)
-        result.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        result.sort_by_key(|a| a.created_at);
 
         result
     }
@@ -1122,7 +1122,7 @@ impl ScanQueueService {
             .collect();
 
         // Sort by completed_at descending (most recent first)
-        history.sort_by(|a, b| b.completed_at.cmp(&a.completed_at));
+        history.sort_by_key(|b| std::cmp::Reverse(b.completed_at));
 
         history.truncate(limit);
         history

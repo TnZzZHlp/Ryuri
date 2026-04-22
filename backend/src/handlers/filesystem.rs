@@ -86,7 +86,7 @@ pub async fn list_directories(
     }
 
     // Sort by name case-insensitively for better UX
-    dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    dirs.sort_by_key(|a| a.name.to_lowercase());
 
     Ok(Json(dirs))
 }

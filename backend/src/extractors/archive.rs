@@ -1,23 +1,27 @@
-//! Archive extractor for ZIP, CBZ, CBR, RAR, and EPUB formats.
+//! Archive extractor for ZIP, CBZ, CBR, RAR, 7Z, and EPUB formats.
 //!
 //! This module provides functionality to extract content from compressed archive files.
+//! Uses `unarc-rs` for unified archive handling with streaming support.
+//!
 //! Supported formats:
-//! - ZIP/CBZ: Standard ZIP archives (CBZ is just ZIP with a different extension)
-//! - CBR/RAR: RAR archives
+//! - ZIP/CBZ: Standard ZIP archives
+//! - CBR/RAR: RAR archives (RAR5 only)
+//! - 7Z/CB7: 7-Zip archives
 //! - EPUB: Electronic publication format (ZIP with specific structure)
 
 use crate::error::{AppError, Result};
 use rust_i18n::t;
 use serde::Serialize;
 use std::fs::File;
-use std::io::Read;
+use std::io::{BufReader, Write};
 use std::path::Path;
 
 use super::natural_sort_key;
 
+use unarc_rs::unified::{ArchiveFormat, UnifiedArchive};
+
 /// Supported image extensions for comics.
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "bmp"];
-const READ_CHUNK_SIZE: usize = 64 * 1024;
 
 /// A single item in the EPUB spine (reading order).
 #[derive(Debug, Clone, Serialize)]
@@ -28,13 +32,15 @@ pub struct SpineEntry {
     pub mime_type: String,
 }
 
-/// Archive extractor supporting ZIP, CBZ, CBR, RAR, and EPUB formats.
+/// Archive extractor supporting ZIP, CBZ, CBR, RAR, 7Z, and EPUB formats.
+///
+/// All extractions use streaming reads to minimize memory usage.
 pub struct ArchiveExtractor;
 
 impl ArchiveExtractor {
     /// Returns the supported archive extensions.
     pub fn supported_extensions() -> &'static [&'static str] {
-        &["zip", "cbz", "cbr", "rar", "epub"]
+        &["zip", "cbz", "cbr", "rar", "7z", "cb7", "epub"]
     }
 
     /// Checks if a file extension is supported.
@@ -53,9 +59,8 @@ impl ArchiveExtractor {
             .unwrap_or(false)
     }
 
-    /// Lists all image files in the archive, sorted by filename.
-    /// For EPUB files, lists spine items (chapter idrefs) in reading order.
-    pub fn list_files(archive_path: &Path) -> Result<Vec<String>> {
+    /// Detects the archive format from file extension.
+    fn detect_format(archive_path: &Path) -> Result<ArchiveFormat> {
         let ext = archive_path
             .extension()
             .and_then(|e| e.to_str())
@@ -63,30 +68,119 @@ impl ArchiveExtractor {
             .unwrap_or_default();
 
         match ext.as_str() {
-            "zip" | "cbz" => Self::list_zip_files(archive_path),
-            "epub" => Self::list_epub_files(archive_path),
+            "zip" | "cbz" => Ok(ArchiveFormat::Zip),
+            "rar" | "cbr" => Ok(ArchiveFormat::Rar),
+            "7z" | "cb7" => Ok(ArchiveFormat::SevenZ),
+            "epub" => Ok(ArchiveFormat::Zip), // EPUB is a ZIP file
             _ => Err(AppError::Archive(
                 t!("archive.unsupported_comic_format", extension = ext).to_string(),
             )),
         }
     }
 
-    /// Extracts a specific file from the archive.
-    /// For EPUB, extracts text content (stripped of HTML) from a spine item.
-    pub fn extract_file(archive_path: &Path, file_name: &str) -> Result<Vec<u8>> {
-        let ext = archive_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|e| e.to_lowercase())
-            .unwrap_or_default();
-
-        match ext.as_str() {
-            "zip" | "cbz" => Self::extract_zip_file(archive_path, file_name),
-            "epub" => Self::extract_resource_bytes(archive_path, file_name),
-            _ => Err(AppError::Archive(
-                t!("archive.unsupported_comic_format", extension = ext).to_string(),
-            )),
+    /// Lists all image files in the archive, sorted by filename.
+    /// For EPUB files, lists spine items (chapter idrefs) in reading order.
+    pub fn list_files(archive_path: &Path) -> Result<Vec<String>> {
+        // EPUB uses special handling via epub crate
+        if Self::is_epub(archive_path) {
+            return Self::list_epub_files(archive_path);
         }
+
+        let format = Self::detect_format(archive_path)?;
+        let file = File::open(archive_path)
+            .map_err(|e| AppError::Archive(t!("archive.open_failed", error = e).to_string()))?;
+        let reader = BufReader::new(file);
+
+        let mut archive = UnifiedArchive::open_with_format(reader, format)
+            .map_err(|e| AppError::Archive(t!("archive.open_failed", error = e).to_string()))?;
+
+        let mut files: Vec<String> = Vec::new();
+
+        while let Some(entry) = archive.next_entry().map_err(|e| {
+            AppError::Archive(t!("archive.read_entry_failed", error = e).to_string())
+        })? {
+            let name = entry.name().to_string();
+            if Self::is_image_file(&name) {
+                files.push(name);
+            }
+        }
+
+        // Sort files using natural sort order
+        files.sort_by_key(|a| natural_sort_key(a));
+        Ok(files)
+    }
+
+    /// Extracts a specific file from the archive using streaming.
+    ///
+    /// This method streams data in chunks to minimize memory usage.
+    pub fn extract_file(archive_path: &Path, file_name: &str) -> Result<Vec<u8>> {
+        // EPUB uses special handling
+        if Self::is_epub(archive_path) {
+            return Self::extract_resource_bytes(archive_path, file_name);
+        }
+
+        let format = Self::detect_format(archive_path)?;
+        let file = File::open(archive_path)
+            .map_err(|e| AppError::Archive(t!("archive.open_failed", error = e).to_string()))?;
+        let reader = BufReader::new(file);
+
+        let mut archive = UnifiedArchive::open_with_format(reader, format)
+            .map_err(|e| AppError::Archive(t!("archive.open_failed", error = e).to_string()))?;
+
+        // Find the requested file
+        while let Some(entry) = archive.next_entry().map_err(|e| {
+            AppError::Archive(t!("archive.read_entry_failed", error = e).to_string())
+        })? {
+            if entry.name() == file_name {
+                // Stream the data in chunks
+                let mut output = Vec::with_capacity(entry.original_size() as usize);
+                archive.read_to(&entry, &mut output).map_err(|e| {
+                    AppError::Archive(t!("archive.file_read_failed", error = e).to_string())
+                })?;
+                return Ok(output);
+            }
+        }
+
+        Err(AppError::Archive(
+            t!("archive.file_not_found", file = file_name).to_string(),
+        ))
+    }
+
+    /// Extracts a file and streams it directly to a writer.
+    ///
+    /// This is the most memory-efficient method for large files.
+    pub fn extract_file_to<W: Write>(
+        archive_path: &Path,
+        file_name: &str,
+        writer: &mut W,
+    ) -> Result<u64> {
+        // EPUB uses special handling
+        if Self::is_epub(archive_path) {
+            return Self::extract_resource_to(archive_path, file_name, writer);
+        }
+
+        let format = Self::detect_format(archive_path)?;
+        let file = File::open(archive_path)
+            .map_err(|e| AppError::Archive(t!("archive.open_failed", error = e).to_string()))?;
+        let reader = BufReader::new(file);
+
+        let mut archive = UnifiedArchive::open_with_format(reader, format)
+            .map_err(|e| AppError::Archive(t!("archive.open_failed", error = e).to_string()))?;
+
+        // Find the requested file
+        while let Some(entry) = archive.next_entry().map_err(|e| {
+            AppError::Archive(t!("archive.read_entry_failed", error = e).to_string())
+        })? {
+            if entry.name() == file_name {
+                return archive.read_to(&entry, writer).map_err(|e| {
+                    AppError::Archive(t!("archive.file_read_failed", error = e).to_string())
+                });
+            }
+        }
+
+        Err(AppError::Archive(
+            t!("archive.file_not_found", file = file_name).to_string(),
+        ))
     }
 
     /// Extracts the first image from the archive (for thumbnail generation).
@@ -133,68 +227,9 @@ impl ArchiveExtractor {
     /// This is used for serving individual EPUB resources (XHTML, images, CSS,
     /// fonts, etc.) to the frontend for on-demand rendering.
     pub fn extract_resource_bytes(archive_path: &Path, resource_path: &str) -> Result<Vec<u8>> {
-        let file = File::open(archive_path).map_err(|e| {
-            AppError::Archive(t!("archive.epub_open_failed", error = e).to_string())
-        })?;
-        let mut archive = zip::ZipArchive::new(file).map_err(|e| {
-            AppError::Archive(t!("archive.epub_open_failed", error = e).to_string())
-        })?;
-
-        let mut entry = archive.by_name(resource_path).map_err(|_| {
-            AppError::NotFound(
-                t!("archive.chapter_not_found_in_epub", file = resource_path).to_string(),
-            )
-        })?;
-
-        let entry_size = entry.size();
-        let buf = Self::read_stream_to_vec(&mut entry, Some(entry_size)).map_err(|e| {
-            AppError::Archive(format!(
-                "Failed to read EPUB resource '{}': {}",
-                resource_path, e
-            ))
-        })?;
-
-        Ok(buf)
-    }
-
-    // ── ZIP/CBZ implementation ────────────────────────────────────────────
-
-    fn list_zip_files(archive_path: &Path) -> Result<Vec<String>> {
-        let file = File::open(archive_path)?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| AppError::Archive(t!("archive.zip_open_failed", error = e).to_string()))?;
-
-        let mut files: Vec<String> = Vec::new();
-        for i in 0..archive.len() {
-            let entry = archive.by_index(i).map_err(|e| {
-                AppError::Archive(t!("archive.zip_read_entry_failed", error = e).to_string())
-            })?;
-            let name = entry.name().to_string();
-            if Self::is_image_file(&name) {
-                files.push(name);
-            }
-        }
-
-        // Sort files using natural sort order
-        files.sort_by_key(|a| natural_sort_key(a));
-        Ok(files)
-    }
-
-    fn extract_zip_file(archive_path: &Path, file_name: &str) -> Result<Vec<u8>> {
-        let file = File::open(archive_path)?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| AppError::Archive(t!("archive.zip_open_failed", error = e).to_string()))?;
-
-        let mut entry = archive.by_name(file_name).map_err(|_| {
-            AppError::Archive(t!("archive.file_not_found", file = file_name).to_string())
-        })?;
-
-        let entry_size = entry.size();
-        let buffer = Self::read_stream_to_vec(&mut entry, Some(entry_size)).map_err(|e| {
-            AppError::Archive(t!("archive.file_read_failed", error = e).to_string())
-        })?;
-
-        Ok(buffer)
+        let mut output = Vec::new();
+        Self::extract_resource_to(archive_path, resource_path, &mut output)?;
+        Ok(output)
     }
 
     // ── EPUB implementation ───────────────────────────────────────────────
@@ -210,6 +245,37 @@ impl ArchiveExtractor {
         Ok(files)
     }
 
+    /// Extracts an EPUB resource and streams it directly to a writer.
+    fn extract_resource_to<W: Write>(
+        archive_path: &Path,
+        resource_path: &str,
+        writer: &mut W,
+    ) -> Result<u64> {
+        let file = File::open(archive_path).map_err(|e| {
+            AppError::Archive(t!("archive.epub_open_failed", error = e).to_string())
+        })?;
+        let reader = BufReader::new(file);
+
+        let mut archive =
+            UnifiedArchive::open_with_format(reader, ArchiveFormat::Zip).map_err(|e| {
+                AppError::Archive(t!("archive.epub_open_failed", error = e).to_string())
+            })?;
+
+        while let Some(entry) = archive.next_entry().map_err(|e| {
+            AppError::Archive(t!("archive.read_entry_failed", error = e).to_string())
+        })? {
+            if entry.name() == resource_path {
+                return archive.read_to(&entry, writer).map_err(|e| {
+                    AppError::Archive(t!("archive.file_read_failed", error = e).to_string())
+                });
+            }
+        }
+
+        Err(AppError::NotFound(
+            t!("archive.chapter_not_found_in_epub", file = resource_path).to_string(),
+        ))
+    }
+
     // ── Helper methods ────────────────────────────────────────────────────
 
     /// Checks if a filename is an image file based on extension.
@@ -219,27 +285,6 @@ impl ArchiveExtractor {
         let visible = normalized.split('\0').next().unwrap_or(&normalized);
         let lower = visible.to_lowercase();
         IMAGE_EXTENSIONS.iter().any(|ext| lower.ends_with(ext))
-    }
-
-    /// Reads from a stream incrementally to avoid one-shot full-file reads.
-    fn read_stream_to_vec<R: Read>(
-        reader: &mut R,
-        size_hint: Option<u64>,
-    ) -> std::io::Result<Vec<u8>> {
-        let mut output = size_hint
-            .and_then(|size| usize::try_from(size).ok())
-            .map_or_else(Vec::new, Vec::with_capacity);
-        let mut chunk = [0u8; READ_CHUNK_SIZE];
-
-        loop {
-            let read = reader.read(&mut chunk)?;
-            if read == 0 {
-                break;
-            }
-            output.extend_from_slice(&chunk[..read]);
-        }
-
-        Ok(output)
     }
 }
 
@@ -265,6 +310,9 @@ mod tests {
         let exts = ArchiveExtractor::supported_extensions();
         assert!(exts.contains(&"zip"));
         assert!(exts.contains(&"cbz"));
+        assert!(exts.contains(&"cbr"));
+        assert!(exts.contains(&"rar"));
+        assert!(exts.contains(&"7z"));
         assert!(exts.contains(&"epub"));
     }
 
@@ -274,14 +322,5 @@ mod tests {
         assert!(ArchiveExtractor::is_epub(Path::new("/path/to/book.EPUB")));
         assert!(!ArchiveExtractor::is_epub(Path::new("comic.cbz")));
         assert!(!ArchiveExtractor::is_epub(Path::new("archive.zip")));
-    }
-
-    #[test]
-    fn test_read_stream_to_vec() {
-        let data = vec![42u8; READ_CHUNK_SIZE * 2 + 123];
-        let mut cursor = std::io::Cursor::new(data.clone());
-        let output = ArchiveExtractor::read_stream_to_vec(&mut cursor, None).unwrap();
-
-        assert_eq!(output, data);
     }
 }
