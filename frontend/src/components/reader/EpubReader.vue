@@ -280,7 +280,7 @@ const epubProgress = computed(() => {
 // Scroll-based progress for epub within current page
 const updateProgress = () => {
     if (!containerRef.value) return 0
-    
+
     const scrollTop = containerRef.value.scrollTop
     const docHeight = containerRef.value.scrollHeight
     const winHeight = containerRef.value.clientHeight
@@ -330,11 +330,7 @@ defineExpose({
 </script>
 
 <template>
-    <div
-        ref="containerRef"
-        class="epub-reader-wrapper min-h-screen w-full"
-        @click="$emit('click', $event)"
-    >
+    <div ref="containerRef" class="epub-reader-wrapper min-h-svh w-full" @click="$emit('click', $event)">
         <div v-if="loading || epubSpineLoading" class="flex items-center justify-center h-screen">
             <Spinner class="size-12 text-white" />
         </div>

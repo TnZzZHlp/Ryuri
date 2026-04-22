@@ -262,92 +262,42 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div ref="containerRef" class="fixed inset-0 bg-black text-white overflow-auto select-none" @scroll="updateProgress">
+    <div ref="containerRef" class="fixed inset-0 bg-black text-white overflow-auto select-none"
+        @scroll="updateProgress">
         <!-- EPUB Reader -->
-        <EpubReader
-            v-if="isNovel"
-            ref="epubReaderRef"
-            :chapter="currentChapter"
-            :epub-html-content="epubHtmlContent"
-            :epub-stylesheets="epubStylesheets"
-            :epub-inline-styles="epubInlineStyles"
-            :epub-spine="epubSpine"
-            :epub-current-spine-index="epubCurrentSpineIndex"
-            :epub-spine-loading="epubSpineLoading"
-            :loading="loading"
-            :prev-chapter="prevChapter"
-            :next-chapter="nextChapter"
-            @click="handleEpubClick"
-            @navigate-to-chapter="navigateToChapter"
-        />
+        <EpubReader v-if="isNovel" ref="epubReaderRef" :chapter="currentChapter" :epub-html-content="epubHtmlContent"
+            :epub-stylesheets="epubStylesheets" :epub-inline-styles="epubInlineStyles" :epub-spine="epubSpine"
+            :epub-current-spine-index="epubCurrentSpineIndex" :epub-spine-loading="epubSpineLoading" :loading="loading"
+            :prev-chapter="prevChapter" :next-chapter="nextChapter" @click="handleEpubClick"
+            @navigate-to-chapter="navigateToChapter" />
 
         <!-- Comic Reader -->
-        <ComicReader
-            v-else
-            ref="comicReaderRef"
-            :chapter="currentChapter"
-            :page-urls="pageUrls"
-            :failed-pages="failedPages"
-            :current-page="currentPage"
-            :reader-mode="readerMode"
-            :pages="pages"
-            :loading="loading"
-            :preload-buffer="preloadBuffer"
-            :end-of-chapter="endOfChapter"
-            :prev-chapter="prevChapter"
-            :next-chapter="nextChapter"
-            @page-click="handlePageClick"
-            @scroll="updateProgress"
-            @set-current-page="(p) => (currentPage = p)"
-            @load-page="readerStore.loadPage"
-            @load-more-pages="readerStore.loadMorePages"
-            @navigate-to-chapter="navigateToChapter"
-            @navigate-back="navigateBack"
-            @save-progress="readerStore.saveProgress"
-        />
+        <ComicReader v-else ref="comicReaderRef" :chapter="currentChapter" :page-urls="pageUrls"
+            :failed-pages="failedPages" :current-page="currentPage" :reader-mode="readerMode" :pages="pages"
+            :loading="loading" :preload-buffer="preloadBuffer" :end-of-chapter="endOfChapter"
+            :prev-chapter="prevChapter" :next-chapter="nextChapter" @page-click="handlePageClick"
+            @scroll="updateProgress" @set-current-page="(p) => (currentPage = p)" @load-page="readerStore.loadPage"
+            @load-more-pages="readerStore.loadMorePages" @navigate-to-chapter="navigateToChapter"
+            @navigate-back="navigateBack" @save-progress="readerStore.saveProgress" />
 
         <!-- Controls -->
-        <ReaderControls
-            :show="showControls"
-            :current-chapter="currentChapter"
-            :current-chapter-index="currentChapterIndex"
-            :chapters="chapters"
-            :is-novel="isNovel"
-            :reader-mode="readerMode"
-            :reading-progress="readingProgress"
-            :current-page="currentPage"
-            :epub-current-spine-index="epubCurrentSpineIndex"
-            :epub-spine-length="epubSpine.length"
-            :prev-chapter="prevChapter"
-            :next-chapter="nextChapter"
-            @navigate-back="navigateBack"
-            @navigate-to-chapter="navigateToChapter"
-            @set-mode="readerStore.setMode"
-            @open-settings="openSettings"
-            @toggle-toc="toggleTocPanel"
-        />
+        <ReaderControls :show="showControls" :current-chapter="currentChapter"
+            :current-chapter-index="currentChapterIndex" :chapters="chapters" :is-novel="isNovel"
+            :reader-mode="readerMode" :reading-progress="readingProgress" :current-page="currentPage"
+            :epub-current-spine-index="epubCurrentSpineIndex" :epub-spine-length="epubSpine.length"
+            :prev-chapter="prevChapter" :next-chapter="nextChapter" @navigate-back="navigateBack"
+            @navigate-to-chapter="navigateToChapter" @set-mode="readerStore.setMode" @open-settings="openSettings"
+            @toggle-toc="toggleTocPanel" />
 
-        <EpubTocPanel
-            v-if="isNovel"
-            :show="showTocPanel"
-            :items="epubToc"
-            :loading="epubTocLoading"
-            :current-spine-path="currentEpubSpinePath"
-            @close="closeTocPanel"
-            @select="handleEpubTocSelect"
-        />
+        <EpubTocPanel v-if="isNovel" :show="showTocPanel" :items="epubToc" :loading="epubTocLoading"
+            :current-spine-path="currentEpubSpinePath" @close="closeTocPanel" @select="handleEpubTocSelect" />
 
         <!-- Settings Dialog -->
         <Dialog :open="showSettingsDialog" @update:open="showSettingsDialog = $event">
-            <ReaderSettingsDialog
-                :reader-mode="readerMode"
-                :preload-buffer="preloadBuffer"
+            <ReaderSettingsDialog :reader-mode="readerMode" :preload-buffer="preloadBuffer"
                 :min-preload-buffer="readerStore.MIN_PRELOAD_BUFFER"
-                :max-preload-buffer="readerStore.MAX_PRELOAD_BUFFER"
-                @close="closeSettings"
-                @update:reader-mode="readerStore.setMode"
-                @update:preload-buffer="readerStore.setPreloadBuffer"
-            />
+                :max-preload-buffer="readerStore.MAX_PRELOAD_BUFFER" @close="closeSettings"
+                @update:reader-mode="readerStore.setMode" @update:preload-buffer="readerStore.setPreloadBuffer" />
         </Dialog>
     </div>
 </template>

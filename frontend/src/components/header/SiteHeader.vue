@@ -220,7 +220,7 @@ const handleSelectResult = async (item: any) => {
         class="flex h-(--header-height) shrink-0 items-center gap-2 border-b text-foreground transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
         <div class="flex w-full items-center justify-between gap-1 px-4 lg:gap-2 lg:px-6">
             <div class="flex items-center gap-2">
-                <SidebarTrigger class="-ml-1" v-if="is_mobile" />
+                <SidebarTrigger class="-ml-1" v-if="is_mobile && router.currentRoute.value.name !== 'Content'" />
                 <ArrowLeft @click="router.push(`/library/${router.currentRoute.value.params.libraryId}`)"
                     v-if="router.currentRoute.value.name == 'Content'" class="cursor-pointer" :size=20 />
             </div>
@@ -248,7 +248,7 @@ const handleSelectResult = async (item: any) => {
     </header>
 
     <Dialog v-model:open="showEditDialog">
-        <DialogContent class="sm:max-w-[800px]">
+        <DialogContent class="sm:max-w-200">
             <DialogHeader>
                 <DialogTitle>{{ t('edit_content.title') }}</DialogTitle>
             </DialogHeader>
@@ -279,8 +279,7 @@ const handleSelectResult = async (item: any) => {
                 </div>
                 <div class="space-y-2">
                     <Label for="metadata">{{ t('edit_content.metadata_label') }}</Label>
-                    <div class="border rounded-md overflow-hidden h-[300px]"
-                        :class="{ 'border-destructive': !!jsonError }">
+                    <div class="border rounded-md overflow-hidden h-75" :class="{ 'border-destructive': !!jsonError }">
                         <Codemirror v-model="currentMetadata" :placeholder="t('edit_content.metadata_placeholder')"
                             :style="{ height: '100%' }" :autofocus="true" :indent-with-tab="true" :tab-size="2"
                             :extensions="extensions" />
