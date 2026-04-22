@@ -36,6 +36,7 @@ sys-locale = "0.3.2"
 proptest = "1.11.0"
 tempfile = "3.27.0"
 backend = { path = ".", features = ["test-utils"] }
+zip = "8.5.1"
 
 [features]
 test-utils = []
