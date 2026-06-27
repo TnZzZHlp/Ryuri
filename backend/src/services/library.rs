@@ -2,9 +2,9 @@
 //!
 //! This module provides business logic for library and scan path management.
 
+use rust_i18n::t;
 use sqlx::{Pool, Sqlite};
 use tracing::instrument;
-use rust_i18n::t;
 
 use crate::error::{AppError, Result};
 use crate::models::{

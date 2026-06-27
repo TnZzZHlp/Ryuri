@@ -125,8 +125,16 @@ pub fn create_router(state: AppState) -> Router {
             get(content::get_page),
         )
         .route(
-            "/api/contents/{content_id}/chapters/{chapter_id}/text",
-            get(content::get_chapter_text),
+            "/api/contents/{content_id}/chapters/{chapter_id}/file",
+            get(content::get_chapter_file),
+        )
+        .route(
+            "/api/contents/{content_id}/chapters/{chapter_id}/epub/{*resource_path}",
+            get(content::get_epub_resource),
+        )
+        .route(
+            "/api/contents/{content_id}/chapters/{chapter_id}/epub-spine",
+            get(content::get_epub_spine),
         )
         // Progress routes
         .route("/api/progress/recent", get(progress::get_recent_progress))

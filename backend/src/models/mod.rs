@@ -3,16 +3,16 @@
 //! This module contains all the data structures used throughout the application,
 //! including database models and API request/response types.
 
+mod apikey;
 mod content;
 mod library;
 mod progress;
 mod scan_queue;
 mod user;
-mod apikey;
 
+pub use apikey::*;
 pub use content::*;
 pub use library::*;
 pub use progress::*;
 pub use scan_queue::*;
 pub use user::*;
-pub use apikey::*;

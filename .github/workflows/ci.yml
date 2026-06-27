@@ -62,7 +62,7 @@ jobs:
                   path: |
                       ~/.pnpm-store
                       node_modules
-                  key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+                  key: ${{ runner.os }}-pnpm
                   restore-keys: |
                       ${{ runner.os }}-pnpm-
 
@@ -101,7 +101,7 @@ jobs:
                   path: |
                       ~/.pnpm-store
                       frontend/node_modules
-                  key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+                  key: ${{ runner.os }}-pnpm
                   restore-keys: |
                       ${{ runner.os }}-pnpm-
 
@@ -123,7 +123,7 @@ jobs:
                       ~/.cargo/registry
                       ~/.cargo/git
                       backend/target
-                  key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+                  key: ${{ runner.os }}-cargo
                   restore-keys: |
                       ${{ runner.os }}-cargo-
 

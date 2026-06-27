@@ -3,8 +3,8 @@
 //! This module contains all the Axum handlers that process incoming HTTP requests
 //! and return appropriate responses.
 
-pub mod auth;
 pub mod apikey;
+pub mod auth;
 pub mod content;
 pub mod filesystem;
 pub mod komga;

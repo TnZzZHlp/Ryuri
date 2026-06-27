@@ -7,9 +7,9 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use rust_i18n::t;
 use serde::Serialize;
 use thiserror::Error;
-use rust_i18n::t;
 
 /// Unified error type for the application.
 #[derive(Debug, Error)]

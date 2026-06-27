@@ -308,25 +308,25 @@ progress.page_out_of_range:
   zh-CN: "页码 %{page} 超出范围 (1-%{max})"
 library.name_empty:
   en: "Library name cannot be empty"
-  zh-CN: "图书馆名称不能为空"
+  zh-CN: "书籍库名称不能为空"
 library.path_empty:
   en: "Library path cannot be empty"
-  zh-CN: "图书馆路径不能为空"
+  zh-CN: "书籍库路径不能为空"
 library.path_exists:
   en: "Library path already exists"
-  zh-CN: "图书馆路径已存在"
+  zh-CN: "书籍库路径已存在"
 library.scan_path_exists:
   en: "Scan path already exists for this library"
-  zh-CN: "该图书馆的扫描路径已存在"
+  zh-CN: "该书籍库的扫描路径已存在"
 library.scan_path_exists_msg:
   en: "Scan path '%{path}' already exists in this library"
-  zh-CN: "扫描路径 '%{path}' 已存在于该图书馆中"
+  zh-CN: "扫描路径 '%{path}' 已存在于该书籍库中"
 content.folder_path_exists:
   en: "Content folder path already exists in library"
-  zh-CN: "内容文件夹路径已存在于图书馆中"
+  zh-CN: "内容文件夹路径已存在于书籍库中"
 content.folder_path_exists_msg:
   en: "Content at path '%{path}' already exists in this library"
-  zh-CN: "路径为 '%{path}' 的内容已存在于该图书馆中"
+  zh-CN: "路径为 '%{path}' 的内容已存在于该书籍库中"
 content.chapter_path_exists:
   en: "Chapter file path already exists for content"
   zh-CN: "章节文件路径已存在于内容中"
@@ -348,6 +348,18 @@ archive.unsupported_comic_format:
 archive.no_images_found:
   en: "No images found in archive"
   zh-CN: "归档文件中未找到图片"
+archive.open_failed:
+  en: "Failed to open archive: %{error}"
+  zh-CN: "打开归档失败: %{error}"
+archive.read_entry_failed:
+  en: "Failed to read archive entry: %{error}"
+  zh-CN: "读取归档条目失败: %{error}"
+archive.epub_open_failed:
+  en: "Failed to open EPUB archive: %{error}"
+  zh-CN: "打开 EPUB 归档失败: %{error}"
+archive.chapter_not_found_in_epub:
+  en: "Resource not found in EPUB: %{file}"
+  zh-CN: "EPUB 中未找到资源: %{file}"
 archive.zip_open_failed:
   en: "Failed to open ZIP archive: %{error}"
   zh-CN: "打开 ZIP 归档失败: %{error}"
@@ -360,18 +372,6 @@ archive.file_not_found:
 archive.file_read_failed:
   en: "Failed to read file from archive: %{error}"
   zh-CN: "从归档文件中读取文件失败: %{error}"
-archive.rar_open_failed:
-  en: "Failed to open RAR archive: %{error}"
-  zh-CN: "打开 RAR 归档失败: %{error}"
-archive.rar_read_entries_failed:
-  en: "Failed to read RAR entries: %{error}"
-  zh-CN: "读取 RAR 条目失败: %{error}"
-archive.rar_extract_failed:
-  en: "Failed to extract RAR file: %{error}"
-  zh-CN: "解压 RAR 文件失败: %{error}"
-archive.rar_skip_failed:
-  en: "Failed to skip RAR entry: %{error}"
-  zh-CN: "跳过 RAR 条目失败: %{error}"
 archive.invalid_entry_index:
   en: "Invalid entry index: %{index}"
   zh-CN: "无效的条目索引: %{index}"

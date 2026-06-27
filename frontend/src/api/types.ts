@@ -204,10 +204,21 @@ export interface Chapter {
 }
 
 /**
- * Response for chapter text content.
+ * A single item in the EPUB spine (reading order).
  */
-export interface ChapterTextResponse {
-    text: string;
+export interface EpubSpineItem {
+    path: string;
+    mime_type: string;
+}
+
+/**
+ * A single item in the EPUB table of contents.
+ */
+export interface EpubTocItem {
+    title: string;
+    src: string;
+    playOrder?: number;
+    children: EpubTocItem[];
 }
 
 /**
